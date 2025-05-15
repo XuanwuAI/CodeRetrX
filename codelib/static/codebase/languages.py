@@ -137,7 +137,8 @@ def get_language(filepath: PathLike | str) -> Optional[IDXSupportedLanguage]:
 
 @lru_cache()
 def get_query(
-    language: IDXSupportedLanguage, query_type: Literal["tags", "tests"] = "tags"
+    language: IDXSupportedLanguage,
+    query_type: Literal["tags", "tests", "fine_imports"] = "tags",
 ) -> str:
     scm_loc = Path(__file__).parent / "queries" / query_type / f"{language}.scm"
     if not scm_loc.exists():

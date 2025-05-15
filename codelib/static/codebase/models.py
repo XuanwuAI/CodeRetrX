@@ -3,7 +3,15 @@ from typing import Dict, List, Literal, Optional, Self, Union
 
 from pydantic import BaseModel, Field
 
-from .codebase import ChunkType, Codebase, CodeChunk, CodeHunk, File, hunk_uuid
+from .codebase import (
+    ChunkType,
+    Codebase,
+    CodeChunk,
+    CodeHunk,
+    File,
+    hunk_uuid,
+    IDXSupportedTag,
+)
 
 FileType = Literal["source", "dependency"]
 
@@ -20,7 +28,7 @@ class CodeChunkModel(BaseModel):
     uuid: str
     content: Optional[str] = None
     ts_node_id: int  # Tree-sitter node ID
-    tag: Optional[str] = None
+    tag: Optional[IDXSupportedTag] = None
 
     @classmethod
     def from_chunk(

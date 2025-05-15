@@ -2,7 +2,7 @@ import uuid
 import re
 from collections import defaultdict
 from enum import Enum
-from logging import debug
+from logging import debug, info
 from os import PathLike
 from pathlib import Path
 from textwrap import dedent
@@ -11,18 +11,20 @@ from uuid import UUID
 
 from attrs import Factory, define
 from ignore import Walk
-from tree_sitter import Language as TSLanguage
+from tree_sitter import Language as TSLanguage, QueryError
 from tree_sitter import Node, Tree
 from tree_sitter import Parser as TSParser
 from tree_sitter_language_pack import get_language as get_ts_language
 from tree_sitter_language_pack import get_parser
 
 from .languages import (
+    FUNCLIKE_TAGS,
     IMPORT_TAGS,
     OBJLIKE_TAGS,
     PRIMARY_TAGS,
     REFERENCE_TAGS,
     IDXSupportedLanguage,
+    IDXSupportedTag,
     get_language,
     get_query,
     is_dependency,
@@ -136,7 +138,7 @@ class CodeChunk(CodeHunk):
     type: ChunkType
     ts_root: Node
     parent: Optional[Self] = None
-    tag: Optional[str] = None
+    tag: Optional[IDXSupportedTag] = None
     name: Optional[str] = None
 
     def to_json(self, include_content: bool = False):
@@ -166,7 +168,7 @@ class CodeChunk(CodeHunk):
         node: Node,
         src: "File",
         type: str = "primary",
-        tag: str | None = None,
+        tag: IDXSupportedTag | None = None,
         name: str | None = None,
     ):
         return cls(
@@ -558,11 +560,15 @@ class File:
 
 @define
 class Symbol:
-    id: str
     name: str
     type: Literal["function", "class", "dependency"]
     file: File
     chunk: CodeChunk
+    id: str = ""
+
+    def __attrs_post_init__(self):
+        if not self.id:
+            self.id = self.chunk.id
 
 
 @define
@@ -618,6 +624,12 @@ class Codebase:
     version: str = "v0.0.1"
     ignore_tests: bool = True
 
+    _chunks_initialized: bool = False
+    _symbols_initialized: bool = False
+    _keywords_initialized: bool = False
+    _dependencies_initialized: bool = False
+    _call_graph_initialized: bool = False
+
     @classmethod
     def from_json(cls, data: dict) -> "Codebase":
         """
@@ -662,11 +674,141 @@ class Codebase:
         return res
 
     def init_chunks(self) -> List[CodeChunk]:
+        if self._chunks_initialized:
+            return self.all_chunks
         files = list(self.source_files.values())
         for file in files:
             chunks = file.init_chunks()
             self.all_chunks.extend(chunks)
+        self._chunks_initialized = True
         return self.all_chunks
+
+    def _extract_symbols(self):
+        if self._symbols_initialized:
+            return self.symbols
+        for chunk in self.primary_chunks():
+            if symb_name := chunk.symbol_name():
+                if chunk.tag in OBJLIKE_TAGS:
+                    type = "class"
+                elif chunk.tag in FUNCLIKE_TAGS:
+                    type = "function"
+                else:
+                    continue
+                self.symbols.append(
+                    Symbol(
+                        name=symb_name,
+                        file=chunk.src,
+                        type=type,
+                        id=chunk.id,
+                        chunk=chunk,
+                    )
+                )
+        self._symbols_initialized = True
+        return self.symbols
+
+    def _extract_keywords(self):
+        """Extract keywords from source code files."""
+        if self._keywords_initialized:
+            return self.keywords
+        info("Starting keyword extraction from source code files...")
+
+        # Set to store unique keywords
+        unique_keywords: dict[str, Keyword] = {}
+
+        # Process each source file
+        for file_path, file in self.source_files.items():
+            try:
+                content = file.content
+                words = content.split()
+                for word in words:
+                    # only reserve words, numbers and '.', '-', '_', '/'
+                    normalized_word = re.sub(r"[^a-zA-Z0-9.-_/]", "", word.lower())
+
+                    # Skip words that are too short (less than 3 characters)
+                    if len(normalized_word) < 3:
+                        continue
+
+                    if normalized_word in unique_keywords:
+                        unique_keywords[normalized_word].referenced_by.append(file)
+                    else:
+                        unique_keywords[normalized_word] = Keyword(
+                            content=normalized_word, referenced_by=[file]
+                        )
+
+            except Exception as e:
+                info(f"Error extracting keywords from file {file_path}: {e}")
+
+        self.keywords = list(unique_keywords.values())
+        info(
+            f"Keyword extraction complete: found {len(self.keywords)} unique keywords across the codebase"
+        )
+        self._keywords_initialized = True
+        return self.keywords
+
+    def _extract_dependencies(self):
+        if self._dependencies_initialized:
+            return self.dependencies
+        dependency_symbols: List[Symbol] = []
+        for file in self.source_files.values():
+            ts = file.ts()
+            lang = ts.idx_language
+            try:
+                pattern = get_query(lang, "fine_imports")
+            except FileNotFoundError:
+                continue
+
+            query = ts.ts_language.query(pattern)
+            captures = query.captures(ts.tree.root_node)
+            for capture_name, nodes in captures.items():
+                if capture_name != "module":
+                    continue
+                for node in nodes:
+                    raw = node.text.decode() if node.text else ""
+                    # strip quotes, angle brackets, etc.
+                    module_name = raw.strip("'\"<>")
+                    # skip empty or local imports
+                    if not module_name or module_name.startswith((".", "/")):
+                        continue
+                    chunk = CodeChunk.from_ts(node, file, "import", name=module_name)
+                    sym = Symbol(
+                        name=module_name,
+                        type="dependency",
+                        file=file,
+                        chunk=chunk,
+                    )
+                    dependency_symbols.append(sym)
+        dep_map: Dict[str, List[File]] = defaultdict(list)
+        for sym in dependency_symbols:
+            dep_map[sym.name].append(sym.file)
+
+        self.dependencies = [
+            Dependency(id=str(uuid.uuid4()), name=name, imported_by=imported_by)
+            for name, imported_by in dep_map.items()
+        ]
+        self.symbols += dependency_symbols
+        self._dependencies_initialized = True
+        return self.dependencies
+
+    def _build_call_graph(self):
+        # TODO
+        pass
+
+    def init_all(
+        self,
+        symbols: bool = True,
+        keywords: bool = True,
+        dependencies: bool = True,
+        call_graph: bool = True,
+    ):
+        self.init_chunks()
+        if symbols:
+            self._extract_symbols()
+        if keywords:
+            self._extract_keywords()
+        if dependencies:
+            self._extract_dependencies()
+        if call_graph:
+            self._build_call_graph()
 
     def get_collection_name(self):
         return get_collection_name(self.url or self.id, self.version)
@@ -808,10 +950,17 @@ if __name__ == "__main__":
 
     if fp.is_dir():
         codebase = Codebase.new(id="tmp_codebase", dir=fp)
-        codebase.init_chunks()
+        codebase.init_all()
         print("Sample Chunks:")
         for chunk in codebase.primary_chunks()[:100]:
             print("-" * 25 + str(chunk.src.path) + "-" * 25)
             print(chunk.code())
+        for sym in codebase.symbols:
+            print(sym.name, sym.type)
+        for kw in codebase.keywords[:20]:
+            print(kw.content, [x.path for x in kw.referenced_by])
         print(f"Number of Chunks: {len(codebase.all_chunks)}")
         print(f"Number of Primary Chunks: {len(codebase.primary_chunks())}")
+        print(f"Number of Symbols: {len(codebase.symbols)}")
+        print(f"Number of Dependencies: {len(codebase.dependencies)}")
+        print(f"Number of Keywords: {len(codebase.keywords)}")
