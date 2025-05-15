@@ -19,6 +19,7 @@ from .models import (
     DependencyModel,
     CallGraphEdgeModel,
 )
+from .languages import IDXSupportedLanguage, IDXSupportedTag, BUILTIN_CRYPTO_LIBS
 
 __all__ = [
     "Codebase",
@@ -38,4 +39,7 @@ __all__ = [
     "CodeChunk",
     "ChunkType",
     "CodeHunk",
+    "IDXSupportedLanguage",
+    "IDXSupportedTag",
+    "BUILTIN_CRYPTO_LIBS",
 ]
