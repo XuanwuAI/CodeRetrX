@@ -11,6 +11,10 @@ from .codebase import (
     File,
     hunk_uuid,
     IDXSupportedTag,
+    Symbol,
+    Keyword,
+    Dependency,
+    CallGraphEdge,
 )
 
 FileType = Literal["source", "dependency"]
@@ -135,6 +139,126 @@ class FileModel(BaseModel):
         return file
 
 
+class SymbolModel(BaseModel):
+    name: str
+    type: Literal["function", "class", "dependency"]
+    file_path: str
+    chunk_id: str
+    id: str
+
+    @classmethod
+    def from_symbol(cls, symbol: Symbol) -> "SymbolModel":
+        return cls(
+            name=symbol.name,
+            type=symbol.type,
+            file_path=str(symbol.file.path),
+            chunk_id=symbol.chunk.id,
+            id=symbol.id,
+        )
+
+    def to_symbol(self, codebase: Codebase) -> Symbol:
+        file = codebase.get_file(self.file_path)
+        if file is None:
+            raise ValueError(f"File not found: {self.file_path}")
+        chunk = next((c for c in file.chunks if c.id == self.chunk_id), None)
+        if chunk is None:
+            raise ValueError(f"Chunk not found: {self.chunk_id}")
+        return Symbol(
+            name=self.name,
+            type=self.type,
+            file=file,
+            chunk=chunk,
+            id=self.id,
+        )
+
+
+class KeywordModel(BaseModel):
+    content: str
+    referenced_by: List[str]  # List of file paths
+
+    @classmethod
+    def from_keyword(cls, keyword: Keyword) -> "KeywordModel":
+        return cls(
+            content=keyword.content,
+            referenced_by=[str(f.path) for f in keyword.referenced_by],
+        )
+
+    def to_keyword(self, codebase: Codebase) -> Keyword:
+        files = []
+        for path in self.referenced_by:
+            file = codebase.get_file(path)
+            if file is None:
+                raise ValueError(f"File not found: {path}")
+            files.append(file)
+        return Keyword(
+            content=self.content,
+            referenced_by=files,
+        )
+
+
+class DependencyModel(BaseModel):
+    id: str
+    name: str
+    imported_by: List[str]  # List of file paths
+
+    @classmethod
+    def from_dependency(cls, dependency: Dependency) -> "DependencyModel":
+        return cls(
+            id=dependency.id,
+            name=dependency.name,
+            imported_by=[str(f.path) for f in dependency.imported_by],
+        )
+
+    def to_dependency(self, codebase: Codebase) -> Dependency:
+        files = []
+        for path in self.imported_by:
+            file = codebase.get_file(path)
+            if file is None:
+                raise ValueError(f"File not found: {path}")
+            files.append(file)
+        return Dependency(
+            id=self.id,
+            name=self.name,
+            imported_by=files,
+        )
+
+
+class CallGraphEdgeModel(BaseModel):
+    file_path: str
+    from_id: str
+    from_name: str
+    to_id: str
+    to_name: str
+    line: int
+    id: str
+
+    @classmethod
+    def from_edge(cls, edge: CallGraphEdge) -> "CallGraphEdgeModel":
+        return cls(
+            file_path=str(edge.file.path),
+            from_id=edge.from_id,
+            from_name=edge.from_name,
+            to_id=edge.to_id,
+            to_name=edge.to_name,
+            line=edge.line,
+            id=edge.id,
+        )
+
+    def to_edge(self, codebase: Codebase) -> CallGraphEdge:
+        file = codebase.get_file(self.file_path)
+        if file is None:
+            raise ValueError(f"File not found: {self.file_path}")
+        return CallGraphEdge(
+            file=file,
+            from_id=self.from_id,
+            from_name=self.from_name,
+            to_id=self.to_id,
+            to_name=self.to_name,
+            line=self.line,
+            id=self.id,
+        )
+
+
 class CodebaseModel(BaseModel):
     id: str
     url: Optional[str] = None
@@ -143,6 +267,10 @@ class CodebaseModel(BaseModel):
     dependency_files: Dict[str, FileModel]
     version: str = "v0.0.1"
     ignore_tests: bool = True
+    symbols: List[SymbolModel] = []
+    keywords: List[KeywordModel] = []
+    dependencies: List[DependencyModel] = []
+    call_graph_edges: List[CallGraphEdgeModel] = []
 
     @classmethod
     def from_codebase(
@@ -162,6 +290,12 @@ class CodebaseModel(BaseModel):
             },
             version=codebase.version,
             ignore_tests=codebase.ignore_tests,
+            symbols=[SymbolModel.from_symbol(s) for s in codebase.symbols],
+            keywords=[KeywordModel.from_keyword(k) for k in codebase.keywords],
+            dependencies=[
+                DependencyModel.from_dependency(d) for d in codebase.dependencies
+            ],
+            call_graph_edges=[],  # TODO: Implement when call graph is built
         )
 
     def to_codebase(self) -> Codebase:
@@ -186,5 +320,11 @@ class CodebaseModel(BaseModel):
         codebase.all_chunks = []
         for file in codebase.source_files.values():
             codebase.all_chunks.extend(file.chunks)
+
+        # Convert symbols, keywords, and dependencies
+        codebase.symbols = [s.to_symbol(codebase) for s in self.symbols]
+        codebase.keywords = [k.to_keyword(codebase) for k in self.keywords]
+        codebase.dependencies = [d.to_dependency(codebase) for d in self.dependencies]
+        # TODO: Convert call graph edges when implemented
 
         return codebase

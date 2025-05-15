@@ -6,7 +6,17 @@ from logging import debug, info
 from os import PathLike
 from pathlib import Path
 from textwrap import dedent
-from typing import Dict, Iterable, List, Literal, Optional, Self, Set, Tuple, TypeVar
+from typing import (
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Self,
+    Set,
+    Tuple,
+    TypeVar,
+)
 from uuid import UUID
 
 from attrs import Factory, define
@@ -570,11 +580,35 @@ class Symbol:
         if not self.id:
             self.id = self.chunk.id
 
+    def to_json(self):
+        from .models import SymbolModel
+
+        return SymbolModel.from_symbol(self).model_dump()
+
+    @classmethod
+    def from_json(cls, data: dict, codebase: "Codebase") -> "Symbol":
+        from .models import SymbolModel
+
+        model = SymbolModel.model_validate(data)
+        return model.to_symbol(codebase)
+
 
 @define
 class Keyword:
     content: str
     referenced_by: List[File] = Factory(list)
+
+    def to_json(self):
+        from .models import KeywordModel
+
+        return KeywordModel.from_keyword(self).model_dump()
+
+    @classmethod
+    def from_json(cls, data: dict, codebase: "Codebase") -> "Keyword":
+        from .models import KeywordModel
+
+        model = KeywordModel.model_validate(data)
+        return model.to_keyword(codebase)
 
 
 @define
@@ -582,6 +616,18 @@ class Dependency:
     id: str
     name: str
     imported_by: List[File] = Factory(list)
+
+    def to_json(self):
+        from .models import DependencyModel
+
+        return DependencyModel.from_dependency(self).model_dump()
+
+    @classmethod
+    def from_json(cls, data: dict, codebase: "Codebase") -> "Dependency":
+        from .models import DependencyModel
+
+        model = DependencyModel.model_validate(data)
+        return model.to_dependency(codebase)
 
 
 @define
@@ -602,6 +648,18 @@ class CallGraphEdge:
     def __attrs_post_init__(self):
         if not self.id:
             self.id = self.uuid()
+
+    def to_json(self):
+        from .models import CallGraphEdgeModel
+
+        return CallGraphEdgeModel.from_edge(self).model_dump()
+
+    @classmethod
+    def from_json(cls, data: dict, codebase: "Codebase") -> "CallGraphEdge":
+        from .models import CallGraphEdgeModel
+
+        model = CallGraphEdgeModel.model_validate(data)
+        return model.to_edge(codebase)
 
 
 CodeElement = TypeVar(
