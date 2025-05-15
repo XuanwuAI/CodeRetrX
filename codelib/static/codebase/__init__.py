@@ -7,6 +7,9 @@ from .codebase import (
     Dependency,
     CallGraphEdge,
     CodeElement,
+    CodeChunk,
+    ChunkType,
+    CodeHunk,
 )
 from .models import (
     CodebaseModel,
@@ -32,4 +35,7 @@ __all__ = [
     "DependencyModel",
     "CallGraphEdgeModel",
     "CodeElement",
+    "CodeChunk",
+    "ChunkType",
+    "CodeHunk",
 ]

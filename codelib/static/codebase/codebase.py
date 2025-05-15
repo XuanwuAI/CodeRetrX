@@ -899,7 +899,7 @@ class Codebase:
         langs: List[IDXSupportedLanguage] | None = None,
         search_path: PathLike | str | None = None,
         ignore_set: Set[CodeChunk] | None = None,
-    ):
+    ) -> List["GrepChunkResult"]:
         """
         Use ripgrep to search for patterns in the codebase and return matching chunks.
 
@@ -932,6 +932,7 @@ class Codebase:
         for result in results:
             debug(f"RG: {result.file_path} {result.line_number}")
             grouped_by_file[str(result.file_path)].append(result)
+        grep_results = []
         for file_path, results in grouped_by_file.items():
             file = self.source_files.get(file_path)
             if file is None:
@@ -949,7 +950,10 @@ class Codebase:
                     if chunk.start_line <= res.line_number <= chunk.end_line:
                         matched_symbols.update(res.matches)
                 if matched_symbols:
-                    yield GrepChunkResult(chunk=chunk, symbols=matched_symbols)
+                    grep_results.append(
+                        GrepChunkResult(chunk=chunk, symbols=matched_symbols)
+                    )
+        return grep_results
 
     def get_file(self, path: PathLike | str) -> File | None:
         return self.source_files.get(str(path)) or self.dependency_files.get(str(path))
