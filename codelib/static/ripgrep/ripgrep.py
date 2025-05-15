@@ -265,6 +265,7 @@ async def ripgrep_search(
     case_sensitive: bool = True,
     include_file_pattern: Optional[str] = None,
     exclude_file_pattern: Optional[str] = None,
+    search_arg: Optional[str] = None,
 ) -> List[GrepMatchResult]:
     """
     Search for regexes in files using ripgrep.
@@ -321,7 +322,7 @@ async def ripgrep_search(
         # Add search directory
         if extra_argvs:
             cmd.extend(extra_argvs)
-        cmd.append(".")
+        cmd.append(search_arg or ".")
 
         # Run the command asynchronously
         proc = await asyncio.create_subprocess_exec(
@@ -356,6 +357,7 @@ async def ripgrep_search_symbols(
     case_sensitive: bool = True,
     include_file_pattern: Optional[str] = None,
     exclude_file_pattern: Optional[str] = None,
+    search_arg: Optional[str] = None,
 ) -> List[GrepMatchResult]:
     return await ripgrep_search(
         search_dir,
@@ -364,6 +366,7 @@ async def ripgrep_search_symbols(
         case_sensitive,
         include_file_pattern,
         exclude_file_pattern,
+        search_arg,
     )
 
 

@@ -3,6 +3,7 @@ from .ripgrep import (
     ripgrep_search,
     ripgrep_search_symbols,
     ripgrep_raw,
+    GrepMatchResult,
 )
 
 __all__ = [
@@ -10,4 +11,5 @@ __all__ = [
     "ripgrep_search",
     "ripgrep_search_symbols",
     "ripgrep_raw",
+    "GrepMatchResult",
 ]

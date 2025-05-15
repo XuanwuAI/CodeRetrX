@@ -1,12 +1,20 @@
 [project]
 name = "codelib"
 version = "0.1.0"
-description = "Add your description here"
+description = "Library for Code Analysis via Static Analysis and LLMs"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "attrs>=25.3.0",
     "httpx>=0.28.1",
+    "ignore-python>=0.2.0",
     "pydantic>=2.11.4",
     "tree-sitter>=0.24.0",
     "tree-sitter-language-pack>=0.7.3",
+]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.2.0",
+    "rich>=14.0.0",
 ]
