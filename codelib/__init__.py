@@ -1,5 +1,4 @@
-import retrieval
-import static
+from . import retrieval, static
 from static import Codebase
 
 __all__ = ["Codebase", "retrieval", "static"]
