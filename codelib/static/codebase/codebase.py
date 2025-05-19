@@ -706,7 +706,7 @@ class Codebase:
         url: Optional[str] = None,
         lazy: bool = False,
         version: str = "v0.0.1",
-    ) -> "Codebase":
+    ) -> Self:
         dir = Path(dir)
         res = cls(
             id=id,
