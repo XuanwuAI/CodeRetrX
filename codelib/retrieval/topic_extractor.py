@@ -25,7 +25,7 @@ class TopicExtractor(ABC):
         info(f"Performing similarity search with topic: '{topic}'")
 
         # Perform similarity search using the extracted topic
-        results = codebase.similarity_search(
+        results = await codebase.similarity_search(
             target_types=target_types, query=topic, threshold=threshold, top_k=top_k
         )
 

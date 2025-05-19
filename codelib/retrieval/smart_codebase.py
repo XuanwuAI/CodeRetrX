@@ -53,7 +53,7 @@ class SmartCodebase(Codebase, ABC):
         pass
 
     @abstractmethod
-    def similarity_search(
+    async def similarity_search(
         self,
         target_types: List[SimilaritySearchTargetType],
         query: str,

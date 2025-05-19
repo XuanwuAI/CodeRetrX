@@ -182,7 +182,7 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElement], ABC):
                 )
 
             # Perform vector similarity search with the extracted topic
-            elements = codebase.similarity_search(
+            elements = await codebase.similarity_search(
                 target_types=self.get_target_types_for_vector(),
                 query=topic,
                 threshold=0,
@@ -288,7 +288,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                 )
 
             # Step 1: Perform initial filtering using vector-based method with the extracted topic
-            elements = codebase.similarity_search(
+            elements = await codebase.similarity_search(
                 target_types=self.get_target_types_for_vector(),
                 query=topic,
                 threshold=0,
