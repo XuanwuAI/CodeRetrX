@@ -567,6 +567,9 @@ class File:
     def __hash__(self):
         return hash((self.codebase.id, self.path))
 
+    def __repr__(self):
+        return f"File(path='{self.path}', type='{self.file_type}', lazy={self.lazy})"
+
 
 @define
 class Symbol:
@@ -579,6 +582,9 @@ class Symbol:
     def __attrs_post_init__(self):
         if not self.id:
             self.id = self.chunk.id
+
+    def __repr__(self):
+        return f"Symbol(name='{self.name}', type='{self.type}', id='{self.id}', file='{self.file.path}')"
 
     def to_json(self):
         from .models import SymbolModel
@@ -598,6 +604,9 @@ class Keyword:
     content: str
     referenced_by: List[File] = Factory(list)
 
+    def __repr__(self):
+        return f"Keyword(content='{self.content}', referenced_by_count={len(self.referenced_by)})"
+
     def to_json(self):
         from .models import KeywordModel
 
@@ -616,6 +625,9 @@ class Dependency:
     id: str
     name: str
     imported_by: List[File] = Factory(list)
+
+    def __repr__(self):
+        return f"Dependency(name='{self.name}', id='{self.id}', imported_by_count={len(self.imported_by)})"
 
     def to_json(self):
         from .models import DependencyModel
@@ -639,6 +651,9 @@ class CallGraphEdge:
     to_name: str
     line: int
     id: str = ""
+
+    def __repr__(self):
+        return f"CallGraphEdge(from='{self.from_name}', to='{self.to_name}', line={self.line}, id='{self.id}')"
 
     def uuid(self) -> str:
         namespace = uuid.NAMESPACE_OID
