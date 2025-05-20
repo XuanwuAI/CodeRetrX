@@ -61,19 +61,19 @@ class RecallStrategyExecutor(ABC):
         filtered_elements = []
         for element in elements:
             if isinstance(element, Symbol):
-                file_path = rel_path(element.file.path, codebase.dir)
+                file_path = str(element.file.path)
                 if any(file_path.startswith(subdir) for subdir in subdirs_or_files):
                     filtered_elements.append(element)
             elif isinstance(element, Keyword):
-                for path in element.referenced_by:
-                    relative_path = rel_path(path.path, codebase.dir)
+                for ref_file in element.referenced_by:
+                    relative_path = str(ref_file.path)
                     if any(
                         relative_path.startswith(subdir) for subdir in subdirs_or_files
                     ):
                         filtered_elements.append(element)
                         break
             elif isinstance(element, File):
-                file_path = rel_path(element.path, codebase.dir)
+                file_path = str(element.path)
                 if any(file_path.startswith(subdir) for subdir in subdirs_or_files):
                     filtered_elements.append(element)
 
@@ -362,7 +362,7 @@ class FilterFilenameByLLMStrategy(FilterByLLMStrategy[File]):
 
     @override
     def extract_file_paths(self, elements: List[File], codebase: Codebase) -> List[str]:
-        return [rel_path(file.path, codebase.dir) for file in elements]
+        return [str(file.path) for file in elements]
 
     @override
     async def execute(
@@ -398,7 +398,7 @@ class FilterSymbolByLLMStrategy(FilterByLLMStrategy[Symbol]):
     def extract_file_paths(
         self, elements: List[Symbol], codebase: Codebase
     ) -> List[str]:
-        return [rel_path(symbol.file.path, codebase.dir) for symbol in elements]
+        return [str(symbol.file.path) for symbol in elements]
 
 
 class FilterKeywordByVectorStrategy(FilterByVectorStrategy[Keyword]):
@@ -425,11 +425,9 @@ class FilterKeywordByVectorStrategy(FilterByVectorStrategy[Keyword]):
         referenced_paths = set()
         for item in elements:
             if isinstance(item, Keyword) and item.referenced_by:
-                for path in item.referenced_by:
-                    if rel_path(path.path, codebase.dir).startswith(
-                        tuple(subdirs_or_files)
-                    ):
-                        referenced_paths.add(str(path.path))
+                for ref_file in item.referenced_by:
+                    if str(ref_file.path).startswith(tuple(subdirs_or_files)):
+                        referenced_paths.add(str(ref_file.path))
         return list(referenced_paths)
 
 
@@ -457,7 +455,7 @@ class FilterSymbolByVectorStrategy(FilterByVectorStrategy[Symbol]):
         file_paths = []
         for symbol in elements:
             if isinstance(symbol, Symbol):
-                file_path = rel_path(symbol.file.path, codebase.dir)
+                file_path = str(symbol.file.path)
                 if file_path.startswith(tuple(subdirs_or_files)):
                     file_paths.append(file_path)
         return list(set(file_paths))
@@ -496,10 +494,11 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
             if isinstance(element, Keyword):
                 # If subdirs_or_files is provided and codebase is available, filter by subdirs
                 if subdirs_or_files and codebase:
-                    for path in element.referenced_by:
-                        # Get the relative path from the codebase directory
-                        rpath = rel_path(path.path, codebase.dir)
-                        if any(rpath.startswith(subdir) for subdir in subdirs_or_files):
+                    for ref_file in element.referenced_by:
+                        if any(
+                            str(ref_file.path).startswith(subdir)
+                            for subdir in subdirs_or_files
+                        ):
                             keyword_elements.append(element)
                             break
                 else:
@@ -516,11 +515,9 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         referenced_paths = set()
         for keyword in filtered_elements:
             if isinstance(keyword, Keyword) and keyword.referenced_by:
-                for path in keyword.referenced_by:
-                    if rel_path(path.path, codebase.dir).startswith(
-                        tuple(subdirs_or_files)
-                    ):
-                        referenced_paths.add(str(path.path))
+                for ref_file in keyword.referenced_by:
+                    if str(ref_file.path).startswith(tuple(subdirs_or_files)):
+                        referenced_paths.add(str(ref_file.path))
         return list(referenced_paths)
 
     @override
@@ -577,7 +574,7 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
                 # If subdirs_or_files is provided and codebase is available, filter by subdirs
                 if subdirs_or_files and codebase:
                     # Get the relative path from the codebase directory
-                    rpath = rel_path(element.file.path, codebase.dir)
+                    rpath = str(element.file.path)
                     if any(rpath.startswith(subdir) for subdir in subdirs_or_files):
                         symbol_elements.append(element)
                 else:
@@ -594,7 +591,7 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         file_paths = []
         for symbol in filtered_elements:
             if isinstance(symbol, Symbol):
-                file_path = rel_path(symbol.file.path, codebase.dir)
+                file_path = str(symbol.file.path)
                 if file_path.startswith(tuple(subdirs_or_files)):
                     file_paths.append(file_path)
         return file_paths
@@ -643,7 +640,7 @@ class StrategyFactory:
 
 
 async def _multi_strategy_code_recall(
-    codebase,
+    codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
     granularity: LLMMapFilterTargetType,
@@ -700,10 +697,8 @@ async def _multi_strategy_code_recall(
         # Add file paths from symbols to extended_subdirs_or_files
         for symbol in filtered_symbols:
             for subdir in subdirs_or_files:
-                if str(symbol.file).startswith(str(codebase.dir / subdir)):
-                    extended_subdirs_or_files.add(
-                        str(symbol.file.relative_to(codebase.dir))
-                    )
+                if str(symbol.file.path).startswith(subdir):
+                    extended_subdirs_or_files.add(str(symbol.file.path))
                     break
     elif mode == "custom" and custom_strategies:
         strategies_to_run = custom_strategies

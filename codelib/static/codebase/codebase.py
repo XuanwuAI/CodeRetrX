@@ -140,6 +140,9 @@ class CodeHunk:
     def __rich__(self):
         return self.codeblock()
 
+    def __len__(self):
+        return len(self.code())
+
 
 @define
 class CodeChunk(CodeHunk):
