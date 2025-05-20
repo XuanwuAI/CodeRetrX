@@ -66,8 +66,10 @@ class RecallStrategyExecutor(ABC):
                     filtered_elements.append(element)
             elif isinstance(element, Keyword):
                 for path in element.referenced_by:
-                    rel_path = rel_path(path, codebase.dir)
-                    if any(rel_path.startswith(subdir) for subdir in subdirs_or_files):
+                    relative_path = rel_path(path.path, codebase.dir)
+                    if any(
+                        relative_path.startswith(subdir) for subdir in subdirs_or_files
+                    ):
                         filtered_elements.append(element)
                         break
             elif isinstance(element, File):

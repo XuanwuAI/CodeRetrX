@@ -737,14 +737,14 @@ class Codebase:
             path = entry.path()
             if not path.is_file():
                 continue
-            rel_path = path.relative_to(dir)
+            relative_path = path.relative_to(dir)
             if is_sourcecode(path):
-                res.source_files[str(rel_path)] = File.new(
-                    path=rel_path, codebase=res, file_type="source", lazy=lazy
+                res.source_files[str(relative_path)] = File.new(
+                    path=relative_path, codebase=res, file_type="source", lazy=lazy
                 )
             if is_dependency(path):
-                res.dependency_files[str(rel_path)] = File.new(
-                    path=rel_path, codebase=res, file_type="dependency", lazy=lazy
+                res.dependency_files[str(relative_path)] = File.new(
+                    path=relative_path, codebase=res, file_type="dependency", lazy=lazy
                 )
         return res
 
