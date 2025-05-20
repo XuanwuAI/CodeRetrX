@@ -1,2 +1,8 @@
 ;; All use patterns
-(use_declaration path: (_) @module)
+(
+  (use_declaration
+    argument: (_
+      path: (identifier) @module
+    )
+  )
+)
