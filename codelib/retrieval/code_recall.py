@@ -13,6 +13,7 @@ from typing import (
     TypeVar,
     Generic,
     Optional,
+    override,
 )
 import logging
 import os
@@ -46,6 +47,9 @@ def rel_path(a: PathLike, b: PathLike) -> str:
 
 class RecallStrategyExecutor(ABC):
     """Base class for recall strategy executors."""
+
+    def __init__(self, topic_extractor: Optional[TopicExtractor] = None):
+        self.topic_extractor = topic_extractor
 
     def filter_elements_by_subdirs(
         self, elements: List[Any], codebase: Codebase, subdirs_or_files: List[str]
@@ -161,7 +165,6 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElement], ABC):
     async def execute(
         self,
         codebase: Codebase,
-        topic_extractor: TopicExtractor,
         prompt: str,
         subdirs_or_files: List[str],
     ) -> Tuple[List[str], List[Any]]:
@@ -169,7 +172,11 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElement], ABC):
         logger.info(f"Using {strategy_name} strategy")
         try:
             # Extract topic from input text before performing vector similarity search
-            topic = await topic_extractor.extract_topic(input_text=prompt)
+            topic = (
+                await self.topic_extractor.extract_topic(input_text=prompt)
+                if self.topic_extractor
+                else prompt
+            )
 
             if not topic:
                 logger.warning(
@@ -267,7 +274,6 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     async def execute(
         self,
         codebase: Codebase,
-        topic_extractor: TopicExtractor,
         prompt: str,
         subdirs_or_files: List[str],
     ) -> Tuple[List[str], List[Any]]:
@@ -275,7 +281,11 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         logger.info(f"Using {strategy_name} strategy")
         try:
             # Extract topic from input text before performing vector similarity search
-            topic = await topic_extractor.extract_topic(input_text=prompt)
+            topic = (
+                await self.topic_extractor.extract_topic(input_text=prompt)
+                if self.topic_extractor
+                else prompt
+            )
 
             if not topic:
                 logger.warning(
@@ -340,15 +350,19 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
 class FilterFilenameByLLMStrategy(FilterByLLMStrategy[File]):
     """Strategy to filter filenames using LLM."""
 
+    @override
     def get_strategy_name(self) -> str:
         return "FILTER_FILENAME_BY_LLM"
 
+    @override
     def get_target_type(self) -> LLMMapFilterTargetType:
         return "file_name"
 
+    @override
     def extract_file_paths(self, elements: List[File], codebase: Codebase) -> List[str]:
         return [rel_path(file.path, codebase.dir) for file in elements]
 
+    @override
     async def execute(
         self, codebase: Codebase, prompt: str, subdirs_or_files: List[str]
     ) -> Tuple[List[str], List[Any]]:
@@ -370,12 +384,15 @@ class FilterSymbolByLLMStrategy(FilterByLLMStrategy[Symbol]):
 
     name: str = "FILTER_SYMBOL_BY_LLM"
 
+    @override
     def get_strategy_name(self) -> str:
         return self.name
 
+    @override
     def get_target_type(self) -> LLMMapFilterTargetType:
         return "symbol_name"
 
+    @override
     def extract_file_paths(
         self, elements: List[Symbol], codebase: Codebase
     ) -> List[str]:
@@ -387,15 +404,19 @@ class FilterKeywordByVectorStrategy(FilterByVectorStrategy[Keyword]):
 
     name: str = "FILTER_KEYWORD_BY_VECTOR"
 
+    @override
     def get_strategy_name(self) -> str:
         return self.name
 
+    @override
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
         return ["keyword"]
 
+    @override
     def get_collection_size(self, codebase: Codebase) -> int:
         return len(codebase.keywords)
 
+    @override
     def extract_file_paths(
         self, elements: List[Keyword], codebase: Codebase, subdirs_or_files: List[str]
     ) -> List[str]:
@@ -415,15 +436,19 @@ class FilterSymbolByVectorStrategy(FilterByVectorStrategy[Symbol]):
 
     name: str = "FILTER_SYMBOL_BY_VECTOR"
 
+    @override
     def get_strategy_name(self) -> str:
         return self.name
 
+    @override
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
         return ["symbol_name"]
 
+    @override
     def get_collection_size(self, codebase: Codebase) -> int:
         return len(codebase.symbols)
 
+    @override
     def extract_file_paths(
         self, elements: List[Symbol], codebase: Codebase, subdirs_or_files: List[str]
     ) -> List[str]:
@@ -441,18 +466,23 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
 
     name: str = "FILTER_KEYWORD_BY_VECTOR_AND_LLM"
 
+    @override
     def get_strategy_name(self) -> str:
         return self.name
 
+    @override
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
         return ["keyword"]
 
+    @override
     def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
         return "keyword"
 
+    @override
     def get_collection_size(self, codebase: Codebase) -> int:
         return len(codebase.keywords)
 
+    @override
     def filter_elements(
         self,
         elements: List[Any],
@@ -474,6 +504,7 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
                     keyword_elements.append(element)
         return keyword_elements
 
+    @override
     def collect_file_paths(
         self,
         filtered_elements: List[Any],
@@ -490,10 +521,10 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
                         referenced_paths.add(str(path.path))
         return list(referenced_paths)
 
+    @override
     async def execute(
         self,
         codebase: Codebase,
-        topic_extractor: TopicExtractor,
         prompt: str,
         subdirs_or_files: List[str],
     ) -> Tuple[List[str], List[Any]]:
@@ -507,9 +538,7 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         Files with matching keywords will proceed to deeper analysis in the content filter (content_criteria) at a later stage (not in this run). 
         </note>
         """
-        return await super().execute(
-            codebase, topic_extractor, prompt, subdirs_or_files
-        )
+        return await super().execute(codebase, prompt, subdirs_or_files)
 
 
 class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
@@ -517,18 +546,23 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
 
     name: str = "FILTER_SYMBOL_BY_VECTOR_AND_LLM"
 
+    @override
     def get_strategy_name(self) -> str:
         return self.name
 
+    @override
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
         return ["symbol_name"]
 
+    @override
     def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
         return "symbol_name"
 
+    @override
     def get_collection_size(self, codebase: Codebase) -> int:
         return len(codebase.symbols)
 
+    @override
     def filter_elements(
         self,
         elements: List[Any],
@@ -548,6 +582,7 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
                     symbol_elements.append(element)
         return symbol_elements
 
+    @override
     def collect_file_paths(
         self,
         filtered_elements: List[Any],
@@ -562,10 +597,10 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
                     file_paths.append(file_path)
         return file_paths
 
+    @override
     async def execute(
         self,
         codebase: Codebase,
-        topic_extractor: TopicExtractor,
         prompt: str,
         subdirs_or_files: List[str],
     ) -> Tuple[List[str], List[Any]]:
@@ -579,30 +614,30 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         Code chunks with matching names will proceed to deeper analysis in the content filter (content_criteria) at a later stage (not in this run). 
         </note>
         """
-        return await super().execute(
-            codebase, topic_extractor, prompt, subdirs_or_files
-        )
+        return await super().execute(codebase, prompt, subdirs_or_files)
 
 
 class StrategyFactory:
     """Factory for creating strategy executors."""
 
-    @staticmethod
-    def create_strategy(strategy: RecallStrategy) -> RecallStrategyExecutor:
+    def __init__(self, topic_extractor: Optional[TopicExtractor] = None):
+        self.topic_extractor = topic_extractor
+
+    def create_strategy(self, strategy: RecallStrategy) -> RecallStrategyExecutor:
         """Create a strategy executor based on the strategy enum."""
         strategy_map = {
-            RecallStrategy.FILTER_FILENAME_BY_LLM: FilterFilenameByLLMStrategy(),
-            RecallStrategy.FILTER_KEYWORD_BY_VECTOR: FilterKeywordByVectorStrategy(),
-            RecallStrategy.FILTER_SYMBOL_BY_VECTOR: FilterSymbolByVectorStrategy(),
-            RecallStrategy.FILTER_SYMBOL_BY_LLM: FilterSymbolByLLMStrategy(),
-            RecallStrategy.FILTER_KEYWORD_BY_VECTOR_AND_LLM: FilterKeywordByVectorAndLLMStrategy(),
-            RecallStrategy.FILTER_SYMBOL_BY_VECTOR_AND_LLM: FilterSymbolByVectorAndLLMStrategy(),
+            RecallStrategy.FILTER_FILENAME_BY_LLM: FilterFilenameByLLMStrategy,
+            RecallStrategy.FILTER_KEYWORD_BY_VECTOR: FilterKeywordByVectorStrategy,
+            RecallStrategy.FILTER_SYMBOL_BY_VECTOR: FilterSymbolByVectorStrategy,
+            RecallStrategy.FILTER_SYMBOL_BY_LLM: FilterSymbolByLLMStrategy,
+            RecallStrategy.FILTER_KEYWORD_BY_VECTOR_AND_LLM: FilterKeywordByVectorAndLLMStrategy,
+            RecallStrategy.FILTER_SYMBOL_BY_VECTOR_AND_LLM: FilterSymbolByVectorAndLLMStrategy,
         }
 
         if strategy not in strategy_map:
             raise ValueError(f"Unknown strategy: {strategy}")
 
-        return strategy_map[strategy]
+        return strategy_map[strategy](topic_extractor=self.topic_extractor)
 
 
 async def _multi_strategy_code_recall(
@@ -613,6 +648,7 @@ async def _multi_strategy_code_recall(
     mode: str,
     llm_method: Callable,
     custom_strategies: List[RecallStrategy] = [],
+    topic_extractor: Optional[TopicExtractor] = None,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     """
     Process code elements based on the specified prompt and mode.
@@ -628,6 +664,7 @@ async def _multi_strategy_code_recall(
             - "custom": Uses the provided custom_strategies
         custom_strategies: List of strategies to run in custom mode
         llm_method: The LLM method to call (codebase.llm_filter or codebase.llm_map)
+        topic_extractor: Optional TopicExtractor instance for vector-based strategies
 
     Returns:
         Tuple of (elements, llm_results)
@@ -680,9 +717,10 @@ async def _multi_strategy_code_recall(
 
     # Execute each strategy in sequence
     if mode != "precise":
+        strategy_factory = StrategyFactory(topic_extractor=topic_extractor)
         for strategy in strategies_to_run:
             try:
-                strategy_executor = StrategyFactory.create_strategy(strategy)
+                strategy_executor = strategy_factory.create_strategy(strategy)
                 file_paths, strategy_llm_results = await strategy_executor.execute(
                     codebase, prompt, subdirs_or_files
                 )
@@ -724,6 +762,7 @@ async def multi_strategy_code_mapping(
     granularity: LLMMapFilterTargetType,
     mode: Literal["fast", "balance", "precise", "custom"],
     custom_strategies: List[RecallStrategy] = [],
+    topic_extractor: Optional[TopicExtractor] = None,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     return await _multi_strategy_code_recall(
         codebase,
@@ -733,6 +772,7 @@ async def multi_strategy_code_mapping(
         mode,
         codebase.llm_map,
         custom_strategies,
+        topic_extractor,
     )
 
 
@@ -743,6 +783,7 @@ async def multi_strategy_code_filter(
     granularity: LLMMapFilterTargetType,
     mode: Literal["fast", "balance", "precise", "custom"],
     custom_strategies: List[RecallStrategy] = [],
+    topic_extractor: Optional[TopicExtractor] = None,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     return await _multi_strategy_code_recall(
         codebase,
@@ -752,4 +793,5 @@ async def multi_strategy_code_filter(
         mode,
         codebase.llm_filter,
         custom_strategies,
+        topic_extractor,
     )
