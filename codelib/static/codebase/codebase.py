@@ -721,6 +721,7 @@ class Codebase:
         url: Optional[str] = None,
         lazy: bool = False,
         version: str = "v0.0.1",
+        ignore_tests: bool = True,
     ) -> Self:
         dir = Path(dir)
         res = cls(
@@ -730,6 +731,7 @@ class Codebase:
             dependency_files={},
             version=version,
             url=url,
+            ignore_tests=ignore_tests,
         )
         for entry in Walk(dir):
             path = entry.path()

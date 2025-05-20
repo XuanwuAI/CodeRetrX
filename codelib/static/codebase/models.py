@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Self, Union
 
 from pydantic import BaseModel, Field
+from logging import warn
 
 from .codebase import (
     ChunkType,
@@ -299,32 +300,29 @@ class CodebaseModel(BaseModel):
         )
 
     def to_codebase(self) -> Codebase:
-        codebase = Codebase(
+        # NOTE: We rely on the fact that the codebase initialization process is deterministic
+        codebase = Codebase.new(
             id=self.id,
             dir=Path(self.dir),
-            source_files={},
-            dependency_files={},
             version=self.version,
             ignore_tests=self.ignore_tests,
         )
-
-        # Convert source files
-        for path_str, file_model in self.source_files.items():
-            codebase.source_files[path_str] = file_model.to_file(codebase)
-
-        # Convert dependency files
-        for path_str, file_model in self.dependency_files.items():
-            codebase.dependency_files[path_str] = file_model.to_file(codebase)
-
-        # Collect all chunks
-        codebase.all_chunks = []
-        for file in codebase.source_files.values():
-            codebase.all_chunks.extend(file.chunks)
-
-        # Convert symbols, keywords, and dependencies
-        codebase.symbols = [s.to_symbol(codebase) for s in self.symbols]
-        codebase.keywords = [k.to_keyword(codebase) for k in self.keywords]
-        codebase.dependencies = [d.to_dependency(codebase) for d in self.dependencies]
-        # TODO: Convert call graph edges when implemented
-
+        has_symbols, has_keywords, has_dependencies = (
+            bool(len(self.symbols)),
+            bool(len(self.keywords)),
+            bool(len(self.dependencies)),
+        )
+        codebase.init_all(has_symbols, has_keywords, has_dependencies)
+        if len(self.symbols) != len(codebase.symbols):
+            warn(
+                f"Number of symbols in codebase model ({len(self.symbols)}) does not match number of symbols in codebase ({len(codebase.symbols)})"
+            )
+        if len(self.keywords) != len(codebase.keywords):
+            warn(
+                f"Number of keywords in codebase model ({len(self.keywords)}) does not match number of keywords in codebase ({len(codebase.keywords)})"
+            )
+        if len(self.dependencies) != len(codebase.dependencies):
+            warn(
+                f"Number of dependencies in codebase model ({len(self.dependencies)}) does not match number of dependencies in codebase ({len(codebase.dependencies)})"
+            )
         return codebase

@@ -12,3 +12,4 @@ wheels/
 # Ripgrep binary
 rg
 rg.exe
+.tmp
