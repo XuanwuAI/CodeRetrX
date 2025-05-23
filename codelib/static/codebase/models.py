@@ -314,12 +314,12 @@ class CodebaseModel(BaseModel):
         )
 
         all_chunks = []
+        source_files = {}
         for source_file in self.source_files:
             file_model = self.source_files[source_file]
-            file = codebase.source_files[source_file] 
-            chunks = [c.to_chunk(file) for c in file_model.chunks]
-            codebase.source_files[source_file].chunks = chunks
-            all_chunks.extend(chunks)
+            file = file_model.to_file(codebase)
+            source_files[source_file] = file
+            all_chunks.extend(file.chunks)
         codebase.all_chunks = all_chunks 
         codebase._chunks_initialized = True
 
