@@ -873,12 +873,14 @@ class Codebase:
 
     def init_all(
         self,
+        chunks: bool = True,
         symbols: bool = True,
         keywords: bool = True,
         dependencies: bool = True,
         call_graph: bool = True,
     ):
-        self.init_chunks()
+        if chunks:
+            self.init_chunks()
         if symbols:
             self._extract_symbols()
         if keywords:

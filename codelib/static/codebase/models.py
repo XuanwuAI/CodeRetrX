@@ -313,13 +313,27 @@ class CodebaseModel(BaseModel):
             bool(len(self.dependencies)),
         )
 
+        all_chunks = []
+        for source_file in self.source_files:
+            file_model = self.source_files[source_file]
+            file = codebase.source_files[source_file] 
+            chunks = [c.to_chunk(file) for c in file_model.chunks]
+            codebase.source_files[source_file].chunks = chunks
+            all_chunks.extend(chunks)
+        codebase.all_chunks = all_chunks 
+        codebase._chunks_initialized = True
+
         #todo: enable callgraph properly
-        codebase.init_all(not has_symbols, not has_keywords, not has_dependencies, False)
         if has_symbols:
             codebase.symbols = [s.to_symbol(codebase) for s in self.symbols]
+            codebase._symbols_initialized = True
         if has_keywords:
             codebase.keywords = [k.to_keyword(codebase) for k in self.keywords]
+            codebase._keywords_initialized = True
         if has_dependencies:
             codebase.dependencies = [d.to_dependency(codebase) for d in self.dependencies]
+            codebase._dependencies_initialized = True
+        
 
+        codebase.init_all(False, not has_symbols, not has_keywords, not has_dependencies, False)
         return codebase
