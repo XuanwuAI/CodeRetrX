@@ -1,3 +1,7 @@
+from ._extras import require_extra
+
+require_extra("langchain", "builtin-impl")
+
 import os
 from typing import Union, List, Dict, Optional, Any, cast
 from langchain_openai import ChatOpenAI
@@ -11,7 +15,6 @@ from typing import Dict, Sequence, Union, overload
 from pathlib import Path
 
 from codelib.utils.jsonparser import TolerantJsonParser
-
 
 
 def get_langchain_model(model_name) -> BaseChatModel:

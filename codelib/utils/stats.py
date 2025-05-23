@@ -1,3 +1,7 @@
+from ._extras import require_extra
+
+require_extra("tiktoken", "stats")
+
 from pydantic import BaseModel
 from collections import Counter
 from typing import Dict, List, ClassVar
