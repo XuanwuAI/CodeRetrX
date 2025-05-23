@@ -854,12 +854,13 @@ class Codebase:
                         chunk=chunk,
                     )
                     dependency_symbols.append(sym)
+                    file.chunks.append(chunk)
         dep_map: Dict[str, List[File]] = defaultdict(list)
         for sym in dependency_symbols:
             dep_map[sym.name].append(sym.file)
 
         self.dependencies = [
-            Dependency(id=str(uuid.uuid4()), name=name, imported_by=imported_by)
+            Dependency(id=sym.id, name=name, imported_by=imported_by)
             for name, imported_by in dep_map.items()
         ]
         self.symbols += dependency_symbols
