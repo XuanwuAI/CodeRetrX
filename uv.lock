@@ -343,7 +343,7 @@ wheels = [
 
 [[package]]
 name = "codelib"
-version = "0.1.12"
+version = "0.1.13"
 source = { editable = "." }
 dependencies = [
     { name = "attrs" },
@@ -351,22 +351,26 @@ dependencies = [
     { name = "httpx" },
     { name = "ignore-python" },
     { name = "json-repair" },
-    { name = "langchain" },
-    { name = "langchain-chroma" },
-    { name = "langchain-community" },
-    { name = "langchain-openai" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "python-git" },
-    { name = "tiktoken" },
     { name = "tree-sitter" },
     { name = "tree-sitter-language-pack" },
 ]
 
 [package.dev-dependencies]
+builtin-impl = [
+    { name = "langchain" },
+    { name = "langchain-chroma" },
+    { name = "langchain-community" },
+    { name = "langchain-openai" },
+]
 dev = [
     { name = "ipython" },
     { name = "rich" },
+]
+stats = [
+    { name = "tiktoken" },
 ]
 
 [package.metadata]
@@ -376,23 +380,25 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "ignore-python", specifier = ">=0.2.0" },
     { name = "json-repair", specifier = ">=0.46.0" },
-    { name = "langchain", specifier = ">=0.3.25" },
-    { name = "langchain-chroma", specifier = ">=0.2.4" },
-    { name = "langchain-community", specifier = ">=0.3.24" },
-    { name = "langchain-openai", specifier = ">=0.3.17" },
     { name = "pydantic", specifier = ">=2.11.4" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "python-git", specifier = ">=2018.2.1" },
-    { name = "tiktoken", specifier = ">=0.9.0" },
     { name = "tree-sitter", specifier = ">=0.24.0" },
     { name = "tree-sitter-language-pack", specifier = ">=0.7.3" },
 ]
 
 [package.metadata.requires-dev]
+builtin-impl = [
+    { name = "langchain", specifier = ">=0.3.25" },
+    { name = "langchain-chroma", specifier = ">=0.2.4" },
+    { name = "langchain-community", specifier = ">=0.3.24" },
+    { name = "langchain-openai", specifier = ">=0.3.17" },
+]
 dev = [
     { name = "ipython", specifier = ">=9.2.0" },
     { name = "rich", specifier = ">=14.0.0" },
 ]
+stats = [{ name = "tiktoken", specifier = ">=0.9.0" }]
 
 [[package]]
 name = "colorama"
