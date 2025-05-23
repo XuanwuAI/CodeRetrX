@@ -153,7 +153,6 @@ class CodeChunk(CodeHunk):
     parent: Optional[Self] = None
     tag: Optional[IDXSupportedTag] = None
     name: Optional[str] = None
-
     def to_json(self, include_content: bool = False):
         from .models import CodeChunkModel
 

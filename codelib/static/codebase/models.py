@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Self, Union
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 from logging import warn
@@ -59,11 +60,16 @@ class CodeChunkModel(BaseModel):
         # Try to find the node with matching ID, fallback to root node if not found
         ts_root = ts_state.node_map.get(self.ts_node_id, tree.root_node)
 
-        return CodeChunk.from_ts(
-            node=ts_root,
+        return CodeChunk(
+            start_line=self.start_line,
+            end_line=self.end_line,
+            start_column=self.start_column,
+            end_column=self.end_column,
             src=src_file,
             type=self.type,
             tag=self.tag,
+            uuid=UUID(self.uuid),
+            ts_root=ts_root,
         )
 
 
