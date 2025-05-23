@@ -1,6 +1,6 @@
 [project]
 name = "codelib"
-version = "0.1.11"
+version = "0.1.12"
 description = "Library for Code Analysis via Static Analysis and LLMs"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -17,6 +17,7 @@ dependencies = [
     "pydantic>=2.11.4",
     "python-dotenv>=1.1.0",
     "python-git>=2018.2.1",
+    "tiktoken>=0.9.0",
     "tree-sitter>=0.24.0",
     "tree-sitter-language-pack>=0.7.3",
 ]

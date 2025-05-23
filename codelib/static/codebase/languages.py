@@ -2,6 +2,7 @@ from functools import lru_cache
 from os import PathLike
 from typing import List, Literal, Optional
 from pathlib import Path
+import fnmatch
 
 
 IDXSupportedLanguage = Literal[
@@ -43,6 +44,8 @@ EXTENSION_MAP: dict[str, IDXSupportedLanguage] = {
     "exs": "elixir",
     "java": "java",
 }
+
+BLOCKED_PATTERNS = ["*.min.js", "*_test.go"]
 
 DEP_FILES: List[str] = [
     # JS / TS
@@ -121,7 +124,13 @@ def get_extension(filepath: PathLike | str) -> str:
     return str(filepath).split(".")[-1].lower()
 
 
+def is_blocked_file(filepath: PathLike | str) -> bool:
+    return any(fnmatch.fnmatch(str(filepath), pattern) for pattern in BLOCKED_PATTERNS)
+
+
 def is_sourcecode(filepath: PathLike | str) -> bool:
+    if is_blocked_file(filepath):
+        return False
     extension = get_extension(filepath)
     return extension in EXTENSION_MAP
 
