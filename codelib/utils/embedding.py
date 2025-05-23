@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+=======
+from ._extras import require_extra
+
+require_extra("langchain", "builtin-impl")
+
+>>>>>>> a52ff6b097d3a6b0ef182c95039cb1a4fbde7730
 from langchain_openai import OpenAIEmbeddings
 import os
 from dotenv import load_dotenv
@@ -167,7 +174,11 @@ class SimilaritySearcher:
 
         self.collection.add(
             documents=texts,
+<<<<<<< HEAD
             embeddings=embeddings, #type: ignore
+=======
+            embeddings=embeddings,  # type: ignore
+>>>>>>> a52ff6b097d3a6b0ef182c95039cb1a4fbde7730
             ids=[str(i) for i in range(len(texts))],
         )
 

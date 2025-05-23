@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+=======
+from ._extras import require_extra
+
+require_extra("langchain", "builtin-impl")
+
+>>>>>>> a52ff6b097d3a6b0ef182c95039cb1a4fbde7730
 from langchain.output_parsers.json import SimpleJsonOutputParser, parse_json_markdown
 from pydantic import BaseModel
 from langchain_core.outputs import Generation

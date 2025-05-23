@@ -16,9 +16,9 @@
 
 ; method definitions
 
-(declaration_list
-    (function_item
-        name: (identifier) @name.definition.method)) @definition.method
+; (declaration_list
+;     (function_item
+;         name: (identifier) @name.definition.method) @definition.method) 
 
 ; function definitions
 
