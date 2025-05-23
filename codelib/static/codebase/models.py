@@ -312,17 +312,14 @@ class CodebaseModel(BaseModel):
             bool(len(self.keywords)),
             bool(len(self.dependencies)),
         )
-        codebase.init_all(has_symbols, has_keywords, has_dependencies)
-        if len(self.symbols) != len(codebase.symbols):
-            warn(
-                f"Number of symbols in codebase model ({len(self.symbols)}) does not match number of symbols in codebase ({len(codebase.symbols)})"
-            )
-        if len(self.keywords) != len(codebase.keywords):
-            warn(
-                f"Number of keywords in codebase model ({len(self.keywords)}) does not match number of keywords in codebase ({len(codebase.keywords)})"
-            )
-        if len(self.dependencies) != len(codebase.dependencies):
-            warn(
-                f"Number of dependencies in codebase model ({len(self.dependencies)}) does not match number of dependencies in codebase ({len(codebase.dependencies)})"
-            )
+
+        #todo: enable callgraph properly
+        codebase.init_all(not has_symbols, not has_keywords, not has_dependencies, False)
+        if has_symbols:
+            codebase.symbols = [s.to_symbol(codebase) for s in self.symbols]
+        if has_keywords:
+            codebase.keywords = [k.to_keyword(codebase) for k in self.keywords]
+        if has_dependencies:
+            codebase.dependencies = [d.to_dependency(codebase) for d in self.dependencies]
+
         return codebase
