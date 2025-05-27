@@ -1,10 +1,7 @@
-<<<<<<< HEAD
-=======
 from ._extras import require_extra
 
 require_extra("langchain", "builtin-impl")
 
->>>>>>> a52ff6b097d3a6b0ef182c95039cb1a4fbde7730
 import os
 from typing import Union, List, Dict, Optional, Any, cast
 from langchain_openai import ChatOpenAI
@@ -19,11 +16,6 @@ from pathlib import Path
 
 from codelib.utils.jsonparser import TolerantJsonParser
 
-
-<<<<<<< HEAD
-
-=======
->>>>>>> a52ff6b097d3a6b0ef182c95039cb1a4fbde7730
 def get_langchain_model(model_name) -> BaseChatModel:
     return ChatOpenAI(
         base_url="https://openrouter.ai/api/v1",
