@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List, Any
-from .smart_codebase import SmartCodebase, SimilaritySearchTargetType
+from typing import Optional, List, Any, Literal
+from .smart_codebase import SmartCodebase, SimilaritySearchTargetType, LLMCallMode
 from logging import warning, info
 
 
 class TopicExtractor(ABC):
     @abstractmethod
-    async def extract_topic(self, input_text: str) -> Optional[str]:
+    async def extract_topic(self, input_text: str, llm_call_mode: LLMCallMode = "traditional") -> Optional[str]:
         pass
 
     async def extract_and_search(
@@ -16,8 +16,9 @@ class TopicExtractor(ABC):
         target_types: List[SimilaritySearchTargetType],
         threshold: float = 0.1,
         top_k: int = 100,
+        llm_call_mode: LLMCallMode = "traditional",
     ) -> List[Any]:
-        topic = await self.extract_topic(input_text)
+        topic = await self.extract_topic(input_text, llm_call_mode)
         if not topic:
             warning("Using original input text for search as topic extraction failed")
             topic = input_text

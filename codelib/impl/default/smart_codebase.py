@@ -1,7 +1,7 @@
 from typing import Optional, List, Tuple, Any, Union, Literal
 from codelib.static import Codebase
 from codelib.static.codebase import Symbol, Keyword, File
-from codelib.retrieval import SmartCodebase as SmartCodebaseBase
+from codelib.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
 from attrs import define, field
 from codelib.utils.embedding import SimilaritySearcher
 import os
@@ -10,8 +10,15 @@ from pathlib import Path
 from .prompt import (
     llm_filter_prompt_template,
     llm_mapping_prompt_template,
+    llm_filter_function_call_system_prompt,
+    llm_mapping_function_call_system_prompt,
+    filter_and_mapping_function_call_user_prompt_template,
+    get_filter_function_definition,
+    get_mapping_function_definition,
     CodeMapFilterResult,
 )
+from tqdm.asyncio import tqdm
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -39,32 +46,23 @@ class SmartCodebase(SmartCodebaseBase):
     symbol_content_searcher: Optional["SimilaritySearcher"] = field(default=None)
     keyword_searcher: Optional["SimilaritySearcher"] = field(default=None)
 
-    async def llm_filter(
+    def _get_filtered_elements(
         self,
-        prompt: str,
         target_type: LLMMapFilterTargetType,
         subdirs_or_files: List[str] = [],
         additional_code_elements: List[Any] = [],
-        prompt_template: str = llm_filter_prompt_template,
-    ) -> Tuple[List[Any], List[Any]]:
+    ) -> List[Any]:
         """
         Filter code elements based on the specified type and prompt using LLM.
 
         Args:
-            prompt: The filtering prompt
             target_type: The type of code element to filter
             subdirs_or_files: List of subdirectories or files to filter by
             additional_code_elements: Additional code elements to include in filtering
-
+            
         Returns:
-            A tuple containing:
-            - Filtered elements
-            - LLM results with reasoning
+            List of filtered elements
         """
-        from codelib.utils.jsonparser import TolerantJsonParser
-        from codelib.utils.llm import call_llm_with_fallback
-
-
         # Get elements based on type
         elements = []
         if target_type in ["file_name", "file_content"]:
@@ -85,11 +83,24 @@ class SmartCodebase(SmartCodebaseBase):
         # Filter by subdirectories/files if specified
         filtered_elements = []
         for path_prefix in subdirs_or_files:
-            path_prefix = path_prefix.replace("\\", "/").lstrip("/")
-            if path_prefix == "." or path_prefix == "./":
-                path_prefix = ""
-            path_prefix = str(Path(self.dir) / path_prefix)
-
+            original_path_prefix = path_prefix
+            path_prefix = path_prefix.replace("\\", "/")
+            
+            # If it's an absolute path, try to make it relative to the codebase directory
+            if Path(path_prefix).is_absolute():
+                try:
+                    abs_codebase_dir = Path(self.dir).resolve()
+                    abs_path_prefix = Path(path_prefix).resolve()
+                    path_prefix = str(abs_path_prefix.relative_to(abs_codebase_dir))
+                except ValueError:
+                    print(f"Warning: Path {original_path_prefix} is not within codebase directory {self.dir}")
+                    continue
+            else:
+                # For relative paths, strip leading slash and handle current directory
+                path_prefix = path_prefix.lstrip("/")
+                if path_prefix == "." or path_prefix == "./":
+                    path_prefix = ""
+            
             for element in elements:
                 if isinstance(element, Symbol) and str(element.file.path).startswith(
                     path_prefix
@@ -109,7 +120,53 @@ class SmartCodebase(SmartCodebaseBase):
         if additional_code_elements:
             filtered_elements.extend(additional_code_elements)
 
+        logger.info(f"filtered_elements size: {len(filtered_elements)}", )
         elements = filtered_elements if filtered_elements else elements
+        
+        return elements
+    
+    async def llm_filter(
+        self,
+        prompt: str,
+        target_type: LLMMapFilterTargetType,
+        subdirs_or_files: List[str] = [],
+        additional_code_elements: List[Any] = [],
+        prompt_template: str = llm_filter_prompt_template,
+        llm_call_mode: LLMCallMode = "traditional",
+    ) -> Tuple[List[Any], List[Any]]:
+        """
+        Filter code elements based on the specified type and prompt using LLM.
+
+        Args:
+            prompt: The filtering prompt
+            target_type: The type of code element to filter
+            subdirs_or_files: List of subdirectories or files to filter byf
+            additional_code_elements: Additional code elements to include in filtering
+            prompt_template: The prompt template to use (for traditional mode)
+            llm_call_mode: The LLM call mode - "traditional", "function_call"
+
+        Returns:
+            A tuple containing:
+            - Filtered elements
+            - LLM results with reasoning
+        """
+
+        elements = self._get_filtered_elements(target_type, subdirs_or_files, additional_code_elements)
+
+        if llm_call_mode == "function_call":
+            return await self._process_elements_with_function_call(elements, target_type, prompt, is_filter=True)
+        else:
+            return await self._process_elements_traditional(elements, target_type, prompt, prompt_template)
+
+    async def _process_elements_traditional(
+        self,
+        elements: List[Any],
+        target_type: str,
+        prompt: str,
+        prompt_template: str,
+    ) -> Tuple[List[Any], List[Any]]:
+        """Process elements using traditional prompt-based approach."""
+        from codelib.utils.llm import call_llm_with_fallback
 
         # Process elements in batches
         async def process_element_batch(
@@ -210,14 +267,195 @@ class SmartCodebase(SmartCodebaseBase):
         if cur_batch:
             element_tasks.append(cur_batch)
 
-        # Process all batches
-        from tqdm.asyncio import tqdm
+        max_concurrent_requests = int(os.environ.get("LLM_MAX_CONCURRENT_REQUESTS", 5))
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+        
+        async def process_with_semaphore(batch):
+            async with semaphore:
+                return await process_element_batch(batch, target_type, prompt)
 
         gather_results = await tqdm.gather(
-            *[
-                process_element_batch(batch, target_type, prompt)
-                for batch in element_tasks
-            ]
+            *[process_with_semaphore(batch) for batch in element_tasks]
+        )
+
+        flattened_llm_results = []
+        flattened_right_elements = []
+
+        for llm_result, right_elements in gather_results:
+            flattened_llm_results.extend(llm_result)
+            flattened_right_elements.extend(right_elements)
+
+        return flattened_right_elements, flattened_llm_results
+
+    async def _process_elements_with_function_call(
+        self,
+        elements: List[Any],
+        target_type: str,
+        prompt: str,
+        is_filter: bool = True,
+    ) -> Tuple[List[Any], List[Any]]:
+        """Process elements using function call approach."""
+        from codelib.utils.llm import call_llm_with_function_call
+
+        # Process elements in batches
+        async def process_element_batch_with_function_call(
+            elements_batch: List[Any],
+            target_type: str,
+            requirement: str,
+            is_filter: bool,
+        ) -> Tuple[List[Any], List[Any]]:
+            text = ""
+            for i, element in enumerate(elements_batch):
+                content = ""
+                if isinstance(element, Symbol):
+                    content = (
+                        element.chunk.code()
+                        if target_type.endswith("_content")
+                        else element.name
+                    )
+                    element_type = f"{element.type} symbol"
+                elif isinstance(element, File):
+                    content = (
+                        element.content
+                        if target_type == "file_content"
+                        else str(element.path)
+                    )
+                    element_type = "file"
+                elif isinstance(element, Keyword):
+                    content = element.content
+                    element_type = "keyword"
+                else:
+                    content = str(element)
+                    element_type = "unknown"
+
+                text += f"\n<code_element type={element_type} index={i}>\n{content}\n</code_element>"
+
+            # Prepare prompts and function definition
+            system_prompt = (
+                llm_filter_function_call_system_prompt
+                if is_filter
+                else llm_mapping_function_call_system_prompt
+            )
+            user_prompt = filter_and_mapping_function_call_user_prompt_template.format(
+                code_elements=text,
+                code_element_number=len(elements_batch),
+                code_element_number_minus_one=len(elements_batch) - 1,
+                requirement=requirement,
+            )
+            
+            function_definition = (
+                get_filter_function_definition()
+                if is_filter
+                else get_mapping_function_definition()
+            )
+
+            try:
+                # Call LLM with function call
+                model_ids = [os.environ["LLM_MAPFILTER_MODEL_ID"],"anthropic/claude-3.7-sonnet"]
+                function_args = await call_llm_with_function_call(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    function_definition=function_definition,
+                    model_ids=model_ids,
+                )
+
+                # Parse function call results
+                analyses = function_args.get("analyses", [])
+                llm_results = []
+                right_elements = []
+
+                for i, analysis in enumerate(analyses):
+                    # Add type checking to handle cases where analysis is not a dict
+                    if not isinstance(analysis, dict):
+                        logger.warning(f"Analysis item {i} is not a dictionary, got {type(analysis)}: {analysis}")
+                        # Skip this analysis item or create a default one
+                        analysis = {
+                            "index": i,
+                            "reason": f"Invalid analysis format: {type(analysis)}",
+                            "result": False if is_filter else ""
+                        }
+                    
+                    index = analysis.get("index", -1)
+                    reason = analysis.get("reason", "")
+                    result = analysis.get("result")
+                    
+                    if result is None:
+                        logger.warning(f"Analysis item {i} missing 'result' field: {analysis}")
+                    
+                    # Create CodeMapFilterResult object
+                    llm_result = CodeMapFilterResult(
+                        index=index,
+                        reason=reason,
+                        result=result,
+                    )
+                    llm_results.append(llm_result)
+                    
+                    # For filter mode, include elements where result is True
+                    # For mapping mode, include all elements with non-empty results
+                    if is_filter and result is True:
+                        if 0 <= index < len(elements_batch):
+                            right_elements.append(elements_batch[index])
+                    elif not is_filter and result:  # For mapping, result is string
+                        if 0 <= index < len(elements_batch):
+                            right_elements.append(elements_batch[index])
+                
+                return llm_results, right_elements
+                
+            except Exception as e:
+                logger.error(f"Function call processing failed: {str(e)}")
+                return [], []
+
+        # Batch elements based on content length (same logic as traditional)
+        element_tasks = []
+        cur_batch = []
+        max_batch_length = int(os.environ.get("LLM_MAPFILTER_MAX_BATCH_LENGTH", 10000))
+        max_batch_size = int(os.environ.get("LLM_MAPFILTER_MAX_BATCH_SIZE", 100))
+
+        for element in elements:
+            content_length = 0
+            if isinstance(element, Symbol):
+                content_length = len(element.chunk.code())
+            elif isinstance(element, File):
+                content_length = len(element.content)
+            else:
+                content_length = len(str(element))
+
+            if content_length > max_batch_length:
+                element_tasks.append([element])
+                continue
+
+            cur_batch_length = sum(
+                len(
+                    getattr(
+                        e,
+                        "chunk",
+                        getattr(e, "_content", getattr(e, "content", str(e))),
+                    )
+                )
+                for e in cur_batch
+            )
+
+            if (
+                content_length + cur_batch_length <= max_batch_length
+                and len(cur_batch) < max_batch_size
+            ):
+                cur_batch.append(element)
+            else:
+                element_tasks.append(cur_batch)
+                cur_batch = [element]
+
+        if cur_batch:
+            element_tasks.append(cur_batch)
+
+        max_concurrent_requests = int(os.environ.get("LLM_MAX_CONCURRENT_REQUESTS", 5))
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+        
+        async def process_with_semaphore(batch):
+            async with semaphore:
+                return await process_element_batch_with_function_call(batch, target_type, prompt, is_filter)
+
+        gather_results = await tqdm.gather(
+            *[process_with_semaphore(batch) for batch in element_tasks]
         )
 
         flattened_llm_results = []
@@ -235,6 +473,7 @@ class SmartCodebase(SmartCodebaseBase):
         target_type: LLMMapFilterTargetType,
         subdirs_or_files: List[str] = [],
         additional_code_elements: List[Any] = [],
+        llm_call_mode: LLMCallMode = "traditional",
     ) -> Tuple[List[Any], List[Any]]:
         """
         Map code elements based on the specified type and prompt using LLM.
@@ -244,22 +483,26 @@ class SmartCodebase(SmartCodebaseBase):
             target_type: The type of code element to map
             subdirs_or_files: List of subdirectories or files to filter by
             additional_code_elements: Additional code elements to include in mapping
+            llm_call_mode: The LLM call mode - "traditional", "function_call"
 
         Returns:
             A tuple containing:
             - Mapped elements
             - LLM results with mapping content
         """
-        # Reuse llm_filter implementation since the core logic is the same
-        # Just use a different prompt template
-
-        return await self.llm_filter(
-            prompt=prompt,
-            target_type=target_type,
-            subdirs_or_files=subdirs_or_files,
-            additional_code_elements=additional_code_elements,
-            prompt_template=llm_mapping_prompt_template,
-        )
+        if llm_call_mode == "function_call":
+            # Get and filter elements using the shared method
+            elements = self._get_filtered_elements(target_type, subdirs_or_files, additional_code_elements)
+            return await self._process_elements_with_function_call(elements, target_type, prompt, is_filter=False)
+        else:
+            return await self.llm_filter(
+                prompt=prompt,
+                target_type=target_type,
+                subdirs_or_files=subdirs_or_files,
+                additional_code_elements=additional_code_elements,
+                prompt_template=llm_mapping_prompt_template,
+                llm_call_mode="traditional",
+            )
 
     async def similarity_search(
         self,

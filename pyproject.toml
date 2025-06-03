@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["ipython>=9.2.0", "rich>=14.0.0"]
+dev = ["ipython>=9.2.0", "pytest>=8.3.5", "rich>=14.0.0"]
 
 [project.optional-dependencies]
 stats = ["tiktoken>=0.9.0"]
@@ -27,7 +27,11 @@ builtin-impl = [
     "langchain-chroma>=0.2.4",
     "langchain-community>=0.3.24",
     "langchain-openai>=0.3.17",
+    "openai>=1.0.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
 
 [build-system]
 requires = ["setuptools>=61.0"]

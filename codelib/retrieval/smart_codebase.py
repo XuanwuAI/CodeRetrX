@@ -18,7 +18,7 @@ LLMMapFilterTargetType = Literal[
     "keyword",
 ]
 SimilaritySearchTargetType = Literal["symbol_name", "symbol_content", "keyword"]
-
+LLMCallMode = Literal["traditional", "function_call"]
 
 class CodeMapFilterResult(BaseModel):
     index: int
@@ -39,6 +39,7 @@ class SmartCodebase(Codebase, ABC):
         target_type: LLMMapFilterTargetType,
         subdirs_or_files: List[str] = [],
         additional_code_elements: List[Union[Keyword, Symbol, File]] = [],
+        llm_call_mode: LLMCallMode = "traditional",
     ) -> Tuple[List[Any], List[CodeMapFilterResult]]:
         pass
 
@@ -49,6 +50,7 @@ class SmartCodebase(Codebase, ABC):
         target_type: LLMMapFilterTargetType,
         subdirs_or_files: List[str] = [],
         additional_code_elements: List[Union[Keyword, Symbol, File]] = [],
+        llm_call_mode: LLMCallMode = "traditional",
     ) -> Tuple[List[Any], List[CodeMapFilterResult]]:
         pass
 
