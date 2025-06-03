@@ -22,8 +22,9 @@ from .smart_codebase import (
     LLMMapFilterTargetType,
     SimilaritySearchTargetType,
     SmartCodebase as Codebase,
-    CodeMapFilterResult,
+    CodeMapFilterResult, LLMCallMode,
 )
+import random
 from .topic_extractor import TopicExtractor
 from codelib.static import Symbol, Keyword, File, CodeElement
 from pathlib import Path
@@ -39,6 +40,8 @@ class RecallStrategy(Enum):
     FILTER_SYMBOL_BY_LLM = "filter_symbol_by_llm"
     FILTER_KEYWORD_BY_VECTOR_AND_LLM = "filter_keyword_by_vector_and_llm"
     FILTER_SYMBOL_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
+    ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = "adaptive_filter_keyword_by_vector_and_llm"
+    ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM = "adaptive_filter_symbol_by_vector_and_llm"
 
 
 def rel_path(a: PathLike, b: PathLike) -> str:
@@ -48,8 +51,9 @@ def rel_path(a: PathLike, b: PathLike) -> str:
 class RecallStrategyExecutor(ABC):
     """Base class for recall strategy executors."""
 
-    def __init__(self, topic_extractor: Optional[TopicExtractor] = None):
+    def __init__(self, topic_extractor: Optional[TopicExtractor] = None, llm_call_mode: LLMCallMode = "traditional"):
         self.topic_extractor = topic_extractor
+        self.llm_call_mode = llm_call_mode
 
     def filter_elements_by_subdirs(
         self, elements: List[Any], codebase: Codebase, subdirs_or_files: List[str]
@@ -127,7 +131,7 @@ class FilterByLLMStrategy(RecallStrategyExecutor, Generic[CodeElement], ABC):
         logger.info(f"Using {strategy_name} strategy")
         try:
             elements, llm_results = await codebase.llm_filter(
-                prompt, self.get_target_type(), subdirs_or_files
+                prompt, self.get_target_type(), subdirs_or_files, llm_call_mode=self.llm_call_mode
             )
             elements = self.filter_elements_by_subdirs(
                 elements, codebase, subdirs_or_files
@@ -175,7 +179,7 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElement], ABC):
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (
-                await self.topic_extractor.extract_topic(input_text=prompt)
+                await self.topic_extractor.extract_topic(input_text=prompt, llm_call_mode=self.llm_call_mode)
                 if self.topic_extractor
                 else prompt
             )
@@ -284,7 +288,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (
-                await self.topic_extractor.extract_topic(input_text=prompt)
+                await self.topic_extractor.extract_topic(input_text=prompt, llm_call_mode=self.llm_call_mode)
                 if self.topic_extractor
                 else prompt
             )
@@ -334,6 +338,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                 target_type=self.get_target_type_for_llm(),
                 subdirs_or_files=[],  # Empty list as we're providing elements directly
                 additional_code_elements=filtered_elements,
+                llm_call_mode=self.llm_call_mode,
             )
 
             logger.info(f"LLM refined results to {len(refined_elements)} elements")
@@ -344,6 +349,226 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
             )
 
             return list(set(file_paths)), llm_results
+        except Exception as e:
+            logger.error(f"Error in {strategy_name} strategy: {e}")
+            raise e
+
+
+class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
+    """Base strategy to filter code elements using adaptive vector similarity search followed by LLM refinement."""
+
+    def __init__(self, initial_limit: int = 50, 
+                 threshold: float = 0.3, multiplier: float = 1.8, exit_probability: float = 0.9, 
+                 tail_analysis_size: int = 10, max_iterations: int = 5, 
+                 topic_extractor: Optional[TopicExtractor] = None, llm_call_mode: LLMCallMode = "traditional"):
+        """
+        Initialize the adaptive filtering strategy with configurable parameters.
+
+        Args:
+            initial_limit: Initial number of elements to retrieve in first iteration (default: 50)
+            threshold: Base propotion of successful tail results (default: 0.3)
+            multiplier: Factor to increase threshold between iterations (default: 1.8)
+            exit_probability: Probability threshold for early exit (default: 0.9)
+            tail_analysis_size: Number of results to analyze for early exit decision (default: 10)
+            max_iterations: Maximum number of search iterations to perform (default: 5)
+            topic_extractor: Optional TopicExtractor instance for vector-based strategies
+            llm_call_mode: Mode for LLM calls - "traditional", "function_call"
+        """
+        super().__init__(topic_extractor=topic_extractor, llm_call_mode=llm_call_mode)
+        self.initial_limit = initial_limit
+        self.threshold = threshold
+        self.multiplier = multiplier
+        self.exit_probability = exit_probability
+        self.tail_analysis_size = tail_analysis_size
+        self.max_iterations = max_iterations
+
+    @abstractmethod
+    def get_strategy_name(self) -> str:
+        """Return the name of the strategy for logging purposes."""
+        pass
+
+    @abstractmethod
+    def get_target_types_for_vector(
+        self,
+    ) -> List[Literal["symbol_name", "symbol_content", "keyword"]]:
+        """Return the target types for similarity search."""
+        pass
+
+    @abstractmethod
+    def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
+        """Return the target type for LLM filtering."""
+        pass
+
+    @abstractmethod
+    def get_collection_size(self, codebase: Codebase) -> int:
+        """Return the size of the collection to search in."""
+        pass
+
+    @abstractmethod
+    def filter_elements(
+        self,
+        elements: List[Any],
+        subdirs_or_files: List[str] = [],
+        codebase: Optional[Codebase] = None,
+    ) -> List[Union[Keyword, Symbol, File]]:
+        """
+        Filter and convert elements to the expected type for additional_code_elements.
+
+        Args:
+            elements: List of elements to filter
+            subdirs_or_files: List of subdirectories or files to filter by
+            codebase: The codebase instance for resolving paths
+
+        Returns:
+            Filtered list of elements
+        """
+        pass
+
+    @abstractmethod
+    def collect_file_paths(
+        self,
+        filtered_elements: List[Any],
+        codebase: Codebase,
+        subdirs_or_files: List[str],
+    ) -> List[str]:
+        """Collect file paths from the filtered elements."""
+        pass
+
+    async def adaptive_retrieval(self, codebase: Codebase, prompt: str, query_embedding_text: str, subdirs_or_files: List[str]) -> Tuple[List[str], List[Any]]:
+        """
+        Adaptive retrieval algorithm with reduced LLM calls and smarter early exit.
+
+        Args:
+            codebase: The codebase to search in
+            prompt: Original prompt for LLM filtering
+            query_embedding_text: Text to use for vector similarity search
+            subdirs_or_files: List of subdirectories or files to filter by
+
+        Returns:
+            Tuple of (file_paths, refined_elements)
+        """
+        total_available_chunks = self.get_collection_size(codebase)
+        running_limit = min(self.initial_limit, total_available_chunks)
+
+        logger.info(f"Starting optimized adaptive retrieval with initial limit: {running_limit}, total available: {total_available_chunks}")
+
+        accumulated_file_paths = set()
+        previous_limit = 0
+        iterations = 0
+        consecutive_low_quality = 0
+        last_success_ratio = 0.5
+
+        vector_cache = {}
+
+        while running_limit <= total_available_chunks and iterations < self.max_iterations:
+            print("iterations, running_limit: ", iterations, running_limit)
+            iterations += 1
+            logger.info(f"Adaptive retrieval iteration {iterations}: searching with limit {running_limit}")
+
+            cache_key = running_limit
+            vector_results = await codebase.similarity_search(
+                target_types=self.get_target_types_for_vector(),
+                query=query_embedding_text,
+                threshold=0,
+                top_k=running_limit,
+            )
+            vector_cache[cache_key] = vector_results
+            new_vector_results = vector_results[previous_limit:]
+
+            logger.info(f"Processing {len(new_vector_results)} new vector results (total: {len(vector_results)})")
+
+            if not new_vector_results:
+                logger.info(f"No new results found, stopping adaptive retrieval")
+                break
+
+            new_elements = self.filter_elements_by_subdirs(new_vector_results, codebase, subdirs_or_files)
+            new_filtered_elements = self.filter_elements(new_elements, subdirs_or_files, codebase)
+
+            accumulated_file_paths.update(self.collect_file_paths(new_filtered_elements, codebase, subdirs_or_files))
+
+            if not new_filtered_elements:
+                logger.info(f"No filtered elements found, stopping adaptive retrieval")
+                break
+
+            # Doing tail analysis
+            tail_start = max(0, len(new_filtered_elements) - self.tail_analysis_size)
+            tail_elements, _ = await codebase.llm_filter(
+                prompt=prompt,
+                target_type=self.get_target_type_for_llm(),
+                subdirs_or_files=[],
+                additional_code_elements=new_filtered_elements[tail_start:],
+                llm_call_mode=self.llm_call_mode,
+            )
+
+            if tail_elements:
+                tail_success_ratio = len(tail_elements) / min(self.tail_analysis_size, len(new_filtered_elements))
+                logger.info(f"Estimated tail success ratio: {tail_success_ratio:.3f}")
+            else:
+                tail_success_ratio = 0
+
+            quality_trend = tail_success_ratio / last_success_ratio
+            logger.info(f"Quality trend: {quality_trend:.3f} (current: {tail_success_ratio:.3f}, last: {last_success_ratio:.3f})")
+            if tail_success_ratio >= self.threshold and quality_trend >= 0.3:
+                consecutive_low_quality = 0
+                previous_limit = running_limit
+                old_limit = running_limit
+
+                if tail_success_ratio > 0.7:
+                    expansion_factor = self.multiplier * 1.5
+                elif tail_success_ratio > 0.3:
+                    expansion_factor = self.multiplier
+                else:
+                    expansion_factor = (self.multiplier - 1) * 0.5 + 1
+
+                running_limit = min(int(running_limit * expansion_factor), total_available_chunks)
+
+                logger.info(f"Expanding search from {old_limit} to {running_limit} (success ratio {tail_success_ratio:.3f} > threshold {self.threshold})")
+            else:
+                consecutive_low_quality += 1
+                logger.info(f"Quality dropped (success ratio {tail_success_ratio:.3f}, last success ratio {last_success_ratio:.3f}), consecutive count: {consecutive_low_quality}")
+
+                if consecutive_low_quality >= 2:
+                    logger.info(f"Consecutive low quality count reached 2, stopping adaptive retrieval")
+                    break
+
+                rand = random.random()
+                if (rand < self.exit_probability):
+                    break
+                else:
+                    running_limit = min(int(running_limit * (self.multiplier - 1) * 0.2 + 1), total_available_chunks)
+        print("accumulated_file_paths size: ", len(accumulated_file_paths))
+        return list(accumulated_file_paths), []
+
+    async def execute(
+        self,
+        codebase: Codebase,
+        prompt: str,
+        subdirs_or_files: List[str],
+    ) -> Tuple[List[str], List[Any]]:
+        strategy_name = self.get_strategy_name()
+        logger.info(f"Using {strategy_name} strategy")
+        try:
+            # Extract topic from input text before performing vector similarity search
+            topic = (
+                await self.topic_extractor.extract_topic(input_text=prompt, llm_call_mode=self.llm_call_mode)
+                if self.topic_extractor
+                else prompt
+            )
+
+            if not topic:
+                logger.warning(
+                    "Topic extraction failed, using original prompt for vector similarity search"
+                )
+                topic = prompt
+            else:
+                logger.info(
+                    f"Using extracted topic '{topic}' for vector similarity search"
+                )
+
+            # Perform adaptive retrieval (includes both vector search and LLM filtering)
+            file_paths, llm_results = await self.adaptive_retrieval(codebase, prompt, topic, subdirs_or_files)
+
+            return file_paths, llm_results
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
@@ -540,6 +765,84 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         return await super().execute(codebase, prompt, subdirs_or_files)
 
 
+class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStrategy):
+    """Strategy to filter keywords using adaptive vector similarity search followed by LLM refinement."""
+
+    name: str = "ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM"
+
+    @override
+    def get_strategy_name(self) -> str:
+        return self.name
+
+    @override
+    def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
+        return ["keyword"]
+
+    @override
+    def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
+        return "keyword"
+
+    @override
+    def get_collection_size(self, codebase: Codebase) -> int:
+        return len(codebase.keywords)
+
+    @override
+    def filter_elements(
+        self,
+        elements: List[Any],
+        subdirs_or_files: List[str] = [],
+        codebase: Optional[Codebase] = None,
+    ) -> List[Union[Keyword, Symbol, File]]:
+        keyword_elements: List[Union[Keyword, Symbol, File]] = []
+        for element in elements:
+            if isinstance(element, Keyword):
+                if subdirs_or_files and codebase:
+                    for ref_file in element.referenced_by:
+                        if any(
+                            str(ref_file.path).startswith(subdir)
+                            for subdir in subdirs_or_files
+                        ):
+                            keyword_elements.append(element)
+                            break
+                else:
+                    keyword_elements.append(element)
+        return keyword_elements
+
+    @override
+    def collect_file_paths(
+        self,
+        filtered_elements: List[Any],
+        codebase: Codebase,
+        subdirs_or_files: List[str],
+    ) -> List[str]:
+        referenced_paths = set()
+        for keyword in filtered_elements:
+            if isinstance(keyword, Keyword) and keyword.referenced_by:
+                for ref_file in keyword.referenced_by:
+                    if str(ref_file.path).startswith(tuple(subdirs_or_files)):
+                        referenced_paths.add(str(ref_file.path))
+        return list(referenced_paths)
+
+    @override
+    async def execute(
+        self,
+        codebase: Codebase,
+        prompt: str,
+        subdirs_or_files: List[str],
+    ) -> Tuple[List[str], List[Any]]:
+        prompt = f"""
+        A code chunk containing the specified keywords is highly likely to meet the following criteria:
+        <content_criteria>
+        {prompt}
+        </content_criteria>
+        <note>
+        The objective of this requirement is to preliminarily filter files that are likely to meet specific content criteria based on the keywords they contain. 
+        Files with matching keywords will proceed to deeper analysis in the content filter (content_criteria) at a later stage (not in this run). 
+        </note>
+        """
+        return await super().execute(codebase, prompt, subdirs_or_files)
+
+
 class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
     """Strategy to filter symbols using vector similarity search followed by LLM refinement."""
 
@@ -616,11 +919,87 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         return await super().execute(codebase, prompt, subdirs_or_files)
 
 
+class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStrategy):
+    """Strategy to filter symbols using adaptive vector similarity search followed by LLM refinement."""
+
+    name: str = "ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM"
+
+    @override
+    def get_strategy_name(self) -> str:
+        return self.name
+
+    @override
+    def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
+        return ["symbol_name"]
+
+    @override
+    def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
+        return "symbol_name"
+
+    @override
+    def get_collection_size(self, codebase: Codebase) -> int:
+        return len(codebase.symbols)
+
+    @override
+    def filter_elements(
+        self,
+        elements: List[Any],
+        subdirs_or_files: List[str] = [],
+        codebase: Optional[Codebase] = None,
+    ) -> List[Union[Keyword, Symbol, File]]:
+        symbol_elements: List[Union[Keyword, Symbol, File]] = []
+        for element in elements:
+            if isinstance(element, Symbol):
+                # If subdirs_or_files is provided and codebase is available, filter by subdirs
+                if subdirs_or_files and codebase:
+                    # Get the relative path from the codebase directory
+                    rpath = str(element.file.path)
+                    if any(rpath.startswith(subdir) for subdir in subdirs_or_files):
+                        symbol_elements.append(element)
+                else:
+                    symbol_elements.append(element)
+        return symbol_elements
+
+    @override
+    def collect_file_paths(
+        self,
+        filtered_elements: List[Any],
+        codebase: Codebase,
+        subdirs_or_files: List[str],
+    ) -> List[str]:
+        file_paths = []
+        for symbol in filtered_elements:
+            if isinstance(symbol, Symbol):
+                file_path = str(symbol.file.path)
+                if file_path.startswith(tuple(subdirs_or_files)):
+                    file_paths.append(file_path)
+        return file_paths
+
+    @override
+    async def execute(
+        self,
+        codebase: Codebase,
+        prompt: str,
+        subdirs_or_files: List[str],
+    ) -> Tuple[List[str], List[Any]]:
+        prompt = f"""
+        requirement: A code chunk with this name is highly likely to meet the following criteria:
+        <content_criteria>
+        {prompt}
+        </content_criteria>
+        <note>
+        The objective of this requirement is to preliminarily identify code chunks that are likely to meet specific content criteria based on their names. 
+        Code chunks with matching names will proceed to deeper analysis in the content filter (content_criteria) at a later stage (not in this run). 
+        </note>
+        """
+        return await super().execute(codebase, prompt, subdirs_or_files)
+
 class StrategyFactory:
     """Factory for creating strategy executors."""
 
-    def __init__(self, topic_extractor: Optional[TopicExtractor] = None):
+    def __init__(self, topic_extractor: Optional[TopicExtractor] = None, llm_call_mode: LLMCallMode = "traditional"):
         self.topic_extractor = topic_extractor
+        self.llm_call_mode = llm_call_mode
 
     def create_strategy(self, strategy: RecallStrategy) -> RecallStrategyExecutor:
         """Create a strategy executor based on the strategy enum."""
@@ -631,12 +1010,14 @@ class StrategyFactory:
             RecallStrategy.FILTER_SYMBOL_BY_LLM: FilterSymbolByLLMStrategy,
             RecallStrategy.FILTER_KEYWORD_BY_VECTOR_AND_LLM: FilterKeywordByVectorAndLLMStrategy,
             RecallStrategy.FILTER_SYMBOL_BY_VECTOR_AND_LLM: FilterSymbolByVectorAndLLMStrategy,
+            RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM: AdaptiveFilterKeywordByVectorAndLLMStrategy,
+            RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM: AdaptiveFilterSymbolByVectorAndLLMStrategy,
         }
 
         if strategy not in strategy_map:
             raise ValueError(f"Unknown strategy: {strategy}")
 
-        return strategy_map[strategy](topic_extractor=self.topic_extractor)
+        return strategy_map[strategy](topic_extractor=self.topic_extractor, llm_call_mode=self.llm_call_mode)
 
 
 async def _multi_strategy_code_recall(
@@ -648,6 +1029,7 @@ async def _multi_strategy_code_recall(
     llm_method: Callable,
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
+    llm_call_mode: LLMCallMode = "traditional",
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     """
     Process code elements based on the specified prompt and mode.
@@ -664,6 +1046,7 @@ async def _multi_strategy_code_recall(
         custom_strategies: List of strategies to run in custom mode
         llm_method: The LLM method to call (codebase.llm_filter or codebase.llm_map)
         topic_extractor: Optional TopicExtractor instance for vector-based strategies
+        llm_call_mode: Mode for LLM calls - "traditional", "function_call"
 
     Returns:
         Tuple of (elements, llm_results)
@@ -714,7 +1097,7 @@ async def _multi_strategy_code_recall(
 
     # Execute each strategy in sequence
     if mode != "precise":
-        strategy_factory = StrategyFactory(topic_extractor=topic_extractor)
+        strategy_factory = StrategyFactory(topic_extractor=topic_extractor, llm_call_mode=llm_call_mode)
         for strategy in strategies_to_run:
             try:
                 strategy_executor = strategy_factory.create_strategy(strategy)
@@ -736,6 +1119,8 @@ async def _multi_strategy_code_recall(
     # Convert set to list
     extended_subdirs_or_files = list(extended_subdirs_or_files)
 
+    logger.debug(f"extended_subdirs_or_files size: {len(extended_subdirs_or_files)}")
+
     if not extended_subdirs_or_files:
         logger.info(f"No files found for '{prompt}'")
         return [], []
@@ -743,10 +1128,14 @@ async def _multi_strategy_code_recall(
     logger.info(
         f"Processing {len(extended_subdirs_or_files)} files with {granularity} granularity"
     )
+
+    # Check if the llm_method supports mode parameter (for SmartCodebase methods)
+    logger.debug(f"Function call mode: {llm_call_mode}")
     elements, llm_results = await llm_method(
         prompt=prompt,
         target_type=granularity,
         subdirs_or_files=extended_subdirs_or_files,
+        llm_call_mode=llm_call_mode,
     )
 
     return elements, llm_results
@@ -760,6 +1149,7 @@ async def multi_strategy_code_mapping(
     mode: Literal["fast", "balance", "precise", "custom"],
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
+    llm_call_mode: LLMCallMode = "traditional",
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     return await _multi_strategy_code_recall(
         codebase,
@@ -770,6 +1160,7 @@ async def multi_strategy_code_mapping(
         codebase.llm_map,
         custom_strategies,
         topic_extractor,
+        llm_call_mode,
     )
 
 
@@ -781,6 +1172,7 @@ async def multi_strategy_code_filter(
     mode: Literal["fast", "balance", "precise", "custom"],
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
+    llm_call_mode: LLMCallMode = "traditional",
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     return await _multi_strategy_code_recall(
         codebase,
@@ -791,4 +1183,5 @@ async def multi_strategy_code_filter(
         codebase.llm_filter,
         custom_strategies,
         topic_extractor,
+        llm_call_mode,
     )

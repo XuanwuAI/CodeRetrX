@@ -7,6 +7,7 @@ from .smart_codebase import (
     SmartCodebase,
     LLMMapFilterTargetType,
     SimilaritySearchTargetType,
+    LLMCallMode,
 )
 from .topic_extractor import TopicExtractor
 
@@ -17,5 +18,6 @@ __all__ = [
     "SmartCodebase",
     "LLMMapFilterTargetType",
     "SimilaritySearchTargetType",
+    "LLMCallMode",
     "TopicExtractor",
 ]

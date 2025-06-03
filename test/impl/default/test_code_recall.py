@@ -51,7 +51,7 @@ class TestLLMCodeFilterTool(unittest.TestCase):
     
     async def recall_with_mode(self, mode: Literal["fast", "balance", "precise", "custom"]):
         """Helper method to run the tool with a specific mode"""
-        return await multi_strategy_code_filter(
+        result, llm_output = await multi_strategy_code_filter(
             codebase=self.codebase,
             subdirs_or_files=[self.test_dir],
             prompt=self.test_prompt,
@@ -59,6 +59,7 @@ class TestLLMCodeFilterTool(unittest.TestCase):
             mode=mode,
             topic_extractor=self.topic_extractor,
         )
+        return result
     
     def test_initialization(self):
         """Test initialization of test environment"""
