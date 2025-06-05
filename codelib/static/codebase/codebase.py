@@ -764,7 +764,7 @@ class Codebase:
             return self.all_chunks
         logger.info("Starting chunks extraction from source code files...")
         files = list(self.source_files.values())
-        for file in files:
+        for file in tqdm(files):
             chunks = file.init_chunks()
             self.all_chunks.extend(chunks)
         self._chunks_initialized = True
@@ -810,7 +810,7 @@ class Codebase:
         unique_keywords: dict[str, Keyword] = {}
 
         # Process each source file
-        for file_path, file in self.source_files.items():
+        for file_path, file in tqdm(self.source_files.items()):
             try:
                 content = file.content
                 words = content.split()
@@ -844,7 +844,7 @@ class Codebase:
             return self.dependencies
         logger.info("Starting dependency extraction from source code files...")
         dependency_symbols: List[Symbol] = []
-        for file in self.source_files.values():
+        for file in tqdm(self.source_files.values()):
             ts = file.ts()
             lang = ts.idx_language
             try:
