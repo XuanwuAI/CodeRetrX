@@ -1,10 +1,11 @@
 import uuid
+import os
 import re
 from collections import defaultdict
 from enum import Enum
-from logging import debug, info
 from os import PathLike
 from pathlib import Path
+from tqdm import tqdm
 from textwrap import dedent
 from typing import (
     Dict,
@@ -26,6 +27,10 @@ from tree_sitter import Node, Tree
 from tree_sitter import Parser as TSParser
 from tree_sitter_language_pack import get_language as get_ts_language
 from tree_sitter_language_pack import get_parser
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 from .languages import (
     FUNCLIKE_TAGS,
@@ -377,7 +382,7 @@ class File:
             captures = query.captures(ts.tree.root_node)
             return set(node for nodes in captures.values() for node in nodes)
         except FileNotFoundError:
-            debug(f"Test Query file not found for language {ts.idx_language}")
+            logger.debug(f"Test Query file not found for language {ts.idx_language}")
             return set()
         except Exception as e:
             raise e
@@ -424,6 +429,10 @@ class File:
                     name = _name.decode()
 
             self.chunks.append(CodeChunk.from_ts(node, self, kind, main_tag, name))
+            if len(self.chunks) > int(os.environ.get("MAX_CHUNKS_ONE_FILE", 500)):
+                logger.warning(f"Too many chunks in {self.path}")
+                self.chunks = []
+                return []
 
         self.populate_nesting()
         return self.chunks
@@ -753,17 +762,22 @@ class Codebase:
     def init_chunks(self) -> List[CodeChunk]:
         if self._chunks_initialized:
             return self.all_chunks
+        logger.info("Starting chunks extraction from source code files...")
         files = list(self.source_files.values())
         for file in files:
             chunks = file.init_chunks()
             self.all_chunks.extend(chunks)
         self._chunks_initialized = True
+        logger.info(
+            f"chunk extraction complete: found {len(self.all_chunks)} unique keywords across the codebase"
+        )
         return self.all_chunks
 
     def _extract_symbols(self):
         if self._symbols_initialized:
             return self.symbols
-        for chunk in self.primary_chunks():
+        logger.info("Starting symbol extraction from source code files...")
+        for chunk in tqdm(self.primary_chunks()):
             if symb_name := chunk.symbol_name():
                 if chunk.tag in OBJLIKE_TAGS:
                     type = "class"
@@ -781,13 +795,16 @@ class Codebase:
                     )
                 )
         self._symbols_initialized = True
+        logger.info(
+            f"Symbol extraction complete: found {len(self.symbols)} unique keywords across the codebase"
+        )
         return self.symbols
 
     def _extract_keywords(self):
         """Extract keywords from source code files."""
         if self._keywords_initialized:
             return self.keywords
-        info("Starting keyword extraction from source code files...")
+        logger.info("Starting keyword extraction from source code files...")
 
         # Set to store unique keywords
         unique_keywords: dict[str, Keyword] = {}
@@ -813,10 +830,10 @@ class Codebase:
                         )
 
             except Exception as e:
-                info(f"Error extracting keywords from file {file_path}: {e}")
+                logger.info(f"Error extracting keywords from file {file_path}: {e}")
 
         self.keywords = list(unique_keywords.values())
-        info(
+        logger.info(
             f"Keyword extraction complete: found {len(self.keywords)} unique keywords across the codebase"
         )
         self._keywords_initialized = True
@@ -825,6 +842,7 @@ class Codebase:
     def _extract_dependencies(self):
         if self._dependencies_initialized:
             return self.dependencies
+        logger.info("Starting dependency extraction from source code files...")
         dependency_symbols: List[Symbol] = []
         for file in self.source_files.values():
             ts = file.ts()
@@ -865,6 +883,9 @@ class Codebase:
         ]
         self.symbols += dependency_symbols
         self._dependencies_initialized = True
+        logger.info(
+            f"Dependency extraction complete: found {len(self.dependencies)} unique keywords across the codebase"
+        )
         return self.dependencies
 
     def _build_call_graph(self):
@@ -933,7 +954,7 @@ class Codebase:
             List of GrepChunkResult objects containing matching chunks and the patterns they match
         """
         # TODO: support ripgrep glob files by lang -> extension
-        debug(
+        logger.debug(
             f"RG: {len(queries)} queries, chunktypes: {chunktypes}, langs: {langs}, search_path: {search_path}"
         )
 
@@ -952,7 +973,7 @@ class Codebase:
             )
         grouped_by_file: Dict[str, List[GrepMatchResult]] = defaultdict(list)
         for result in results:
-            debug(f"RG: {result.file_path} {result.line_number}")
+            logger.debug(f"RG: {result.file_path} {result.line_number}")
             grouped_by_file[str(result.file_path)].append(result)
         grep_results = []
         for file_path, results in grouped_by_file.items():

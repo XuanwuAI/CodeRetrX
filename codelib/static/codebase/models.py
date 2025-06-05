@@ -3,7 +3,6 @@ from typing import Dict, List, Literal, Optional, Self, Union
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from logging import warn
 
 from .codebase import (
     ChunkType,
