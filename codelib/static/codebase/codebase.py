@@ -59,6 +59,14 @@ class ChunkType(str, Enum):
     QUERY_RESULT = "query_result"
     OTHER = "other"
 
+def is_utf8(file_path):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            f.read()
+        return True
+    except UnicodeDecodeError:
+        return False
+
 
 def hunk_uuid(
     path: PathLike, start_line: int, end_line: int, start_column: int, end_column: int
@@ -429,8 +437,9 @@ class File:
                     name = _name.decode()
 
             self.chunks.append(CodeChunk.from_ts(node, self, kind, main_tag, name))
-            if len(self.chunks) > int(os.environ.get("MAX_CHUNKS_ONE_FILE", 500)):
-                logger.warning(f"Too many chunks in {self.path}")
+            max_chunk_size: int = int(os.environ.get("MAX_CHUNKS_ONE_FILE", 500))
+            if len(self.chunks) > max_chunk_size:
+                logger.warning(f"Too many chunks in {self.path}: {len(self.chunks)} > {max_chunk_size}")
                 self.chunks = []
                 return []
 
@@ -748,6 +757,8 @@ class Codebase:
             path = entry.path()
             if not path.is_file():
                 continue
+            if not is_utf8(path):
+                continue
             relative_path = path.relative_to(dir)
             if is_sourcecode(path):
                 res.source_files[str(relative_path)] = File.new(
@@ -769,7 +780,7 @@ class Codebase:
             self.all_chunks.extend(chunks)
         self._chunks_initialized = True
         logger.info(
-            f"chunk extraction complete: found {len(self.all_chunks)} unique keywords across the codebase"
+            f"chunk extraction complete: found {len(self.all_chunks)} chunks across the codebase"
         )
         return self.all_chunks
 
@@ -796,7 +807,7 @@ class Codebase:
                 )
         self._symbols_initialized = True
         logger.info(
-            f"Symbol extraction complete: found {len(self.symbols)} unique keywords across the codebase"
+            f"Symbol extraction complete: found {len(self.symbols)} symbols across the codebase"
         )
         return self.symbols
 
@@ -851,7 +862,6 @@ class Codebase:
                 pattern = get_query(lang, "fine_imports")
             except FileNotFoundError:
                 continue
-
             query = ts.ts_language.query(pattern)
             captures = query.captures(ts.tree.root_node)
             for capture_name, nodes in captures.items():
