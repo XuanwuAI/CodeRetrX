@@ -19,3 +19,5 @@ rg.exe
 .tmp
 .cache
 .data
+
+.DS_Store

@@ -205,7 +205,7 @@ class SmartCodebase(SmartCodebaseBase):
             }
 
             try:
-                model_ids = [os.environ["LLM_MAPFILTER_MODEL_ID"],"anthropic/claude-3.7-sonnet"]
+                model_ids = [os.environ.get("LLM_MAPFILTER_MODEL_ID", "openai/gpt-4.1-mini"), "anthropic/claude-3.7-sonnet"]
                 llm_results = await call_llm_with_fallback(
                     response_model=List[CodeMapFilterResult],
                     input_data=invoke_input,
@@ -351,7 +351,7 @@ class SmartCodebase(SmartCodebaseBase):
 
             try:
                 # Call LLM with function call
-                model_ids = [os.environ["LLM_MAPFILTER_MODEL_ID"],"anthropic/claude-3.7-sonnet"]
+                model_ids = [os.environ.get("LLM_FUNCTION_CALL_MODEL_ID", "openai/gpt-4.1-mini"), "anthropic/claude-3.7-sonnet"]
                 function_args = await call_llm_with_function_call(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
