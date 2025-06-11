@@ -344,7 +344,7 @@ async def main():
         
         bugs = await bug_finder.find_bugs(subdirs=args.subdirs)
         
-        output_file = args.output or f"bug_report_{args.mode}.json"
+        output_file = args.output or f"bug_report_{args.mode}_{args.use_function_call}.json"
         bug_finder.save_results(bugs, output_file)
         
         print(f"\n" + "="*60)

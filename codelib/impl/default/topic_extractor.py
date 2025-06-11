@@ -51,10 +51,12 @@ class TopicExtractor(TopicExtractorBase):
             input_data = {"input": input_text}
 
             # Call LLM with the topic extraction prompt template
+            model_ids = [os.environ.get("LLM_TOPIC_EXTRACTION_MODEL_ID", "openai/gpt-4.1-mini"), "anthropic/claude-3.7-sonnet"]
             result = await call_llm_with_fallback(
                 response_model=KeywordExtractorResult,
                 input_data=input_data,
                 prompt_template=topic_extraction_prompt_template,
+                model_ids=model_ids,
             )
 
             assert isinstance(result, KeywordExtractorResult)
@@ -78,7 +80,7 @@ class TopicExtractor(TopicExtractorBase):
             function_definition = get_topic_extraction_function_definition()
 
             # Call LLM with function call
-            model_ids = [os.environ.get("LLM_MAPFILTER_MODEL_ID", "openai/gpt-4.1-mini"), "anthropic/claude-3.7-sonnet"]
+            model_ids = [os.environ.get("LLM_TOPIC_EXTRACTION_MODEL_ID", "openai/gpt-4.1-mini"), "anthropic/claude-3.7-sonnet"]
             function_args = await call_llm_with_function_call(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
