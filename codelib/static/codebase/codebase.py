@@ -436,7 +436,7 @@ class File:
 
             self.chunks.append(CodeChunk.from_ts(node, self, kind, main_tag, name))
             max_chunk_size: int = int(os.environ.get("MAX_CHUNKS_ONE_FILE", 500))
-            if len(self.chunks) > max_chunk_size:
+            if max_chunk_size>0 and len(self.chunks) > max_chunk_size:
                 logger.warning(f"Too many chunks in {self.path}: {len(self.chunks)} > {max_chunk_size}")
                 self.chunks = []
                 return []
