@@ -162,10 +162,11 @@ class CodeChunk(CodeHunk):
     """A code chunk that is backed by a tree-sitter node."""
 
     type: ChunkType
-    ts_root: Node
     parent: Optional[Self] = None
     tag: Optional[IDXSupportedTag] = None
     name: Optional[str] = None
+    #todo: use @property to get ts_root on the fly
+    ts_root: Optional[Node] = None
     def to_json(self, include_content: bool = False):
         from .models import CodeChunkModel
 
@@ -180,11 +181,6 @@ class CodeChunk(CodeHunk):
 
         model = CodeChunkModel.model_validate(data)
         chunk = model.to_chunk(src)
-        if init_ts:
-            ts_state = src.ts()
-            parsed = ts_state.parser.parse(src.content.encode())
-            # Use the node map for efficient lookup
-            chunk.ts_root = ts_state.node_map.get(chunk.ts_root.id, parsed.root_node)
         return chunk
 
     @classmethod
@@ -211,7 +207,6 @@ class CodeChunk(CodeHunk):
                 node.start_point[1],
                 node.end_point[1],
             ),
-            ts_root=node,
             name=name,
         )
 
@@ -236,6 +231,9 @@ class CodeChunk(CodeHunk):
         prev_child = self
         parent = self.parent
         while parent:
+            if parent.ts_root is None:
+                logger.warning(f"Skipping {parent} because ts_root is None")
+                break
             if parent.ts_root.text:
                 line_diff = prev_child.start_line - parent.start_line
                 par_lines = parent.lines()[: min(par_headlines, line_diff)]

@@ -32,7 +32,6 @@ class CodeChunkModel(BaseModel):
     src: str  # Path to source file
     uuid: str
     content: Optional[str] = None
-    ts_node_id: int  # Tree-sitter node ID
     tag: Optional[IDXSupportedTag] = None
 
     @classmethod
@@ -47,18 +46,12 @@ class CodeChunkModel(BaseModel):
             end_column=chunk.end_column,
             src=str(chunk.src.path),
             content=chunk.code() if include_content else None,
-            ts_node_id=chunk.ts_root.id,
             tag=chunk.tag,
             uuid=str(chunk.uuid),
         )
 
     def to_chunk(self, src_file: File) -> CodeChunk:
         # Initialize tree-sitter and get the root node
-        ts_state = src_file.ts()
-        tree = ts_state.parser.parse(src_file.content.encode())
-        # Try to find the node with matching ID, fallback to root node if not found
-        ts_root = ts_state.node_map.get(self.ts_node_id, tree.root_node)
-
         return CodeChunk(
             start_line=self.start_line,
             end_line=self.end_line,
@@ -68,7 +61,6 @@ class CodeChunkModel(BaseModel):
             type=self.type,
             tag=self.tag,
             uuid=UUID(self.uuid),
-            ts_root=ts_root,
         )
 
 
