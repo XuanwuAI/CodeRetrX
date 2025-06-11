@@ -75,6 +75,7 @@ class CodebaseStats(BaseModel):
     num_lines: int
     num_tokens: int
     language_distribution: Dict[str, int]  # Maps language name to line count
+    primary_language: str  # The language with the most lines of code
     file_stats: List[FileStats]
     chunk_stats: List[ChunkStats]
 
@@ -95,6 +96,9 @@ class CodebaseStats(BaseModel):
             if lang:
                 language_counts[lang] += len(file.lines)
 
+        # Determine primary language (language with most lines)
+        primary_language = max(language_counts, key=language_counts.get) if language_counts else "Unknown"
+
         # Collect all chunk stats
         chunk_stats = []
         for file in codebase.source_files.values():
@@ -109,6 +113,7 @@ class CodebaseStats(BaseModel):
             num_lines=sum(stat.num_lines for stat in file_stats),
             num_tokens=sum(stat.num_tokens for stat in file_stats),
             language_distribution=dict(language_counts),
+            primary_language=primary_language,
             file_stats=file_stats,
             chunk_stats=chunk_stats,
         )
@@ -132,5 +137,7 @@ if __name__ == "__main__":
         - Number of files: {stats.num_files}
         - Number of lines: {stats.num_lines}
         - Number of tokens: {stats.num_tokens}
+        - Primary language: {stats.primary_language}
+        - Language distribution: {stats.language_distribution}
         """)
     )

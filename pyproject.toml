@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.11.4",
     "python-dotenv>=1.1.0",
     "python-git>=2018.2.1",
+    "tomli-w>=1.2.0",
     "tree-sitter>=0.24.0",
     "tree-sitter-language-pack>=0.7.3",
 ]
@@ -28,6 +29,7 @@ builtin-impl = [
     "langchain-community>=0.3.24",
     "langchain-openai>=0.3.17",
 ]
+cli = ["typer>=0.16.0"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
