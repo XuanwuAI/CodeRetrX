@@ -1,0 +1,149 @@
+[repositories.cloudflare_boringtun]
+url = "https://github.com/cloudflare/boringtun"
+commit = "2f3c85f5c4a601018c10b464b1ca890d9504bf6e"
+
+[repositories.cloudflare_boringtun.stats]
+num_files = 30
+num_lines = 7937
+num_tokens = 73507
+primary_language = "rust"
+
+[repositories.rosenpass_rosenpass]
+url = "https://github.com/rosenpass/rosenpass"
+commit = "d98815fa7f8dbe6fd2ea2e024e17447bf587d134"
+
+[repositories.rosenpass_rosenpass.stats]
+num_files = 147
+num_lines = 30063
+num_tokens = 237990
+primary_language = "rust"
+
+[repositories.neondatabase_neon]
+url = "https://github.com/neondatabase/neon"
+commit = "1b935b1958a7f508807f1bd241e715f33cdc386e"
+
+[repositories.neondatabase_neon.stats]
+num_files = 934
+num_lines = 375060
+num_tokens = 3021451
+primary_language = "rust"
+
+[repositories.GianisTsol_python-p2p]
+url = "https://github.com/GianisTsol/python-p2p"
+commit = "69056e1634ec108c7863d36b837f93043ee89ac6"
+
+[repositories.GianisTsol_python-p2p.stats]
+num_files = 8
+num_lines = 1189
+num_tokens = 11875
+primary_language = "python"
+
+[repositories.magic-wormhole_magic-wormhole]
+url = "https://github.com/magic-wormhole/magic-wormhole"
+commit = "e5f2ba2c77fe041ffd83db2045591a4d5a65a8de"
+
+[repositories.magic-wormhole_magic-wormhole.stats]
+num_files = 99
+num_lines = 27538
+num_tokens = 175095
+primary_language = "python"
+
+[repositories.zulip_zulip]
+url = "https://github.com/zulip/zulip"
+commit = "e243fc67fac9f228dffbbbc5a0ba30abb99e298e"
+
+[repositories.zulip_zulip.stats]
+num_files = 2300
+num_lines = 499528
+num_tokens = 5711007
+primary_language = "python"
+
+[repositories.TecharoHQ_anubis]
+url = "https://github.com/TecharoHQ/anubis"
+commit = "6e2eeb9e6562e9330024aa3bcb393d223713e40e"
+
+[repositories.TecharoHQ_anubis.stats]
+num_files = 48
+num_lines = 5163
+num_tokens = 34501
+primary_language = "go"
+
+[repositories.google_fscrypt]
+url = "https://github.com/google/fscrypt"
+commit = "827c13689b39814552a3a18449f922b123725b49"
+
+[repositories.google_fscrypt.stats]
+num_files = 42
+num_lines = 11698
+num_tokens = 18502
+primary_language = "go"
+
+[repositories.ethereum_go-ethereum]
+url = "https://github.com/ethereum/go-ethereum"
+commit = "0983cd789ee1905aedaed96f72793e5af8466f34"
+
+[repositories.ethereum_go-ethereum.stats]
+num_files = 920
+num_lines = 272576
+num_tokens = 1104733
+primary_language = "go"
+
+[repositories.Mastercard_client-encryption-java]
+url = "https://github.com/Mastercard/client-encryption-java"
+commit = "20a5b880b39a590d10785e4b6dbd957112548e31"
+
+[repositories.Mastercard_client-encryption-java.stats]
+num_files = 86
+num_lines = 8654
+num_tokens = 188192
+primary_language = "java"
+
+[repositories.keycloak_keycloak]
+url = "https://github.com/keycloak/keycloak"
+commit = "c37e597117a0999960106e6a9a420f514249ccd4"
+
+[repositories.keycloak_keycloak.stats]
+num_files = 7031
+num_lines = 955351
+num_tokens = 12068541
+primary_language = "java"
+
+[repositories.cryptomator_cryptomator]
+url = "https://github.com/cryptomator/cryptomator"
+commit = "0178ca4080b9adb774006af53e3517a104476077"
+
+[repositories.cryptomator_cryptomator.stats]
+num_files = 387
+num_lines = 29637
+num_tokens = 363437
+primary_language = "java"
+
+[repositories.padloc_padloc]
+url = "https://github.com/padloc/padloc"
+commit = "1d2e9129d65afad72cf7fefc80fd5eb20b5671d9"
+
+[repositories.padloc_padloc.stats]
+num_files = 304
+num_lines = 136352
+num_tokens = 1363775
+primary_language = "javascript"
+
+[repositories.dani-garcia_vaultwarden]
+url = "https://github.com/dani-garcia/vaultwarden"
+commit = "0d3f283c3720b82e97c1aa383a66ebc8b4951dfb"
+
+[repositories.dani-garcia_vaultwarden.stats]
+num_files = 67
+num_lines = 62609
+num_tokens = 401294
+primary_language = "javascript"
+
+[repositories.swiftyapp_swifty]
+url = "https://github.com/swiftyapp/swifty"
+commit = "858209dc2b67183065de40e298f3fa1e60aad2c3"
+
+[repositories.swiftyapp_swifty.stats]
+num_files = 190
+num_lines = 8295
+num_tokens = 43671
+primary_language = "javascript"
