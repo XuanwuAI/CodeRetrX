@@ -21,3 +21,5 @@ rg.exe
 .data
 
 .DS_Store
+bug_reports/
+features/

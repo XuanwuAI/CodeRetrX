@@ -818,32 +818,53 @@ class Codebase:
         # Set to store unique keywords
         unique_keywords: dict[str, Keyword] = {}
 
+        # Check if we should use sentence-based extraction
+        use_sentence_extraction = os.environ.get("KEYWORD_SENTENCE_EXTRACTION", "false").lower() == "true"
+
         # Process each source file
         for file_path, file in tqdm(self.source_files.items()):
             try:
                 content = file.content
-                words = content.split()
-                for word in words:
-                    # only reserve words, numbers and '.', '-', '_', '/'
-                    normalized_word = re.sub(r"[^a-zA-Z0-9.-_/]", "", word.lower())
+                
+                if use_sentence_extraction:
+                    # Sentence-based extraction
+                    sentences = re.split(r'[.!?\n]+', content)
+                    for sentence in sentences:
+                        sentence = sentence.strip()
+                        # remove extra whitespace and normalize
+                        normalized_sentence = ' '.join(sentence.split()).lower()
+                        
+                        if normalized_sentence in unique_keywords:
+                            unique_keywords[normalized_sentence].referenced_by.append(file)
+                        else:
+                            unique_keywords[normalized_sentence] = Keyword(
+                                content=normalized_sentence, referenced_by=[file]
+                            )
+                else:
+                    # Word-based extraction
+                    words = content.split()
+                    for word in words:
+                        # only reserve words, numbers and '.', '-', '_', '/'
+                        normalized_word = re.sub(r"[^a-zA-Z0-9.-_/]", "", word.lower())
 
-                    # Skip words that are too short (less than 3 characters)
-                    if len(normalized_word) < 3:
-                        continue
+                        # Skip words that are too short (less than 3 characters)
+                        if len(normalized_word) < 3:
+                            continue
 
-                    if normalized_word in unique_keywords:
-                        unique_keywords[normalized_word].referenced_by.append(file)
-                    else:
-                        unique_keywords[normalized_word] = Keyword(
-                            content=normalized_word, referenced_by=[file]
-                        )
+                        if normalized_word in unique_keywords:
+                            unique_keywords[normalized_word].referenced_by.append(file)
+                        else:
+                            unique_keywords[normalized_word] = Keyword(
+                                content=normalized_word, referenced_by=[file]
+                            )
 
             except Exception as e:
                 logger.info(f"Error extracting keywords from file {file_path}: {e}")
 
         self.keywords = list(unique_keywords.values())
+        extraction_type = "sentence" if use_sentence_extraction else "word"
         logger.info(
-            f"Keyword extraction complete: found {len(self.keywords)} unique keywords across the codebase"
+            f"Keyword extraction ({extraction_type}-based) complete: found {len(self.keywords)} unique keywords across the codebase"
         )
         self._keywords_initialized = True
         return self.keywords

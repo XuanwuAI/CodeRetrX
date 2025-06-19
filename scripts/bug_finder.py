@@ -20,6 +20,7 @@ from codelib.utils import embedding
 import datetime
 import argparse
 import sys
+import time
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
@@ -80,12 +81,17 @@ class BugFinder:
         }
         return descriptions.get(self.mode, f"Unknown mode: {self.mode}")
 
+    def _get_key_extraction_mode(self) -> str:
+        """Get the key extraction mode from environment variable"""
+        use_sentence_extraction = os.environ.get("KEYWORD_SENTENCE_EXTRACTION", "false").lower() == "true"
+        return "sentence" if use_sentence_extraction else "word"
+
     def generate_prompts(self, limit: int = 10) -> list[str]:
         """Load test prompts from a feature_outline_refiner JSON file"""
         all_prompts = []
         
-        # Get the absolute path of the feature file
-        feature_file = Path(__file__).parent / "feature_outline_refiner_0_6d53965443.json"
+        # Get the absolute path of the feature file from features folder
+        feature_file = Path(__file__).parent.parent / "features" / "feature_outline_refiner_0_6d53965443.json"
         
         try:
             with open(feature_file, 'r', encoding='utf-8') as f:
@@ -123,9 +129,20 @@ class BugFinder:
             
         return codebase
 
-    async def find_bugs(self, subdirs: list[str] = ["/"]) -> list[dict]:
+    async def find_bugs(self, subdirs: list[str] = ["/"]) -> tuple[list[dict], dict]:
         """Find potential bugs in the codebase using the specified mode"""
+        start_time = time.time()
+        timing_info = {
+            "total_duration": 0,
+            "preparation_duration": 0,
+            "prompt_durations": [],
+            "average_prompt_duration": 0
+        }
+        
+        prep_start = time.time()
         codebase = self.prepare_codebase()
+        prep_end = time.time()
+        timing_info["preparation_duration"] = prep_end - prep_start
         
         bug_prompts = self.generate_prompts(parse_arguments().limit)
         all_bugs = []
@@ -136,6 +153,8 @@ class BugFinder:
         print(f"\nUsing mode: {self.mode}")
         print(f"Mode description: {self._get_mode_description()}")
         print(f"Function call mode: {llm_call_mode}")
+        print(f"Key extraction mode: {self._get_key_extraction_mode()}")
+        print(f"Preparation time: {timing_info['preparation_duration']:.2f} seconds")
         
         for prompt in bug_prompts:
             print(f"\n{'='*80}")
@@ -143,6 +162,8 @@ class BugFinder:
             print(f"Mode: {self.mode}")
             print(f"{'='*80}")
             logger.info(f"Searching for bugs with prompt: {prompt} (mode: {self.mode})")
+            
+            prompt_start_time = time.time()
             try:
                 if self.mode == "adaptive":
                     # Use custom mode with adaptive strategies
@@ -206,13 +227,47 @@ class BugFinder:
             except Exception as e:
                 print(f"\nError while processing prompt: {e}")
                 logger.error(f"Error while processing prompt '{prompt}': {e}")
+            finally:
+                prompt_end_time = time.time()
+                prompt_duration = prompt_end_time - prompt_start_time
+                timing_info["prompt_durations"].append({
+                    "prompt": prompt[:50] + "..." if len(prompt) > 50 else prompt,
+                    "duration": prompt_duration
+                })
+                print(f"Prompt processing time: {prompt_duration:.2f} seconds")
             
             print(f"{'='*80}\n")
+        
+        # Calculate final timing statistics
+        end_time = time.time()
+        timing_info["total_duration"] = end_time - start_time
+        
+        if timing_info["prompt_durations"]:
+            durations = [p["duration"] for p in timing_info["prompt_durations"]]
+            timing_info["average_prompt_duration"] = sum(durations) / len(durations)
+        
+        # Print timing summary
+        print(f"\n{'='*60}")
+        print(f"TIMING SUMMARY")
+        print(f"{'='*60}")
+        print(f"Total duration: {timing_info['total_duration']:.2f} seconds")
+        print(f"Preparation duration: {timing_info['preparation_duration']:.2f} seconds")
+        print(f"Average prompt duration: {timing_info['average_prompt_duration']:.2f} seconds")
+        print(f"Number of prompts processed: {len(timing_info['prompt_durations'])}")
+        print(f"{'='*60}")
                 
-        return all_bugs
+        return all_bugs, timing_info
 
-    def save_results(self, bugs: list[dict], output_file: str = "bug_report.json"):
+    def save_results(self, bugs: list[dict], timing_info: dict, output_file: str = "bug_report.json"):
         """Save the bug finding results to a JSON file"""
+        # Create bug_report directory if it doesn't exist
+        bug_report_dir = Path("bug_reports")
+        bug_report_dir.mkdir(exist_ok=True)
+        
+        # Ensure output file is saved in bug_report directory
+        if not Path(output_file).is_absolute():
+            output_file = bug_report_dir / output_file
+        
         def make_serializable(obj):
             """Convert objects to JSON-serializable format"""
             if hasattr(obj, 'to_json'):
@@ -237,6 +292,9 @@ class BugFinder:
         report = {
             "repository": self.repo_url,
             "timestamp": str(datetime.datetime.now()),
+            "mode": self.mode,
+            "function_call_mode": self.use_function_call,
+            "timing_info": timing_info,
             "bugs": serializable_bugs
         }
         
@@ -332,6 +390,12 @@ async def main():
     print(f"Repository: {args.repo}")
     print(f"Mode: {args.mode}")
     print(f"Function Call: {args.use_function_call}")
+    
+    # Create a temporary bug_finder instance to get key extraction mode
+    temp_bug_finder = BugFinder(args.repo, mode=args.mode, use_function_call=args.use_function_call)
+    key_extraction_mode = temp_bug_finder._get_key_extraction_mode()
+    print(f"Key Extraction: {key_extraction_mode}")
+    
     print(f"Subdirectories: {args.subdirs}")
     if args.output:
         print(f"Output file: {args.output}")
@@ -342,13 +406,21 @@ async def main():
         # Run the bug finder
         bug_finder = BugFinder(args.repo, mode=args.mode, use_function_call=args.use_function_call)
         
-        bugs = await bug_finder.find_bugs(subdirs=args.subdirs)
+        bugs, timing_info = await bug_finder.find_bugs(subdirs=args.subdirs)
         
-        output_file = args.output or f"bug_report_{args.mode}_{args.use_function_call}.json"
-        bug_finder.save_results(bugs, output_file)
+        # Set default output file if not specified
+        if not args.output:
+            key_extraction_mode = bug_finder._get_key_extraction_mode()
+            default_filename = f"bug_report_{args.mode}_{key_extraction_mode}_{args.use_function_call}.json"
+            output_file = default_filename
+        else:
+            output_file = args.output
+            
+        bug_finder.save_results(bugs, timing_info, output_file)
         
         print(f"\n" + "="*60)
         print(f"Bug analysis completed!")
+        print(f"Total time: {timing_info['total_duration']:.2f} seconds")
         print(f"Found {len(bugs)} different types of potential issues")
         print(f"Results saved to {output_file}")
         print(f"="*60)
