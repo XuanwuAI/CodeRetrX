@@ -20,6 +20,8 @@ def get_langchain_model(model_name) -> BaseChatModel:
     return ChatOpenAI(
         base_url="https://openrouter.ai/api/v1",
         model=model_name,
+        timeout=60.0,
+        max_retries=2,
     )
 
 
@@ -179,7 +181,11 @@ async def call_llm_with_fallback(
     chain = langchain_prompt | model.with_retry() | TolerantJsonParser()
 
     try:
-        llm_result = await chain.ainvoke(input_data)
+        import asyncio
+        llm_result = await asyncio.wait_for(
+            chain.ainvoke(input_data), 
+            timeout=300
+        )
 
         # Check if response_model is a List type
         is_list_type = get_origin(response_model) is list
@@ -257,7 +263,7 @@ async def call_llm_with_function_call(
         client = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
-            timeout=60.0,
+            timeout=180.0,
             max_retries=0,
         )
         

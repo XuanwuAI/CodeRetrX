@@ -33,6 +33,107 @@ from os import PathLike
 logger = logging.getLogger(__name__)
 
 
+async def _perform_secondary_recall(
+    codebase: Codebase,
+    prompt: str,
+    elements: List[Any],
+    llm_results: List[Any],
+    granularity: LLMMapFilterTargetType,
+    llm_method: Callable,
+    llm_call_mode: LLMCallMode = "traditional",
+) -> Tuple[List[Any], List[Any]]:
+    """
+    Perform secondary recall using a more powerful model for refined filtering.
+    
+    Args:
+        codebase: The codebase instance
+        prompt: Original prompt
+        elements: Initial filtered elements
+        llm_results: Initial LLM results
+        granularity: Target type for filtering
+        llm_method: LLM method to use (filter or map)
+        llm_call_mode: LLM call mode
+        
+    Returns:
+        Tuple of (refined_elements, refined_llm_results)
+    """
+    if not elements:
+        logger.info("No elements to perform secondary recall on")
+        return elements, llm_results
+    
+    logger.info(f"Starting secondary recall on {len(elements)} elements")
+    
+    # Use a more powerful model for secondary recall
+    secondary_model_id = os.environ.get("SECONDARY_MODEL_ID", "anthropic/claude-3.5-sonnet")
+    
+    # Store original environment variables
+    original_mapfilter_model = os.environ.get("LLM_MAPFILTER_MODEL_ID")
+    original_function_call_model = os.environ.get("LLM_FUNCTION_CALL_MODEL_ID")
+    
+    try:
+        # Temporarily override environment variables for secondary recall
+        os.environ["LLM_MAPFILTER_MODEL_ID"] = secondary_model_id
+        os.environ["LLM_FUNCTION_CALL_MODEL_ID"] = secondary_model_id
+        
+        refined_prompt = f"""
+Please perform a more precise analysis of the following code elements based on this requirement:
+
+{prompt}
+
+The elements below have already passed an initial filtering stage. Now, please apply stricter criteria to identify only the most relevant elements that truly match the requirement.
+
+Focus on:
+1. Exact semantic relevance to the requirement
+2. Functional alignment with the specified criteria  
+3. Quality and completeness of the match
+
+Be more selective and only include elements that have high confidence of relevance.
+"""
+        
+        file_paths = []
+        if elements:
+            for element in elements:
+                if hasattr(element, 'file') and hasattr(element.file, 'path'):
+                    file_paths.append(str(element.file.path))
+                elif hasattr(element, 'path'):
+                    file_paths.append(str(element.path))
+                elif isinstance(element, str):
+                    file_paths.append(element)
+        
+        unique_file_paths = list(dict.fromkeys(file_paths))
+        
+        if not unique_file_paths:
+            logger.warning("No file paths extracted from elements for secondary recall")
+            return elements, llm_results
+        
+        logger.info(f"Performing secondary recall on {len(unique_file_paths)} unique files")
+        
+        secondary_elements, secondary_llm_results = await llm_method(
+            prompt=refined_prompt,
+            target_type=granularity,
+            subdirs_or_files=unique_file_paths,
+            llm_call_mode=llm_call_mode,
+        )
+        
+        logger.info(f"Secondary recall refined results from {len(elements)} to {len(secondary_elements)} elements")
+        
+        return secondary_elements, secondary_llm_results
+        
+    except Exception as e:
+        logger.error(f"Secondary recall failed: {e}")
+        return elements, llm_results
+    finally:
+        if original_mapfilter_model is not None:
+            os.environ["LLM_MAPFILTER_MODEL_ID"] = original_mapfilter_model
+        elif "LLM_MAPFILTER_MODEL_ID" in os.environ:
+            del os.environ["LLM_MAPFILTER_MODEL_ID"]
+            
+        if original_function_call_model is not None:
+            os.environ["LLM_FUNCTION_CALL_MODEL_ID"] = original_function_call_model
+        elif "LLM_FUNCTION_CALL_MODEL_ID" in os.environ:
+            del os.environ["LLM_FUNCTION_CALL_MODEL_ID"]
+
+
 class RecallStrategy(Enum):
     FILTER_FILENAME_BY_LLM = "filter_filename_by_llm"
     FILTER_KEYWORD_BY_VECTOR = "filter_keywords_by_vector"
@@ -1138,7 +1239,22 @@ async def _multi_strategy_code_recall(
         llm_call_mode=llm_call_mode,
     )
 
-    return elements, llm_results
+    # Secondary recall: further filter results if enabled and results exist
+    if os.getenv("ENABLE_SECONDARY_RECALL", "false").lower() == "true":
+        final_elements, final_llm_results = await _perform_secondary_recall(
+            codebase=codebase,
+            prompt=prompt,
+            elements=elements,
+            llm_results=llm_results,
+            granularity=granularity,
+            llm_method=llm_method,
+            llm_call_mode=llm_call_mode,
+        )
+    else:
+        final_elements = elements
+        final_llm_results = llm_results
+    
+    return final_elements, final_llm_results
 
 
 async def multi_strategy_code_mapping(
