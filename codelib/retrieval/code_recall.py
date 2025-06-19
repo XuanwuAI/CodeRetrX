@@ -64,7 +64,7 @@ async def _perform_secondary_recall(
     logger.info(f"Starting secondary recall on {len(elements)} elements")
     
     # Use a more powerful model for secondary recall
-    secondary_model_id = os.environ.get("SECONDARY_MODEL_ID", "anthropic/claude-3.5-sonnet")
+    secondary_model_id = os.environ.get("LLM_SECONDARY_RECALL_MODEL_ID", "anthropic/claude-3.5-sonnet")
     
     # Store original environment variables
     original_mapfilter_model = os.environ.get("LLM_MAPFILTER_MODEL_ID")
