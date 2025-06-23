@@ -1,6 +1,6 @@
 [project]
 name = "codelib"
-version = "0.1.14"
+version = "0.1.15"
 description = "Library for Code Analysis via Static Analysis and LLMs"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,7 +21,7 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["codelib"]
+include = ["codelib*"]
 exclude = []
 namespaces = false
 
