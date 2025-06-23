@@ -40,6 +40,7 @@ class SmartCodebase(Codebase, ABC):
         subdirs_or_files: List[str] = [],
         additional_code_elements: List[Union[Keyword, Symbol, File]] = [],
         llm_call_mode: LLMCallMode = "traditional",
+        model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[CodeMapFilterResult]]:
         pass
 
@@ -51,6 +52,7 @@ class SmartCodebase(Codebase, ABC):
         subdirs_or_files: List[str] = [],
         additional_code_elements: List[Union[Keyword, Symbol, File]] = [],
         llm_call_mode: LLMCallMode = "traditional",
+        model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[CodeMapFilterResult]]:
         pass
 

@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple, Any, Union, Literal
+from typing import Optional, List, Tuple, Any, Union, Literal, TYPE_CHECKING
 from codelib.static import Codebase
 from codelib.static.codebase import Symbol, Keyword, File
 from codelib.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
@@ -7,6 +7,8 @@ from codelib.utils.embedding import SimilaritySearcher
 import os
 import logging
 from pathlib import Path
+from pydantic import Field
+from pydantic_settings import BaseSettings
 from .prompt import (
     llm_filter_prompt_template,
     llm_mapping_prompt_template,
@@ -19,6 +21,8 @@ from .prompt import (
 )
 from tqdm.asyncio import tqdm
 import asyncio
+if TYPE_CHECKING:
+    from .factory import SmartCodebaseSettings
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +43,16 @@ LLMMapFilterTargetType = Literal[
 
 SimilaritySearchTargetType = Literal["symbol_name", "symbol_content", "keyword"]
 
+def get_smart_codebase_settings() -> "SmartCodebaseSettings":
+    from .factory import SmartCodebaseSettings
+    return SmartCodebaseSettings()
 
 @define
 class SmartCodebase(SmartCodebaseBase):
     symbol_name_searcher: Optional["SimilaritySearcher"] = field(default=None)
     symbol_content_searcher: Optional["SimilaritySearcher"] = field(default=None)
     keyword_searcher: Optional["SimilaritySearcher"] = field(default=None)
+    settings: "SmartCodebaseSettings" = field(factory=get_smart_codebase_settings)
 
     def _get_filtered_elements(
         self,
@@ -125,6 +133,20 @@ class SmartCodebase(SmartCodebaseBase):
         
         return elements
     
+    @classmethod
+    def new(cls, id: str, dir: Path, settings: "SmartCodebaseSettings") -> "SmartCodebase":
+        codebase = Codebase.new(id, dir)
+        return cls(
+            id=codebase.id,
+            dir=codebase.dir,
+            source_files=codebase.source_files,
+            dependency_files=codebase.dependency_files,
+            symbols=codebase.symbols,
+            keywords=codebase.keywords,
+            dependencies=codebase.dependencies,
+            settings=settings,
+        )
+        
     async def llm_filter(
         self,
         prompt: str,
@@ -133,6 +155,7 @@ class SmartCodebase(SmartCodebaseBase):
         additional_code_elements: List[Any] = [],
         prompt_template: str = llm_filter_prompt_template,
         llm_call_mode: LLMCallMode = "traditional",
+        model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[Any]]:
         """
         Filter code elements based on the specified type and prompt using LLM.
@@ -144,6 +167,8 @@ class SmartCodebase(SmartCodebaseBase):
             additional_code_elements: Additional code elements to include in filtering
             prompt_template: The prompt template to use (for traditional mode)
             llm_call_mode: The LLM call mode - "traditional", "function_call"
+            model_id: The model ID to use for the LLM call
+            If model_id is not provided, the model ID will be set to the value of the LLM_MAPFILTER_MODEL_ID environment variable
 
         Returns:
             A tuple containing:
@@ -154,9 +179,9 @@ class SmartCodebase(SmartCodebaseBase):
         elements = self._get_filtered_elements(target_type, subdirs_or_files, additional_code_elements)
 
         if llm_call_mode == "function_call":
-            return await self._process_elements_with_function_call(elements, target_type, prompt, is_filter=True)
+            return await self._process_elements_with_function_call(elements, target_type, prompt, is_filter=True, model_id=model_id)
         else:
-            return await self._process_elements_traditional(elements, target_type, prompt, prompt_template)
+            return await self._process_elements_traditional(elements, target_type, prompt, prompt_template, model_id=model_id)
 
     async def _process_elements_traditional(
         self,
@@ -164,13 +189,14 @@ class SmartCodebase(SmartCodebaseBase):
         target_type: str,
         prompt: str,
         prompt_template: str,
+        model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[Any]]:
         """Process elements using traditional prompt-based approach."""
         from codelib.utils.llm import call_llm_with_fallback
 
         # Process elements in batches
         async def process_element_batch(
-            elements_batch: List[Any], target_type: str, requirement: str
+            elements_batch: List[Any], target_type: str, requirement: str,
         ) -> Tuple[List[Any], List[Any]]:
             text = ""
             for i, element in enumerate(elements_batch):
@@ -205,7 +231,7 @@ class SmartCodebase(SmartCodebaseBase):
             }
 
             try:
-                model_ids = [os.environ.get("LLM_MAPFILTER_MODEL_ID", "openai/gpt-4.1-mini"), "anthropic/claude-3.7-sonnet"]
+                model_ids = [model_id or self.settings.llm_mapfilter_model_id, self.settings.llm_fallback_model_id]
                 llm_results = await call_llm_with_fallback(
                     response_model=List[CodeMapFilterResult],
                     input_data=invoke_input,
@@ -228,8 +254,8 @@ class SmartCodebase(SmartCodebaseBase):
         # Batch elements based on content length
         element_tasks = []
         cur_batch = []
-        max_batch_length = int(os.environ.get("LLM_MAPFILTER_MAX_BATCH_LENGTH", 10000)) 
-        max_batch_size =  int(os.environ.get("LLM_MAPFILTER_MAX_BATCH_SIZE", 100)) 
+        max_batch_length = self.settings.llm_mapfilter_max_batch_length
+        max_batch_size = self.settings.llm_mapfilter_max_batch_size 
 
         for element in elements:
             content_length = 0
@@ -267,7 +293,7 @@ class SmartCodebase(SmartCodebaseBase):
         if cur_batch:
             element_tasks.append(cur_batch)
 
-        max_concurrent_requests = int(os.environ.get("LLM_MAX_CONCURRENT_REQUESTS", 5))
+        max_concurrent_requests = self.settings.llm_max_concurrent_requests
         semaphore = asyncio.Semaphore(max_concurrent_requests)
         
         async def process_with_semaphore(batch):
@@ -275,7 +301,9 @@ class SmartCodebase(SmartCodebaseBase):
                 return await process_element_batch(batch, target_type, prompt)
 
         gather_results = await tqdm.gather(
-            *[process_with_semaphore(batch) for batch in element_tasks]
+            *[process_with_semaphore(batch) for batch in element_tasks],
+            desc="Processing elements",
+            total=len(element_tasks),
         )
 
         flattened_llm_results = []
@@ -293,6 +321,7 @@ class SmartCodebase(SmartCodebaseBase):
         target_type: str,
         prompt: str,
         is_filter: bool = True,
+        model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[Any]]:
         """Process elements using function call approach."""
         from codelib.utils.llm import call_llm_with_function_call
@@ -351,7 +380,7 @@ class SmartCodebase(SmartCodebaseBase):
 
             try:
                 # Call LLM with function call
-                model_ids = [os.environ.get("LLM_FUNCTION_CALL_MODEL_ID", "openai/gpt-4.1-mini"), "anthropic/claude-3.7-sonnet"]
+                model_ids = [model_id or self.settings.llm_function_call_model_id, self.settings.llm_fallback_model_id]
                 function_args = await call_llm_with_function_call(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -408,8 +437,8 @@ class SmartCodebase(SmartCodebaseBase):
         # Batch elements based on content length (same logic as traditional)
         element_tasks = []
         cur_batch = []
-        max_batch_length = int(os.environ.get("LLM_MAPFILTER_MAX_BATCH_LENGTH", 10000))
-        max_batch_size = int(os.environ.get("LLM_MAPFILTER_MAX_BATCH_SIZE", 100))
+        max_batch_length = self.settings.llm_mapfilter_max_batch_length
+        max_batch_size = self.settings.llm_mapfilter_max_batch_size
 
         for element in elements:
             content_length = 0
@@ -447,7 +476,7 @@ class SmartCodebase(SmartCodebaseBase):
         if cur_batch:
             element_tasks.append(cur_batch)
 
-        max_concurrent_requests = int(os.environ.get("LLM_MAX_CONCURRENT_REQUESTS", 5))
+        max_concurrent_requests = self.settings.llm_max_concurrent_requests
         semaphore = asyncio.Semaphore(max_concurrent_requests)
         
         async def process_with_semaphore(batch):
@@ -455,7 +484,9 @@ class SmartCodebase(SmartCodebaseBase):
                 return await process_element_batch_with_function_call(batch, target_type, prompt, is_filter)
 
         gather_results = await tqdm.gather(
-            *[process_with_semaphore(batch) for batch in element_tasks]
+            *[process_with_semaphore(batch) for batch in element_tasks],
+            desc="Processing elements with function call",
+            total=len(element_tasks),
         )
 
         flattened_llm_results = []
@@ -474,6 +505,7 @@ class SmartCodebase(SmartCodebaseBase):
         subdirs_or_files: List[str] = [],
         additional_code_elements: List[Any] = [],
         llm_call_mode: LLMCallMode = "traditional",
+        model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[Any]]:
         """
         Map code elements based on the specified type and prompt using LLM.
@@ -493,7 +525,7 @@ class SmartCodebase(SmartCodebaseBase):
         if llm_call_mode == "function_call":
             # Get and filter elements using the shared method
             elements = self._get_filtered_elements(target_type, subdirs_or_files, additional_code_elements)
-            return await self._process_elements_with_function_call(elements, target_type, prompt, is_filter=False)
+            return await self._process_elements_with_function_call(elements, target_type, prompt, is_filter=False, model_id=model_id)
         else:
             return await self.llm_filter(
                 prompt=prompt,
@@ -502,6 +534,7 @@ class SmartCodebase(SmartCodebaseBase):
                 additional_code_elements=additional_code_elements,
                 prompt_template=llm_mapping_prompt_template,
                 llm_call_mode="traditional",
+                model_id=model_id,
             )
 
     async def similarity_search(
@@ -527,7 +560,7 @@ class SmartCodebase(SmartCodebaseBase):
             ValueError: If searcher is not initialized for the requested type
         """
         threshold = (
-            float(os.environ.get("SIMILARITY_SEARCH_THRESHOLD", 0.1))
+            self.settings.similarity_search_threshold
             if threshold is None
             else threshold
         )

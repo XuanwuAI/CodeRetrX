@@ -1,6 +1,7 @@
-import os
 from attrs import define
 from pathlib import Path
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from codelib.utils.embedding import SimilaritySearcher
 from codelib.static.codebase import Codebase
@@ -11,12 +12,66 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class SmartCodebaseSettings(BaseSettings):
+    """Configuration settings for SmartCodebase with environment variable support."""
+    model_config = SettingsConfigDict(
+        env_file_encoding="utf-8", env_file=".env", extra="allow"
+    )
+
+    # LLM Configuration
+    llm_mapfilter_model_id: str = Field(
+        default="mistralai/devstral-small",
+        description="Primary model ID for LLM map/filter operations",
+    )
+    llm_function_call_model_id: str = Field(
+        default="mistralai/devstral-small",
+        description="Primary model ID for function call operations",
+    )
+    llm_fallback_model_id: str = Field(
+        default="anthropic/claude-3.7-sonnet",
+        description="Fallback model ID for LLM operations",
+    )
+
+    # Batch Configuration
+    llm_mapfilter_max_batch_length: int = Field(
+        default=10000, description="Maximum character length for LLM batch processing"
+    )
+    llm_mapfilter_max_batch_size: int = Field(
+        default=100, description="Maximum number of elements in a batch"
+    )
+
+    # Concurrency Configuration
+    llm_max_concurrent_requests: int = Field(
+        default=5, description="Maximum number of concurrent LLM requests"
+    )
+
+    # Similarity Search Configuration
+    similarity_search_threshold: float = Field(
+        default=0.1, description="Threshold for similarity search results"
+    )
+
+    # Embedding flags
+    symbol_name_embedding: bool = Field(
+        default=False,
+        description="Enable symbol name embeddings",
+        alias="SYMBOL_NAME_EMBEDDING",
+    )
+    symbol_content_embedding: bool = Field(
+        default=False,
+        description="Enable symbol content embeddings",
+        alias="SYMBOL_CONTENT_EMBEDDING",
+    )
+    keyword_embedding: bool = Field(
+        default=False, description="Enable keyword embeddings", alias="KEYWORD_EMBEDDING"
+    )
+
 @define
 class CodebaseFactory:
     @classmethod
     def from_json(cls, data: dict) -> SmartCodebase:
         assert isinstance(data, dict)
         codebase = Codebase.from_json(data)
+        settings = SmartCodebaseSettings()
         smart_codebase = SmartCodebase(
             id=codebase.id,
             dir=codebase.dir,
@@ -25,20 +80,24 @@ class CodebaseFactory:
             symbols=codebase.symbols,
             keywords=codebase.keywords,
             dependencies=codebase.dependencies,
+            settings=settings,
         )
         smart_codebase.init_all()
-        cls._initialize_similarity_searchers(smart_codebase)
+        cls._initialize_similarity_searchers(smart_codebase, settings)
         return smart_codebase
 
     @classmethod
     def new(cls, id: str, dir: Path) -> SmartCodebase:
-        smart_codebase = SmartCodebase.new(id, dir)
+        settings = SmartCodebaseSettings()
+        smart_codebase = SmartCodebase.new(id, dir, settings=settings)
         smart_codebase.init_all()
-        cls._initialize_similarity_searchers(smart_codebase)
+        cls._initialize_similarity_searchers(smart_codebase, settings)
         return smart_codebase
 
     @classmethod
-    def _initialize_similarity_searchers(cls, codebase: SmartCodebase) -> None:
+    def _initialize_similarity_searchers(
+        cls, codebase: SmartCodebase, settings: SmartCodebaseSettings
+    ) -> None:
         """
         Initialize SimilaritySearcher instances for the codebase if embeddings are available.
 
@@ -47,7 +106,7 @@ class CodebaseFactory:
         """
 
         # Initialize symbol name searcher if embeddings are available
-        if os.environ.get("SYMBOL_NAME_EMBEDDING"):
+        if settings.symbol_name_embedding:
             try:
                 symbol_names = list(set([symbol.name for symbol in codebase.symbols]))
                 logger.info(
@@ -69,7 +128,7 @@ class CodebaseFactory:
 
         # Initialize symbol content searcher if embeddings are available
 
-        if os.environ.get("SYMBOL_CONTENT_EMBEDDING"):
+        if settings.symbol_content_embedding:
             try:
                 symbol_contents = [
                     symbol.chunk.code() for symbol in codebase.symbols if symbol.chunk
@@ -94,7 +153,7 @@ class CodebaseFactory:
             )
 
         # Initialize keyword searcher if embeddings are available
-        if os.environ.get("KEYWORD_EMBEDDING"):
+        if settings.keyword_embedding:
             try:
                 keyword_contents = [keyword.content for keyword in codebase.keywords]
                 logger.info(

@@ -150,7 +150,7 @@ class SimilaritySearcher:
                 f"Adding {len(texts)} documents to ChromaDB collection '{name}'"
             )
             batch_size = 1000
-            for idx in tqdm(range(0, len(texts), batch_size)):
+            for idx in tqdm(range(0, len(texts), batch_size), desc="Adding documents to ChromaDB"):
                 text_batch = texts[idx : idx + batch_size]
                 if embeddings:
                     embedding_batch = embeddings[idx : idx + batch_size]
