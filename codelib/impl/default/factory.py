@@ -20,11 +20,11 @@ class SmartCodebaseSettings(BaseSettings):
 
     # LLM Configuration
     llm_mapfilter_model_id: str = Field(
-        default="openai/gpt-4.1-mini",
+        default="mistralai/devstral-small",
         description="Primary model ID for LLM map/filter operations",
     )
     llm_function_call_model_id: str = Field(
-        default="openai/gpt-4.1-mini",
+        default="mistralai/devstral-small",
         description="Primary model ID for function call operations",
     )
     llm_fallback_model_id: str = Field(
