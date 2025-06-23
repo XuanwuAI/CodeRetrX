@@ -11,6 +11,7 @@ dependencies = [
     "ignore-python>=0.2.0",
     "json-repair>=0.46.0",
     "pydantic>=2.11.4",
+    "pydantic-settings>=2.9.1",
     "python-dotenv>=1.1.0",
     "python-git>=2018.2.1",
     "tomli-w>=1.2.0",

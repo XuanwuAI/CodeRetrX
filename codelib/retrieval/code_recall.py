@@ -28,9 +28,29 @@ import random
 from .topic_extractor import TopicExtractor
 from codelib.static import Symbol, Keyword, File, CodeElement
 from pathlib import Path
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from os import PathLike
 
 logger = logging.getLogger(__name__)
+
+class CodeRecallSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file_encoding="utf-8", env_file=".env", extra="allow"
+    )
+    llm_secondary_recall_model_id: str = Field(
+        default="anthropic/claude-3.5-sonnet",
+        description="Model ID for secondary recall",
+    )
+    enable_secondary_recall: bool = Field(
+        default=True,
+        description="Whether to perform secondary recall",
+    )
+    llm_primary_recall_model_id: Optional[str] = Field(
+        default=None,
+        description="Model ID for primary recall. If not provided will use the SmartCodebase default",
+    )
+
 
 
 async def _perform_secondary_recall(
@@ -41,6 +61,7 @@ async def _perform_secondary_recall(
     granularity: LLMMapFilterTargetType,
     llm_method: Callable,
     llm_call_mode: LLMCallMode = "traditional",
+    model_id: Optional[str] = None,
 ) -> Tuple[List[Any], List[Any]]:
     """
     Perform secondary recall using a more powerful model for refined filtering.
@@ -53,6 +74,7 @@ async def _perform_secondary_recall(
         granularity: Target type for filtering
         llm_method: LLM method to use (filter or map)
         llm_call_mode: LLM call mode
+        model_id: Stronger model ID to use for secondary recall
         
     Returns:
         Tuple of (refined_elements, refined_llm_results)
@@ -64,17 +86,9 @@ async def _perform_secondary_recall(
     logger.info(f"Starting secondary recall on {len(elements)} elements")
     
     # Use a more powerful model for secondary recall
-    secondary_model_id = os.environ.get("LLM_SECONDARY_RECALL_MODEL_ID", "anthropic/claude-3.5-sonnet")
-    
-    # Store original environment variables
-    original_mapfilter_model = os.environ.get("LLM_MAPFILTER_MODEL_ID")
-    original_function_call_model = os.environ.get("LLM_FUNCTION_CALL_MODEL_ID")
+    secondary_model_id = model_id or "anthropic/claude-3.5-sonnet"
     
     try:
-        # Temporarily override environment variables for secondary recall
-        os.environ["LLM_MAPFILTER_MODEL_ID"] = secondary_model_id
-        os.environ["LLM_FUNCTION_CALL_MODEL_ID"] = secondary_model_id
-        
         refined_prompt = f"""
 Please perform a more precise analysis of the following code elements based on this requirement:
 
@@ -113,6 +127,7 @@ Be more selective and only include elements that have high confidence of relevan
             target_type=granularity,
             subdirs_or_files=unique_file_paths,
             llm_call_mode=llm_call_mode,
+            model_id=secondary_model_id,
         )
         
         logger.info(f"Secondary recall refined results from {len(elements)} to {len(secondary_elements)} elements")
@@ -122,16 +137,6 @@ Be more selective and only include elements that have high confidence of relevan
     except Exception as e:
         logger.error(f"Secondary recall failed: {e}")
         return elements, llm_results
-    finally:
-        if original_mapfilter_model is not None:
-            os.environ["LLM_MAPFILTER_MODEL_ID"] = original_mapfilter_model
-        elif "LLM_MAPFILTER_MODEL_ID" in os.environ:
-            del os.environ["LLM_MAPFILTER_MODEL_ID"]
-            
-        if original_function_call_model is not None:
-            os.environ["LLM_FUNCTION_CALL_MODEL_ID"] = original_function_call_model
-        elif "LLM_FUNCTION_CALL_MODEL_ID" in os.environ:
-            del os.environ["LLM_FUNCTION_CALL_MODEL_ID"]
 
 
 class RecallStrategy(Enum):
@@ -1131,6 +1136,7 @@ async def _multi_strategy_code_recall(
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     llm_call_mode: LLMCallMode = "traditional",
+    settings: Optional[CodeRecallSettings] = None,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     """
     Process code elements based on the specified prompt and mode.
@@ -1152,6 +1158,9 @@ async def _multi_strategy_code_recall(
     Returns:
         Tuple of (elements, llm_results)
     """
+    if settings is None:
+        settings = CodeRecallSettings()
+
     subdirs_or_files = [str(subdir).lstrip("/") for subdir in subdirs_or_files]
     elements = []
     llm_results = []
@@ -1237,10 +1246,12 @@ async def _multi_strategy_code_recall(
         target_type=granularity,
         subdirs_or_files=extended_subdirs_or_files,
         llm_call_mode=llm_call_mode,
+        model_id=settings.llm_primary_recall_model_id,
     )
 
     # Secondary recall: further filter results if enabled and results exist
-    if os.getenv("ENABLE_SECONDARY_RECALL", "false").lower() == "true":
+    if settings.enable_secondary_recall:
+        logger.info(f"Performing secondary recall on {len(elements)} elements")
         final_elements, final_llm_results = await _perform_secondary_recall(
             codebase=codebase,
             prompt=prompt,
@@ -1249,6 +1260,7 @@ async def _multi_strategy_code_recall(
             granularity=granularity,
             llm_method=llm_method,
             llm_call_mode=llm_call_mode,
+            model_id=settings.llm_secondary_recall_model_id,
         )
     else:
         final_elements = elements
@@ -1266,6 +1278,7 @@ async def multi_strategy_code_mapping(
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     llm_call_mode: LLMCallMode = "traditional",
+    settings: Optional[CodeRecallSettings] = None,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     return await _multi_strategy_code_recall(
         codebase,
@@ -1277,6 +1290,7 @@ async def multi_strategy_code_mapping(
         custom_strategies,
         topic_extractor,
         llm_call_mode,
+        settings,
     )
 
 
@@ -1289,6 +1303,7 @@ async def multi_strategy_code_filter(
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     llm_call_mode: LLMCallMode = "traditional",
+    settings: Optional[CodeRecallSettings] = None,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     return await _multi_strategy_code_recall(
         codebase,
@@ -1300,4 +1315,5 @@ async def multi_strategy_code_filter(
         custom_strategies,
         topic_extractor,
         llm_call_mode,
+        settings,
     )

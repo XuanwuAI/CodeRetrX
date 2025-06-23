@@ -773,7 +773,7 @@ class Codebase:
             return self.all_chunks
         logger.info("Starting chunks extraction from source code files...")
         files = list(self.source_files.values())
-        for file in tqdm(files):
+        for file in tqdm(files, desc="Initializing chunks"):
             chunks = file.init_chunks()
             self.all_chunks.extend(chunks)
         self._chunks_initialized = True
@@ -786,7 +786,7 @@ class Codebase:
         if self._symbols_initialized:
             return self.symbols
         logger.info("Starting symbol extraction from source code files...")
-        for chunk in tqdm(self.primary_chunks()):
+        for chunk in tqdm(self.primary_chunks(), desc="Extracting symbols"):
             if symb_name := chunk.symbol_name():
                 if chunk.tag in OBJLIKE_TAGS:
                     type = "class"
@@ -822,7 +822,7 @@ class Codebase:
         use_sentence_extraction = os.environ.get("KEYWORD_SENTENCE_EXTRACTION", "false").lower() == "true"
 
         # Process each source file
-        for file_path, file in tqdm(self.source_files.items()):
+        for file_path, file in tqdm(self.source_files.items(), desc="Extracting keywords"):
             try:
                 content = file.content
                 
@@ -874,7 +874,7 @@ class Codebase:
             return self.dependencies
         logger.info("Starting dependency extraction from source code files...")
         dependency_symbols: List[Symbol] = []
-        for file in tqdm(self.source_files.values()):
+        for file in tqdm(self.source_files.values(), desc="Extracting dependencies"):
             ts = file.ts()
             lang = ts.idx_language
             try:
