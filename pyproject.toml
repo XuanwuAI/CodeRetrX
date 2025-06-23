@@ -1,6 +1,6 @@
 [project]
 name = "codelib"
-version = "0.1.15"
+version = "0.1.16"
 description = "Library for Code Analysis via Static Analysis and LLMs"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -55,4 +55,4 @@ build-backend = "setuptools.build_meta"
 include-package-data = true
 
 [tool.setuptools.package-data]
-"codelib" = ["**/*.scm"]
+"codelib" = ["**/*.scm", "**/*.py"]
