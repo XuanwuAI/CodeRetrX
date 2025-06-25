@@ -17,6 +17,7 @@ from typing import (
 )
 import logging
 import os
+from codelib.utils.llm import call_llm_with_function_call
 from abc import ABC, abstractmethod
 from .smart_codebase import (
     LLMMapFilterTargetType,
@@ -33,7 +34,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from os import PathLike
 
 logger = logging.getLogger(__name__)
-
+class RecallStrategy(Enum):
+    FILTER_FILENAME_BY_LLM = "filter_filename_by_llm"
+    FILTER_KEYWORD_BY_VECTOR = "filter_keywords_by_vector"
+    FILTER_SYMBOL_BY_VECTOR = "filter_symbol_by_vector"
+    FILTER_SYMBOL_BY_LLM = "filter_symbol_by_llm"
+    FILTER_KEYWORD_BY_VECTOR_AND_LLM = "filter_keyword_by_vector_and_llm"
+    FILTER_SYMBOL_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
+    ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = "adaptive_filter_keyword_by_vector_and_llm"
+    ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM = "adaptive_filter_symbol_by_vector_and_llm"
 class CodeRecallSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8", env_file=".env", extra="allow"
@@ -50,7 +59,120 @@ class CodeRecallSettings(BaseSettings):
         default=None,
         description="Model ID for primary recall. If not provided will use the SmartCodebase default",
     )
+    llm_smart_strategy_model_id: str = Field(
+        default="anthropic/claude-sonnet-4",
+        description="Model ID for determining the best recall strategy based on the prompt when llm_smart_strategy is enabled",
+    )
 
+
+async def _determine_strategy_by_llm(
+    prompt: str,
+    model_id: Optional[str] = None,
+) -> RecallStrategy:
+    """
+    Use LLM to determine the best recall strategy based on the prompt.
+    
+    Args:
+        prompt: The user's prompt/query
+        model_id: The model ID to use for strategy determination
+        
+    Returns:
+        The selected RecallStrategy
+    """
+    
+    # Define the function for strategy determination
+    function_definition = {
+        "name": "determine_search_strategy",
+        "description": "Determine the best code search strategy based on the user query",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "element_type": {
+                    "type": "string",
+                    "enum": ["FILENAME", "KEYWORD", "SYMBOL"],
+                    "description": "The type of code element to search for"
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Explanation for why this element type was chosen"
+                }
+            },
+            "required": ["element_type", "reason"]
+        }
+    }
+    
+    system_prompt = """Analyze this filter_prompt and determine the most effective search method:
+
+Consider the complexity of the vulnerability:
+
+FILENAME: Use ONLY when vulnerabilities can be identified purely by file characteristics:
+- Specific dangerous file extensions alone
+- Hardcoded sensitive file paths 
+- Configuration files with known vulnerabilities
+- Non-code files that are inherently risky
+- etc.
+
+KEYWORD: Use when vulnerabilities can be identified by specific API/function usage:
+- Dangerous function calls
+- Specific API methods
+- Library imports that are risky
+- Configuration flags
+- etc. 
+
+SYMBOL: Use when vulnerabilities require understanding code behavior and context:
+- File processing logic
+- Path traversal patterns
+- Authentication bypass patterns
+- Complex injection vulnerabilities
+- Any vulnerability that needs to understand HOW files/data are processed
+- etc.
+
+Return only one of: FILENAME, KEYWORD, or SYMBOL
+
+Filter prompt to analyze:
+{prompt}"""
+
+    user_prompt = f"""Analyze the following user query and determine what type of code element to search for:
+
+<query>
+{prompt}
+</query>
+
+Call the determine_search_strategy function with your analysis."""
+
+    try:
+        # Use the same model list pattern as other function calls in the codebase
+        settings = CodeRecallSettings()
+        effective_model_id = model_id or settings.llm_smart_strategy_model_id
+        model_ids = [effective_model_id, "anthropic/claude-3.7-sonnet"]
+        
+        function_args = await call_llm_with_function_call(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            function_definition=function_definition,
+            model_ids=model_ids,
+        )
+        
+        element_type = function_args.get("element_type", "").upper()
+        reason = function_args.get("reason", "")
+        
+        logger.info(f"LLM determined element type: {element_type}. Reason: {reason}")
+        
+        # Map the response to RecallStrategy enum
+        # For now, use the vector+LLM strategies for keyword and symbol
+        if element_type == "FILENAME":
+            return RecallStrategy.FILTER_FILENAME_BY_LLM
+        elif element_type == "KEYWORD":
+            return RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM
+        elif element_type == "SYMBOL":
+            return RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM
+        else:
+            logger.warning(f"LLM returned invalid element type: {element_type}. Defaulting to FILTER_FILENAME_BY_LLM")
+            return RecallStrategy.FILTER_FILENAME_BY_LLM
+            
+    except Exception as e:
+        logger.error(f"Error determining strategy by LLM: {e}. Defaulting to FILTER_FILENAME_BY_LLM")
+        return RecallStrategy.FILTER_FILENAME_BY_LLM
 
 
 async def _perform_secondary_recall(
@@ -137,17 +259,6 @@ Be more selective and only include elements that have high confidence of relevan
     except Exception as e:
         logger.error(f"Secondary recall failed: {e}")
         return elements, llm_results
-
-
-class RecallStrategy(Enum):
-    FILTER_FILENAME_BY_LLM = "filter_filename_by_llm"
-    FILTER_KEYWORD_BY_VECTOR = "filter_keywords_by_vector"
-    FILTER_SYMBOL_BY_VECTOR = "filter_symbol_by_vector"
-    FILTER_SYMBOL_BY_LLM = "filter_symbol_by_llm"
-    FILTER_KEYWORD_BY_VECTOR_AND_LLM = "filter_keyword_by_vector_and_llm"
-    FILTER_SYMBOL_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
-    ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = "adaptive_filter_keyword_by_vector_and_llm"
-    ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM = "adaptive_filter_symbol_by_vector_and_llm"
 
 
 def rel_path(a: PathLike, b: PathLike) -> str:
@@ -781,7 +892,7 @@ class FilterSymbolByVectorStrategy(FilterByVectorStrategy[Symbol]):
 
     @override
     def extract_file_paths(
-        self, elements: List[Symbol], codebase: Codebase, subdirs_or_files: List[str]
+        self, elements: List[Symbol], codebase:  Codebase, subdirs_or_files: List[str]
     ) -> List[str]:
         file_paths = []
         for symbol in elements:
@@ -1166,14 +1277,8 @@ async def _multi_strategy_code_recall(
     llm_results = []
     extended_subdirs_or_files = set()
     all_llm_results = []
-    elements = []
-    llm_results = []
-    extended_subdirs_or_files = set()
-    all_llm_results = []
-
     # Determine which strategies to run based on the mode
     strategies_to_run: List[RecallStrategy] = []
-
     if mode == "fast":
         strategies_to_run = [RecallStrategy.FILTER_FILENAME_BY_LLM]
     elif mode == "balance":
@@ -1195,6 +1300,14 @@ async def _multi_strategy_code_recall(
                     break
     elif mode == "custom" and custom_strategies:
         strategies_to_run = custom_strategies
+    elif mode == "smart":
+        strategy = await _determine_strategy_by_llm(
+            prompt=prompt,
+            model_id=settings.llm_smart_strategy_model_id,
+            codebase=codebase
+        )
+        print(f"LLM smart strategy selected: {strategy.value}")
+        strategies_to_run = [strategy]
     else:
         if mode == "custom" and not custom_strategies:
             logger.warning(
