@@ -26,17 +26,18 @@ logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 class BugFinder:
-    def __init__(self, repo_url: str, mode: Literal["fast", "balance", "precise", "custom"] = "balance", use_function_call: bool = False):
+    def __init__(self, repo_url: str, mode: Literal["fast", "balance", "precise", "smart", "custom"] = "balance", use_function_call: bool = False):
         """
         Initialize the bug finder with a repository URL
         
         Args:
             repo_url: The repository URL to analyze
-            mode: Analysis mode - "fast", "balance", "precise", or "adaptive"
+            mode: Analysis mode - "fast", "balance", "precise", "smart", or "adaptive"
                 - fast: Uses filename filtering only (fastest)
                 - balance: Uses keyword vector + filename filtering (balanced speed/accuracy)
                 - precise: Uses full LLM processing (most accurate but slowest)
                 - adaptive: Uses adaptive vector + LLM strategy (smart filtering)
+                - smart: Uses LLM to determine the best strategy based on the prompt
             use_function_call: Whether to use function call mode (default: False)
         """
         self.repo_url = repo_url
@@ -46,9 +47,9 @@ class BugFinder:
         self.use_function_call = use_function_call
         self.setup_environment()
 
-    def _validate_mode(self, mode: Literal["fast", "balance", "precise", "custom"]) -> Literal["fast", "balance", "precise", "custom"]:
+    def _validate_mode(self, mode: Literal["fast", "balance", "precise", "smart", "custom"]) -> Literal["fast", "balance", "precise", "smart", "custom"]:
         """Validate and return the mode parameter"""
-        valid_modes = ["fast", "balance", "precise", "adaptive"]
+        valid_modes = ["fast", "balance", "precise", "adaptive", "smart"]
         if mode not in valid_modes:
             logger.warning(f"Invalid mode '{mode}'. Valid modes are: {valid_modes}. Defaulting to 'balance'.")
             return "balance"
@@ -57,7 +58,7 @@ class BugFinder:
     def setup_environment(self):
         """Setup the necessary environment for bug finding"""
         if os.environ.get("DISABLE_LLM_CACHE", "").lower() == "true":
-            del os.environ["DISABLE_LLM_CACHE"]            
+            del os.environ["DISABLE_LLM_CACHE"]
         
         os.environ["KEYWORD_EMBEDDING"] = "true"
         os.environ["SYMBOL_NAME_EMBEDDING"] = "true"
@@ -77,7 +78,8 @@ class BugFinder:
             "fast": "Uses filename filtering only (fastest, least accurate)",
             "balance": "Uses keyword vector + filename filtering (balanced speed/accuracy)",
             "precise": "Uses full LLM processing (most accurate but slowest)",
-            "adaptive": "Uses adaptive vector + LLM strategy (smart filtering with early exit)"
+            "adaptive": "Uses adaptive vector + LLM strategy (smart filtering with early exit)",
+            "smart": "Uses LLM to determine the best strategy based on the prompt"
         }
         return descriptions.get(self.mode, f"Unknown mode: {self.mode}")
 
@@ -165,7 +167,17 @@ class BugFinder:
             
             prompt_start_time = time.time()
             try:
-                if self.mode == "adaptive":
+                if self.mode == "smart":
+                    result, llm_output = await multi_strategy_code_filter(
+                        codebase=codebase,
+                        subdirs_or_files=subdirs,
+                        prompt=prompt,
+                        granularity="symbol_content",
+                        mode="smart",
+                        topic_extractor=self.topic_extractor,
+                        llm_call_mode=llm_call_mode
+                    )
+                elif self.mode == "adaptive":
                     # Use custom mode with adaptive strategies
                     result, llm_output = await multi_strategy_code_filter(
                         codebase=codebase,
@@ -308,20 +320,12 @@ def parse_arguments():
         description="Bug Finder - Analyze code repositories for potential bugs",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  python bug_finder.py --repo https://github.com/user/repo.git
-  python bug_finder.py --mode fast
-  python bug_finder.py --repo https://github.com/user/repo.git --mode precise
-  python bug_finder.py --mode adaptive --output my_report.json
-  python bug_finder.py --repo https://github.com/user/repo.git --subdirs src/ lib/
-  python bug_finder.py --limit 5 --mode balance
-  python bug_finder.py --use_function_call --mode precise
-
 Available modes:
   fast      - Uses filename filtering only (fastest, least accurate)
   balance   - Uses keyword vector + filename filtering (balanced speed/accuracy) [DEFAULT]
   precise   - Uses full LLM processing (most accurate but slowest)
   adaptive  - Uses adaptive vector + LLM strategy (smart filtering with early exit)
+  smart     - Uses LLM to determine the best strategy based on the prompt
 
 Function call modes:
   traditional     - Traditional mode (default)
@@ -339,7 +343,7 @@ Function call modes:
     parser.add_argument(
         "--mode", "-m",
         type=str,
-        choices=["fast", "balance", "precise", "adaptive"],
+        choices=["fast", "balance", "precise", "adaptive", "smart"],
         default="balance",
         help="Analysis mode (default: balance)"
     )

@@ -33,7 +33,7 @@ def analyze_datasets(adaptive_data: Dict, precise_data: Dict) -> Tuple[int, int,
         - ground_truth_count: Total number of items in precise dataset
         - contained_count: Number of fast/balance/adaptive items contained in precise dataset
         - not_contained_count: Number of fast/balance/adaptive items not contained in precise dataset
-        - adaptive_timing: Timing info from adaptive data
+        - other_timing: Timing info from other data
         - precise_timing: Timing info from precise data
     """
     method_ids = extract_bug_ids(adaptive_data)
@@ -48,35 +48,35 @@ def analyze_datasets(adaptive_data: Dict, precise_data: Dict) -> Tuple[int, int,
     not_contained_ids = method_ids - precise_ids
     
     # Extract timing information
-    adaptive_timing = extract_timing_info(adaptive_data)
+    other_timing = extract_timing_info(other_data)
     precise_timing = extract_timing_info(precise_data)
     
-    return len(method_ids), len(precise_ids), len(contained_ids), len(not_contained_ids), adaptive_timing, precise_timing
+    return len(method_ids), len(precise_ids), len(contained_ids), len(not_contained_ids), other_timing, precise_timing
 
-def print_timing_comparison(adaptive_timing: Optional[Dict], precise_timing: Optional[Dict], method_name: str):
+def print_timing_comparison(other_timing: Optional[Dict], precise_timing: Optional[Dict], method_name: str):
     """Print timing comparison between adaptive/balance and precise methods"""
     print(f"\n--- Timing Comparison for {method_name} ---")
     
-    if adaptive_timing and precise_timing:
-        adaptive_total = adaptive_timing.get('total_duration', 0)
+    if other_timing and precise_timing:
+        other_total = other_timing.get('total_duration', 0)
         precise_total = precise_timing.get('total_duration', 0)
         
-        print(f"Adaptive/Balance total time: {adaptive_total:.2f} seconds")
+        print(f"Adaptive/Balance total time: {other_total:.2f} seconds")
         print(f"Precise total time: {precise_total:.2f} seconds")
         
         if precise_total > 0:
-            speedup = precise_total / adaptive_total if adaptive_total > 0 else float('inf')
+            speedup = precise_total / other_total if other_total > 0 else float('inf')
             print(f"Speedup: {speedup:.2f}x")
         
         # Show average prompt times
-        adaptive_avg = adaptive_timing.get('average_prompt_duration', 0)
+        other_avg = other_timing.get('average_prompt_duration', 0)
         precise_avg = precise_timing.get('average_prompt_duration', 0)
         
-        print(f"Average prompt time - Adaptive/Balance: {adaptive_avg:.2f}s, Precise: {precise_avg:.2f}s")
+        print(f"Average prompt time - Adaptive/Balance: {other_avg:.2f}s, Precise: {precise_avg:.2f}s")
         
-    elif adaptive_timing:
-        adaptive_total = adaptive_timing.get('total_duration', 0)
-        print(f"Adaptive/Balance total time: {adaptive_total:.2f} seconds")
+    elif other_timing:
+        other_total = other_timing.get('total_duration', 0)
+        print(f"Adaptive/Balance total time: {other_total:.2f} seconds")
         print("Precise timing data not available")
     elif precise_timing:
         precise_total = precise_timing.get('total_duration', 0)
@@ -87,9 +87,9 @@ def print_timing_comparison(adaptive_timing: Optional[Dict], precise_timing: Opt
 
 def print_analysis(filename_prefix: str, method_count: int, precise_count: int, 
                   contained_count: int, not_contained_count: int, 
-                  adaptive_timing: Optional[Dict] = None, precise_timing: Optional[Dict] = None):
+                  other_timing: Optional[Dict] = None, precise_timing: Optional[Dict] = None):
     print(f"\n=== Analysis for {filename_prefix} ===")
-    print(f"Total adaptive items: {method_count}")
+    print(f"Total adaptive/balance items: {method_count}")
     print(f"Total precise items: {precise_count}")
     print(f"Adaptive items contained in precise: {contained_count}")
     print(f"Adaptive items NOT contained in precise: {not_contained_count}")    
@@ -108,7 +108,7 @@ def print_analysis(filename_prefix: str, method_count: int, precise_count: int,
         print(f"\nRatio of contained items to total precise items: {contained_to_precise_ratio:.4f} ({contained_to_precise_ratio*100:.2f}%)")
     
     # Add timing comparison
-    print_timing_comparison(adaptive_timing, precise_timing, filename_prefix)
+    print_timing_comparison(other_timing, precise_timing, filename_prefix)
     
     print("-" * 60)
 
@@ -117,21 +117,21 @@ def print_summary(results: List[Tuple[str, int, int, int, int, Optional[Dict], O
     print("SUMMARY TABLE")
     print("="*100)
     
-    headers = ["Dataset", "Adaptive", "Precise", "Contained", "Coverage %", "Time (A)", "Time (P)", "Speedup"]
+    headers = ["Dataset", "Other", "Precise", "Contained", "Coverage %", "Time (A)", "Time (P)", "Speedup"]
     print(f"{headers[0]:<30} {headers[1]:<9} {headers[2]:<8} {headers[3]:<10} {headers[4]:<11} {headers[5]:<9} {headers[6]:<9} {headers[7]:<8}")
     print("-" * 100)
     
-    for desc, method_count, precise_count, contained_count, not_contained_count, adaptive_timing, precise_timing in results:
+    for desc, method_count, precise_count, contained_count, not_contained_count, other_timing, precise_timing in results:
         coverage_pct = (contained_count / precise_count * 100) if precise_count > 0 else 0
         
         # Extract timing information
-        adaptive_time = adaptive_timing.get('total_duration', 0) if adaptive_timing else 0
+        other_time = other_timing.get('total_duration', 0) if other_timing else 0
         precise_time = precise_timing.get('total_duration', 0) if precise_timing else 0
         
-        speedup = precise_time / adaptive_time if adaptive_time > 0 and precise_time > 0 else 0
+        speedup = precise_time / other_time if other_time > 0 and precise_time > 0 else 0
         
         # Format time strings
-        adaptive_time_str = f"{adaptive_time:.0f}s" if adaptive_time > 0 else "N/A"
+        other_time_str = f"{other_time:.0f}s" if other_time > 0 else "N/A"
         precise_time_str = f"{precise_time:.0f}s" if precise_time > 0 else "N/A"
         speedup_str = f"{speedup:.1f}x" if speedup > 0 else "N/A"
         
@@ -162,15 +162,15 @@ def main():
             precise_data = load_json_data(bug_reports_folder + precise_file)
             
             # Analyze
-            adaptive_count, precise_count, contained_count, not_contained_count, adaptive_timing, precise_timing = analyze_datasets(
+            adaptive_count, precise_count, contained_count, not_contained_count, other_timing, precise_timing = analyze_datasets(
                 adaptive_data, precise_data
             )
             
             # Store results
-            results.append((description, adaptive_count, precise_count, contained_count, not_contained_count, adaptive_timing, precise_timing))
+            results.append((description, adaptive_count, precise_count, contained_count, not_contained_count, other_timing, precise_timing))
             
             # Print detailed results
-            print_analysis(description, adaptive_count, precise_count, contained_count, not_contained_count, adaptive_timing, precise_timing)
+            print_analysis(description, adaptive_count, precise_count, contained_count, not_contained_count, other_timing, precise_timing)
             
         except Exception as e:
             print(f"Error analyzing {description}: {e}")
