@@ -1,27 +1,101 @@
 from ._extras import require_extra
+
 require_extra("langchain", "builtin-impl")
 
+import asyncio
+import json
+import logging
 import os
-from langchain_openai import ChatOpenAI
+from datetime import datetime
+from os import PathLike
+from pathlib import Path
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+    overload,
+)
+
+from httpx import AsyncClient
 from langchain.globals import set_llm_cache
 from langchain_community.cache import SQLiteCache
 from langchain_core.language_models import BaseChatModel
-from pydantic import BaseModel
 from langchain_core.prompts import ChatPromptTemplate
-from typing import Dict, Sequence, Union, overload
-import json
+from langchain_openai import ChatOpenAI
+from nanoid import generate
 from openai import AsyncOpenAI
-import asyncio
-from pathlib import Path
+from pydantic import BaseModel, Field, ValidationError, PrivateAttr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
+from codelib.utils.cost_tracking import get_cost_hook
 from codelib.utils.jsonparser import TolerantJsonParser
+from codelib.utils.logger import JsonLogger
 
-def get_langchain_model(model_name) -> BaseChatModel:
+
+def generate_session_id() -> str:
+    date_str = datetime.now().strftime("%Y%m%d")
+    return f"{date_str}-{generate(size=16)}"
+
+class LLMSettings(BaseSettings):
+    """Settings for LLM configuration using environment variables."""
+    
+    model_config = SettingsConfigDict(
+        env_file_encoding="utf-8", env_file=".env", extra="allow"
+    )
+    openai_base_url: str = "https://openrouter.ai/api/v1"
+    openai_api_key: str = ""
+    disable_llm_cache: bool = False
+    session_id: str = Field(default_factory=generate_session_id)
+    enable_json_log: bool = True
+    json_log_base_path: Path = Field(default_factory=lambda: Path("logs/"))
+
+    def get_json_log_path(self) -> Path:
+        path = self.json_log_base_path
+        path.mkdir(parents=True, exist_ok=True)
+        return path / f"{self.session_id}.jsonl"
+
+    def get_json_logger(self) -> JsonLogger:
+        return JsonLogger(self.get_json_log_path()) 
+    
+    def get_httpx_client(self) -> AsyncClient:
+        hook = get_cost_hook(self.get_json_logger(), self.openai_base_url)
+        return AsyncClient(
+            event_hooks={"response": [hook]},
+        )
+
+
+# Create a global settings instance
+llm_settings = LLMSettings()
+
+
+def get_langchain_model(model_name, settings: Optional[LLMSettings] = None) -> BaseChatModel:
+    if settings is None:
+        settings = llm_settings
+    
+    custom_client = None
+    if settings.enable_json_log:
+        custom_client = settings.get_httpx_client()
+
     return ChatOpenAI(
-        base_url="https://openrouter.ai/api/v1",
+        base_url=settings.openai_base_url,
+        api_key=settings.openai_api_key,
         model=model_name,
         timeout=60.0,
         max_retries=2,
+        http_async_client=custom_client,
     )
 
 
@@ -43,15 +117,7 @@ def load_langchain_prompt_template(
     )
 
 
-from typing import Any, Dict, List, Type, TypeVar, get_origin, get_args
-from pydantic import ValidationError
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
-import logging
+
 
 # Assume these imports already exist
 # from your_module import get_langchain_model, load_langchain_prompt_template, TolerantJsonParser
@@ -70,6 +136,7 @@ async def call_llm_with_fallback(
         "anthropic/claude-3.7-sonnet",
     ],
     attempt: int = 1,
+    settings: Optional[LLMSettings] = None,
 ) -> T: ...
 
 
@@ -83,6 +150,7 @@ async def call_llm_with_fallback(
         "anthropic/claude-3.7-sonnet",
     ],
     attempt: int = 1,
+    settings: Optional[LLMSettings] = None,
 ) -> List[T]: ...
 
 
@@ -100,6 +168,7 @@ async def call_llm_with_fallback(
         "anthropic/claude-3.7-sonnet",
     ],
     attempt: int = 1,
+    settings: Optional[LLMSettings] = None,
 ) -> Union[T, List[T]]:
     """
     Process data with LLM and validate response as a Pydantic model or list of Pydantic models
@@ -111,6 +180,7 @@ async def call_llm_with_fallback(
         input_data: Dictionary containing input data for the prompt
         prompt_template: The prompt template to use
         attempt: Current attempt number
+        settings: Optional LLM settings to use, defaults to global settings
 
     Returns:
         Either a single validated model instance or a list of validated model instances,
@@ -119,6 +189,10 @@ async def call_llm_with_fallback(
     Raises:
         ValueError: If LLM output validation fails
     """
+    
+    # Use provided settings or fall back to global settings
+    if settings is None:
+        settings = llm_settings
 
     def _validate_list_output(output: Any, item_model: Type[T]) -> List[T]:
         """
@@ -215,7 +289,7 @@ async def call_llm_with_fallback(
         # Always use fallback strategy (try next model)
         if attempt < len(model_ids):
             return await call_llm_with_fallback(
-                response_model, input_data, prompt_template, model_ids, attempt + 1
+                response_model, input_data, prompt_template, model_ids, attempt + 1, settings
             )
         else:
             raise
@@ -230,6 +304,7 @@ async def call_llm_with_function_call(
         "anthropic/claude-3.7-sonnet"
     ],
     attempt: int = 1,
+    settings: Optional[LLMSettings] = None,
 ) -> Dict[str, Any]:
     """
     Call LLM with function call support using direct OpenAI-style API.
@@ -240,6 +315,7 @@ async def call_llm_with_function_call(
         function_definition: OpenAI-style function definition
         model_ids: List of model IDs to try in fallback
         attempt: Current attempt number
+        settings: Optional LLM settings to use, defaults to global settings
         
     Returns:
         Dict containing the function call arguments
@@ -247,24 +323,30 @@ async def call_llm_with_function_call(
     Raises:
         ValueError: If function call fails or validation fails
     """
+    # Use provided settings or fall back to global settings
+    if settings is None:
+        settings = llm_settings
+    
     model_id = model_ids[attempt - 1] if attempt <= len(model_ids) else "unknown"
     
     try:
         logger.info(f"Function call attempt {attempt}/{len(model_ids)}: Using model '{model_id}'")
         
         # Get configuration
-        base_url = os.environ.get("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
-        api_key = os.environ.get("OPENAI_API_KEY", "")
+        base_url = settings.openai_base_url
+        api_key = settings.openai_api_key
         
         logger.debug(f"Using base_url: {base_url}")
         logger.debug(f"API key length: {len(api_key) if api_key else 0}")
         
         # Initialize client with proper resource management and timeout settings
+        httpx_client = settings.enable_json_log and settings.get_httpx_client()
         client = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
             timeout=180.0,
             max_retries=0,
+            http_client=httpx_client
         )
         
         try:
@@ -308,12 +390,12 @@ async def call_llm_with_function_call(
         
         if attempt < len(model_ids):
             return await call_llm_with_function_call(
-                system_prompt, user_prompt, function_definition, model_ids, attempt + 1
+                system_prompt, user_prompt, function_definition, model_ids, attempt + 1, settings
             )
         else:
             raise
 
-if not os.environ.get("DISABLE_LLM_CACHE", "").lower() == "true":
+if not llm_settings.disable_llm_cache:
     llm_cache_dir = Path(__file__).parent.parent.parent / ".cache" / "llm"
     llm_cache_dir.mkdir(parents=True, exist_ok=True)
     set_llm_cache(SQLiteCache(database_path=str(llm_cache_dir / ".langchain.db")))

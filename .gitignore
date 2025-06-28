@@ -23,3 +23,4 @@ rg.exe
 .DS_Store
 bug_reports/
 features/
+logs/

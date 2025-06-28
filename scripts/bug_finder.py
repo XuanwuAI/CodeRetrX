@@ -14,6 +14,8 @@ from pathlib import Path
 from codelib.impl.default import CodebaseFactory, TopicExtractor
 from codelib.retrieval.code_recall import multi_strategy_code_filter, RecallStrategy
 from codelib.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
+from codelib.utils.llm import llm_settings
+from codelib.utils.cost_tracking import calc_llm_costs
 import logging
 import chromadb
 from codelib.utils import embedding
@@ -438,6 +440,9 @@ async def main():
                 print(f"  {i}. {bug_type}: {len(locations)} locations")
         else:
             print(f"\nNo potential issues found.")
+        
+        cost = await calc_llm_costs(llm_settings.get_json_log_path())
+        print(f"Total LLM cost: ${cost:.6f}")
             
     except KeyboardInterrupt:
         print(f"\nAnalysis interrupted by user.")
