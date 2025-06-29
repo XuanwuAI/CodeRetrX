@@ -118,19 +118,17 @@ class BugFinder:
         return all_prompts[:limit]
         
     def prepare_codebase(self):
-        """Prepare the codebase for analysis"""
         database_path = get_data_dir() / "databases" / f"{get_repo_id(self.repo_url)}.json"
         clone_repo_if_not_exists(self.repo_url, str(self.repo_path))
 
         if database_path.exists():
-            with open(database_path, "r", encoding="utf-8") as f:
-                codebase = CodebaseFactory.from_json(json.load(f))
+            codebase = CodebaseFactory.from_json(
+                json.load(open(database_path, "r", encoding="utf-8"))
+            )
         else:
             codebase = CodebaseFactory.new(get_repo_id(self.repo_url), self.repo_path)
-            
         with open(f"{self.repo_path}.json", "w") as f:
             json.dump(codebase.to_json(), f, indent=4)
-            
         return codebase
 
     async def find_bugs(self, subdirs: list[str] = ["/"]) -> tuple[list[dict], dict]:
@@ -272,13 +270,14 @@ class BugFinder:
                 
         return all_bugs, timing_info
 
-    def save_results(self, bugs: list[dict], timing_info: dict, output_file: str = "bug_report.json"):
+    async def save_results(self, bugs: list[dict], timing_info: dict, output_file: str = "bug_report.json"):
         """Save the bug finding results to a JSON file"""
-        # Create bug_report directory if it doesn't exist
-        bug_report_dir = Path("bug_reports")
-        bug_report_dir.mkdir(exist_ok=True)
+        # Create bug_reports/{repo_name} directory if it doesn't exist
+        repo_id = get_repo_id(self.repo_url)
+        bug_report_dir = Path("bug_reports") / repo_id
+        bug_report_dir.mkdir(parents=True, exist_ok=True)
         
-        # Ensure output file is saved in bug_report directory
+        # Ensure output file is saved in bug_reports/{repo_name} directory
         if not Path(output_file).is_absolute():
             output_file = bug_report_dir / output_file
         
@@ -303,12 +302,16 @@ class BugFinder:
         
         serializable_bugs = make_serializable(bugs)
         
+        # Calculate LLM cost
+        cost = await calc_llm_costs(llm_settings.get_json_log_path())
+        
         report = {
             "repository": self.repo_url,
             "timestamp": str(datetime.datetime.now()),
             "mode": self.mode,
             "function_call_mode": self.use_function_call,
             "timing_info": timing_info,
+            "llm_cost": cost,
             "bugs": serializable_bugs
         }
         
@@ -381,13 +384,33 @@ Function call modes:
         action="store_true",
         help="Enable verbose logging"
     )
-    
+
+    parser.add_argument(
+        "--test", "-t",
+        action="store_true",
+        help="Clear cache to run tests precisely (default: False)"
+    )
+
     return parser.parse_args()
 
 async def main():
     """Main function with command line argument support"""
     args = parse_arguments()
-    
+
+    if args.test:
+        # Clear cache for testing
+        cache_root = Path(__file__).parent.parent / ".cache"
+        chroma_dir = cache_root / "chroma"
+        if chroma_dir.exists():
+            import shutil
+            shutil.rmtree(chroma_dir)
+            print(f"Cleared ChromaDB cache at {chroma_dir}")
+
+        llm_cache_dir = cache_root / "llm"
+        if llm_cache_dir.exists():
+            shutil.rmtree(llm_cache_dir)
+            print(f"Cleared LLM cache at {llm_cache_dir}")
+
     if args.verbose:
         logging.basicConfig(level=logging.INFO, force=True)
         logger.setLevel(logging.INFO)
@@ -417,12 +440,12 @@ async def main():
         # Set default output file if not specified
         if not args.output:
             key_extraction_mode = bug_finder._get_key_extraction_mode()
-            default_filename = f"bug_report_{args.mode}_{key_extraction_mode}_{args.use_function_call}.json"
+            default_filename = f"bug_report_{args.limit}_{args.mode}_{key_extraction_mode}_{args.use_function_call}.json"
             output_file = default_filename
         else:
             output_file = args.output
             
-        bug_finder.save_results(bugs, timing_info, output_file)
+        await bug_finder.save_results(bugs, timing_info, output_file)
         
         print(f"\n" + "="*60)
         print(f"Bug analysis completed!")
@@ -443,7 +466,7 @@ async def main():
         
         cost = await calc_llm_costs(llm_settings.get_json_log_path())
         print(f"Total LLM cost: ${cost:.6f}")
-            
+
     except KeyboardInterrupt:
         print(f"\nAnalysis interrupted by user.")
         sys.exit(1)
@@ -455,4 +478,4 @@ async def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())

@@ -1304,7 +1304,6 @@ async def _multi_strategy_code_recall(
         strategy = await _determine_strategy_by_llm(
             prompt=prompt,
             model_id=settings.llm_smart_strategy_model_id,
-            codebase=codebase
         )
         print(f"LLM smart strategy selected: {strategy.value}")
         strategies_to_run = [strategy]
@@ -1387,7 +1386,7 @@ async def multi_strategy_code_mapping(
     prompt: str,
     subdirs_or_files: List[str],
     granularity: LLMMapFilterTargetType,
-    mode: Literal["fast", "balance", "precise", "custom"],
+    mode: Literal["fast", "balance", "precise", "smart", "custom"],
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     llm_call_mode: LLMCallMode = "traditional",
@@ -1412,7 +1411,7 @@ async def multi_strategy_code_filter(
     prompt: str,
     subdirs_or_files: List[str],
     granularity: LLMMapFilterTargetType,
-    mode: Literal["fast", "balance", "precise", "custom"],
+    mode: Literal["fast", "balance", "precise", "smart", "custom"],
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     llm_call_mode: LLMCallMode = "traditional",

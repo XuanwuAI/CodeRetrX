@@ -29,11 +29,11 @@ class ChunkStats(BaseModel):
 
         SAMPLE_SIZE = 100_000
         if not strict and len(text) > SAMPLE_SIZE:
-            tokens = len(cls._tokenizer.encode(text[:SAMPLE_SIZE])) * (
+            tokens = len(cls._tokenizer.encode(text[:SAMPLE_SIZE], disallowed_special=())) * (
                 len(text) / SAMPLE_SIZE
             )
         else:
-            tokens = len(cls._tokenizer.encode(text))
+            tokens = len(cls._tokenizer.encode(text, disallowed_special=()))
 
         return cls(
             chunk_id=chunk.id,
