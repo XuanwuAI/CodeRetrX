@@ -119,8 +119,11 @@ class CodeHunk:
         )
 
     # @cached(cache=code_cache)
-    def code(self, do_dedent: bool = True, show_line_numbers: bool = False):
-        return self.src.lookup(self, do_dedent, show_line_numbers)
+    def code(self, do_dedent: bool = True, show_line_numbers: bool = False, trunc_headlines: Optional[int] = None):
+        query = (self.start_line, self.end_line + 1)
+        if trunc_headlines is not None:
+            query = (self.start_line, min(self.end_line + 1, self.start_line + trunc_headlines))
+        return self.src.lookup(query, do_dedent, show_line_numbers)
 
     # @cached(cache=codeblock_cache)
     def codeblock(self, show_line_numbers: bool = False):
@@ -226,6 +229,7 @@ class CodeChunk(CodeHunk):
         par_headlines: int = 3,
         show_line_numbers: bool = False,
         show_imports: bool = False,
+        trunc_headlines: Optional[int] = None,
     ):
         parts = []
         prev_child = self
@@ -266,7 +270,7 @@ class CodeChunk(CodeHunk):
                 ),
             )
         parts.append("<CODE_CHUNK_IN_INTEREST>")
-        code = self.code(do_dedent=False, show_line_numbers=show_line_numbers)
+        code = self.code(do_dedent=False, show_line_numbers=show_line_numbers, trunc_headlines=trunc_headlines)
         parts.append(code)
         parts.append("</CODE_CHUNK_IN_INTEREST>")
         parts.insert(0, f"```{self.src.path}:{self.src.lang()}")
