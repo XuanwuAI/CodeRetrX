@@ -17,7 +17,6 @@ from typing import (
 )
 import logging
 import os
-from codelib.utils.llm import call_llm_with_function_call
 from abc import ABC, abstractmethod
 from .smart_codebase import (
     LLMMapFilterTargetType,
@@ -79,6 +78,7 @@ async def _determine_strategy_by_llm(
     Returns:
         The selected RecallStrategy
     """
+    from codelib.utils.llm import call_llm_with_function_call
     
     # Define the function for strategy determination
     function_definition = {
