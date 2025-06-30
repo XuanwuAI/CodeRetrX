@@ -120,9 +120,9 @@ class CodeHunk:
 
     # @cached(cache=code_cache)
     def code(self, do_dedent: bool = True, show_line_numbers: bool = False, trunc_headlines: Optional[int] = None):
-        query = (self.start_line, self.end_line + 1)
+        query = (self.start_line, self.end_line)
         if trunc_headlines is not None:
-            query = (self.start_line, min(self.end_line + 1, self.start_line + trunc_headlines))
+            query = (self.start_line, min(self.end_line, self.start_line + trunc_headlines - 1))
         return self.src.lookup(query, do_dedent, show_line_numbers)
 
     # @cached(cache=codeblock_cache)
