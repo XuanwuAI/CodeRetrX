@@ -349,6 +349,8 @@ async def ripgrep_search(
         # Clean up the temporary file
         Path(tmpfile_path).unlink(missing_ok=True)
 
+def rgx_warp_symbol(symbol: str) -> str:
+    return f"\\b{symbol}\\b"
 
 async def ripgrep_search_symbols(
     search_dir: str | PathLike,
@@ -361,7 +363,7 @@ async def ripgrep_search_symbols(
 ) -> List[GrepMatchResult]:
     return await ripgrep_search(
         search_dir,
-        [f"\\b{symbol}\\b" for symbol in symbols],
+        [rgx_warp_symbol(symbol) for symbol in symbols],
         extra_argvs,
         case_sensitive,
         include_file_pattern,
