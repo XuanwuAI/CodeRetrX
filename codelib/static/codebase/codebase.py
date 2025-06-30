@@ -236,7 +236,7 @@ class CodeChunk(CodeHunk):
         parent = self.parent
         while parent:
             if parent.ts_root is None:
-                logger.warning(f"Skipping {parent} because ts_root is None")
+                logger.debug(f"Skipping {parent.symbol_name()} because ts_root is None")
                 break
             if parent.ts_root.text:
                 line_diff = prev_child.start_line - parent.start_line
