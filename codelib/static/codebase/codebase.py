@@ -966,7 +966,7 @@ class Codebase:
     async def ripgrep_chunks(
         self,
         queries: List[str],
-        symbol_mode: bool = True,
+        symbol_mode: bool = False,
         chunktypes: List[ChunkType] | None = None,
         langs: List[IDXSupportedLanguage] | None = None,
         search_path: PathLike | str | None = None,
