@@ -42,12 +42,13 @@ class RecallStrategy(Enum):
     FILTER_SYMBOL_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
     ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = "adaptive_filter_keyword_by_vector_and_llm"
     ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM = "adaptive_filter_symbol_by_vector_and_llm"
+
 class CodeRecallSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8", env_file=".env", extra="allow"
     )
     llm_secondary_recall_model_id: str = Field(
-        default="anthropic/claude-3.5-sonnet",
+        default="anthropic/claude-sonnet-4",
         description="Model ID for secondary recall",
     )
     enable_secondary_recall: bool = Field(
@@ -1298,8 +1299,6 @@ async def _multi_strategy_code_recall(
                 if str(symbol.file.path).startswith(subdir):
                     extended_subdirs_or_files.add(str(symbol.file.path))
                     break
-    elif mode == "custom" and custom_strategies:
-        strategies_to_run = custom_strategies
     elif mode == "smart":
         strategy = await _determine_strategy_by_llm(
             prompt=prompt,
@@ -1307,6 +1306,8 @@ async def _multi_strategy_code_recall(
         )
         print(f"LLM smart strategy selected: {strategy.value}")
         strategies_to_run = [strategy]
+    elif mode == "custom" and custom_strategies:
+        strategies_to_run = custom_strategies
     else:
         if mode == "custom" and not custom_strategies:
             logger.warning(

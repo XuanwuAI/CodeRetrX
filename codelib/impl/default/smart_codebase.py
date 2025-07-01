@@ -177,6 +177,8 @@ class SmartCodebase(SmartCodebaseBase):
         """
 
         elements = self._get_filtered_elements(target_type, subdirs_or_files, additional_code_elements)
+        if target_type == "keyword" or target_type == "symbol_name":
+            model_id = self.settings.llm_mapfilter_special_model_id
 
         if llm_call_mode == "function_call":
             return await self._process_elements_with_function_call(elements, target_type, prompt, is_filter=True, model_id=model_id)

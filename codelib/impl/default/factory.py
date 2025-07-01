@@ -27,8 +27,12 @@ class SmartCodebaseSettings(BaseSettings):
         default="mistralai/devstral-small",
         description="Primary model ID for function call operations",
     )
+    llm_mapfilter_special_model_id: str = Field(
+        default="openai/gpt-4.1-mini",
+        description="Special model ID for LLM map/filter operations",
+    )
     llm_fallback_model_id: str = Field(
-        default="anthropic/claude-3.7-sonnet",
+        default="anthropic/claude-sonnet-4",
         description="Fallback model ID for LLM operations",
     )
 

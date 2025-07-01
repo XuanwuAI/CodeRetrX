@@ -445,7 +445,13 @@ async def main():
         # Set default output file if not specified
         if not args.output:
             key_extraction_mode = bug_finder._get_key_extraction_mode()
-            default_filename = f"bug_report_{args.limit}_{args.mode}_{key_extraction_mode}_{args.use_function_call}.json"
+            
+            # Check if secondary recall is enabled
+            from codelib.retrieval.code_recall import CodeRecallSettings
+            recall_settings = CodeRecallSettings()
+            secondary_recall_suffix = "_sec" if recall_settings.enable_secondary_recall else "_pri"
+            
+            default_filename = f"bug_report_{args.limit}_{args.mode}_{key_extraction_mode}_{args.use_function_call}{secondary_recall_suffix}.json"
             output_file = default_filename
         else:
             output_file = args.output

@@ -212,7 +212,9 @@ def main():
         print(f"\nAnalyzing repository: {repo_dir.name}")
         
         # Find precise file
-        precise_files = list(repo_dir.glob("*_precise_*.json"))
+        precise_files = list(repo_dir.glob("*_precise_*_pri.json")) + list(repo_dir.glob("*_precise_*_sec.json"))
+        if not precise_files:
+            precise_files = list(repo_dir.glob("*_precise_*.json"))
         if not precise_files:
             print(f"No precise file found for {repo_dir.name}")
             continue
@@ -230,7 +232,14 @@ def main():
                         mode = m
                         break
                 
-                description = f"{repo_dir.name}_{mode}"
+                # Extract secondary recall information
+                recall_mode = ""
+                if "_pri.json" in other_file.name:
+                    recall_mode = "_pri"
+                elif "_sec.json" in other_file.name:
+                    recall_mode = "_sec"
+                
+                description = f"{repo_dir.name}_{mode}{recall_mode}"
                 
                 # Load data
                 other_data = load_json_data(str(other_file))
