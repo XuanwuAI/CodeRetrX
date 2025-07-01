@@ -84,3 +84,19 @@ async def calc_llm_costs(log_path: PathLike | str, model_costs: Optional[ModelCo
                 + log.completion_tokens * cost_info.completion
             )
     return total_cost
+
+def calc_input_tokens(log_path: PathLike | str):
+    total_input_tokens = 0
+    for log_item in read_logs(log_path):
+        if log_item.data.type == "llm_call":
+            log = log_item.data
+            total_input_tokens += log.prompt_tokens
+    return total_input_tokens
+
+def calc_output_tokens(log_path: PathLike | str):
+    total_output_tokens = 0
+    for log_item in read_logs(log_path):
+        if log_item.data.type == "llm_call":
+            log = log_item.data
+            total_output_tokens += log.completion_tokens
+    return total_output_tokens

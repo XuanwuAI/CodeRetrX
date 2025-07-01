@@ -211,20 +211,20 @@ async def _perform_secondary_recall(
     secondary_model_id = model_id or "anthropic/claude-3.5-sonnet"
     
     try:
-        refined_prompt = f"""
-Please perform a more precise analysis of the following code elements based on this requirement:
-
-{prompt}
-
-The elements below have already passed an initial filtering stage. Now, please apply stricter criteria to identify only the most relevant elements that truly match the requirement.
-
-Focus on:
-1. Exact semantic relevance to the requirement
-2. Functional alignment with the specified criteria  
-3. Quality and completeness of the match
-
-Be more selective and only include elements that have high confidence of relevance.
-"""
+#         refined_prompt = f"""
+# Please perform a more precise analysis of the following code elements based on this requirement:
+#
+# {prompt}
+#
+# The elements below have already passed an initial filtering stage. Now, please apply stricter criteria to identify only the most relevant elements that truly match the requirement.
+#
+# Focus on:
+# 1. Exact semantic relevance to the requirement
+# 2. Functional alignment with the specified criteria
+# 3. Quality and completeness of the match
+#
+# Be more selective and only include elements that have high confidence of relevance.
+# """
         
         file_paths = []
         if elements:
@@ -245,7 +245,7 @@ Be more selective and only include elements that have high confidence of relevan
         logger.info(f"Performing secondary recall on {len(unique_file_paths)} unique files")
         
         secondary_elements, secondary_llm_results = await llm_method(
-            prompt=refined_prompt,
+            prompt=prompt,
             target_type=granularity,
             subdirs_or_files=unique_file_paths,
             llm_call_mode=llm_call_mode,

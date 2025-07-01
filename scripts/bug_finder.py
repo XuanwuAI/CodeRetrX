@@ -15,7 +15,7 @@ from codelib.impl.default import CodebaseFactory, TopicExtractor
 from codelib.retrieval.code_recall import multi_strategy_code_filter, RecallStrategy
 from codelib.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
 from codelib.utils.llm import llm_settings
-from codelib.utils.cost_tracking import calc_llm_costs
+from codelib.utils.cost_tracking import calc_llm_costs, calc_input_tokens, calc_output_tokens
 import logging
 import chromadb
 from codelib.utils import embedding
@@ -95,7 +95,7 @@ class BugFinder:
         all_prompts = []
         
         # Get the absolute path of the feature file from features folder
-        feature_file = Path(__file__).parent.parent / "features" / "feature_outline_refiner_0_6d53965443.json"
+        feature_file = Path(__file__).parent.parent / "features" / "features.json"
         
         try:
             with open(feature_file, 'r', encoding='utf-8') as f:
@@ -302,16 +302,20 @@ class BugFinder:
         
         serializable_bugs = make_serializable(bugs)
         
-        # Calculate LLM cost
+        # Calculate LLM cost and tokens
         cost = await calc_llm_costs(llm_settings.get_json_log_path())
+        input_tokens = calc_input_tokens(llm_settings.get_json_log_path())
+        output_tokens = calc_output_tokens(llm_settings.get_json_log_path())
         
         report = {
             "repository": self.repo_url,
             "timestamp": str(datetime.datetime.now()),
             "mode": self.mode,
             "function_call_mode": self.use_function_call,
-            "timing_info": timing_info,
             "llm_cost": cost,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "timing_info": timing_info,
             "bugs": serializable_bugs
         }
         
@@ -341,7 +345,7 @@ Function call modes:
     parser.add_argument(
         "--repo", "-r",
         type=str,
-        default="https://github.com/PaddlePaddle/PaddleX.git",
+        default="https://github.com/ollama/ollama.git",
         help="Repository URL to analyze (default: PaddleX)"
     )
     
@@ -408,6 +412,7 @@ async def main():
 
         llm_cache_dir = cache_root / "llm"
         if llm_cache_dir.exists():
+            import shutil
             shutil.rmtree(llm_cache_dir)
             print(f"Cleared LLM cache at {llm_cache_dir}")
 
@@ -449,7 +454,6 @@ async def main():
         
         print(f"\n" + "="*60)
         print(f"Bug analysis completed!")
-        print(f"Total time: {timing_info['total_duration']:.2f} seconds")
         print(f"Found {len(bugs)} different types of potential issues")
         print(f"Results saved to {output_file}")
         print(f"="*60)
@@ -465,7 +469,11 @@ async def main():
             print(f"\nNo potential issues found.")
         
         cost = await calc_llm_costs(llm_settings.get_json_log_path())
+        input_tokens = calc_input_tokens(llm_settings.get_json_log_path())
+        output_tokens = calc_output_tokens(llm_settings.get_json_log_path())
         print(f"Total LLM cost: ${cost:.6f}")
+        print(f"Input tokens: {input_tokens:,}")
+        print(f"Output tokens: {output_tokens:,}")
 
     except KeyboardInterrupt:
         print(f"\nAnalysis interrupted by user.")

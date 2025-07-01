@@ -21,15 +21,19 @@ def extract_bug_ids(data: Dict) -> Set[str]:
             ids.add(location.get('id', ''))
     return ids
 
-def extract_timing_info(data: Dict) -> Optional[Dict]:
-    """Extract timing information from bug report data"""
-    return data.get('timing_info')
+def extract_input_tokens(data: Dict) -> Optional[int]:
+    """Extract input tokens from bug report data"""
+    return data.get('input_tokens')
+
+def extract_output_tokens(data: Dict) -> Optional[int]:
+    """Extract output tokens from bug report data"""
+    return data.get('output_tokens')
 
 def extract_llm_cost(data: Dict) -> Optional[float]:
     """Extract LLM cost from bug report data"""
     return data.get('llm_cost')
 
-def analyze_datasets(other_data: Dict, precise_data: Dict) -> Tuple[int, int, int, int, Optional[Dict], Optional[Dict], Optional[float], Optional[float]]:
+def analyze_datasets(other_data: Dict, precise_data: Dict) -> Tuple[int, int, int, int, Optional[int], Optional[int], Optional[int], Optional[int], Optional[float], Optional[float]]:
     """
     Analyze the relationship between different methods.
     
@@ -38,8 +42,10 @@ def analyze_datasets(other_data: Dict, precise_data: Dict) -> Tuple[int, int, in
         - ground_truth_count: Total number of items in precise dataset
         - contained_count: Number of fast/balance/adaptive items contained in precise dataset
         - not_contained_count: Number of fast/balance/adaptive items not contained in precise dataset
-        - other_timing: Timing info from other data
-        - precise_timing: Timing info from precise data
+        - other_input_tokens: Input tokens from other data
+        - other_output_tokens: Output tokens from other data
+        - precise_input_tokens: Input tokens from precise data
+        - precise_output_tokens: Output tokens from precise data
         - other_cost: LLM cost from other data
         - precise_cost: LLM cost from precise data
     """
@@ -54,44 +60,60 @@ def analyze_datasets(other_data: Dict, precise_data: Dict) -> Tuple[int, int, in
     contained_ids = method_ids.intersection(precise_ids)
     not_contained_ids = method_ids - precise_ids
     
-    # Extract timing and cost information
-    other_timing = extract_timing_info(other_data)
-    precise_timing = extract_timing_info(precise_data)
+    # Extract token and cost information
+    other_input_tokens = extract_input_tokens(other_data)
+    other_output_tokens = extract_output_tokens(other_data)
+    precise_input_tokens = extract_input_tokens(precise_data)
+    precise_output_tokens = extract_output_tokens(precise_data)
     other_cost = extract_llm_cost(other_data)
     precise_cost = extract_llm_cost(precise_data)
     
-    return len(method_ids), len(precise_ids), len(contained_ids), len(not_contained_ids), other_timing, precise_timing, other_cost, precise_cost
+    return len(method_ids), len(precise_ids), len(contained_ids), len(not_contained_ids), other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost
 
-def print_timing_comparison(other_timing: Optional[Dict], precise_timing: Optional[Dict], other_cost: Optional[float], precise_cost: Optional[float], method_name: str):
-    print(f"\n--- Timing & Cost Comparison for {method_name} ---")
+def print_token_comparison(other_input_tokens: Optional[int], other_output_tokens: Optional[int], 
+                          precise_input_tokens: Optional[int], precise_output_tokens: Optional[int], 
+                          other_cost: Optional[float], precise_cost: Optional[float], method_name: str):
+    print(f"\n--- Token & Cost Comparison for {method_name} ---")
     
-    if other_timing and precise_timing:
-        other_total = other_timing.get('total_duration', 0)
-        precise_total = precise_timing.get('total_duration', 0)
-        
-        print(f"Other method total time: {other_total:.2f} seconds")
-        print(f"Precise total time: {precise_total:.2f} seconds")
-        
-        if precise_total > 0:
-            speedup = precise_total / other_total if other_total > 0 else float('inf')
-            print(f"Speedup: {speedup:.2f}x")
-        
-        # Show average prompt times
-        other_avg = other_timing.get('average_prompt_duration', 0)
-        precise_avg = precise_timing.get('average_prompt_duration', 0)
-        
-        print(f"Average prompt time - Other: {other_avg:.2f}s, Precise: {precise_avg:.2f}s")
-        
-    elif other_timing:
-        other_total = other_timing.get('total_duration', 0)
-        print(f"Other method total time: {other_total:.2f} seconds")
-        print("Precise timing data not available")
-    elif precise_timing:
-        precise_total = precise_timing.get('total_duration', 0)
-        print(f"Precise total time: {precise_total:.2f} seconds")
-        print("Other method timing data not available")
+    # Token comparison
+    print(f"\n--- Token Usage Comparison ---")
+    if other_input_tokens is not None and precise_input_tokens is not None:
+        print(f"Input tokens - Other: {other_input_tokens:,}, Precise: {precise_input_tokens:,}")
+        if other_input_tokens > 0:
+            input_ratio = precise_input_tokens / other_input_tokens
+            print(f"Input token ratio (Precise/Other): {input_ratio:.2f}x")
+    elif other_input_tokens is not None:
+        print(f"Other method input tokens: {other_input_tokens:,}")
+        print("Precise input token data not available")
+    elif precise_input_tokens is not None:
+        print(f"Precise input tokens: {precise_input_tokens:,}")
+        print("Other method input token data not available")
     else:
-        print("No timing data available for comparison")
+        print("No input token data available for comparison")
+    
+    if other_output_tokens is not None and precise_output_tokens is not None:
+        print(f"Output tokens - Other: {other_output_tokens:,}, Precise: {precise_output_tokens:,}")
+        if other_output_tokens > 0:
+            output_ratio = precise_output_tokens / other_output_tokens
+            print(f"Output token ratio (Precise/Other): {output_ratio:.2f}x")
+    elif other_output_tokens is not None:
+        print(f"Other method output tokens: {other_output_tokens:,}")
+        print("Precise output token data not available")
+    elif precise_output_tokens is not None:
+        print(f"Precise output tokens: {precise_output_tokens:,}")
+        print("Other method output token data not available")
+    else:
+        print("No output token data available for comparison")
+    
+    # Total tokens comparison
+    if (other_input_tokens is not None and other_output_tokens is not None and 
+        precise_input_tokens is not None and precise_output_tokens is not None):
+        other_total_tokens = other_input_tokens + other_output_tokens
+        precise_total_tokens = precise_input_tokens + precise_output_tokens
+        print(f"Total tokens - Other: {other_total_tokens:,}, Precise: {precise_total_tokens:,}")
+        if other_total_tokens > 0:
+            total_ratio = precise_total_tokens / other_total_tokens
+            print(f"Total token ratio (Precise/Other): {total_ratio:.2f}x")
     
     # Cost comparison
     print(f"\n--- LLM Cost Comparison ---")
@@ -121,7 +143,8 @@ def print_timing_comparison(other_timing: Optional[Dict], precise_timing: Option
 
 def print_analysis(filename_prefix: str, method_count: int, precise_count: int, 
                   contained_count: int, not_contained_count: int, 
-                  other_timing: Optional[Dict] = None, precise_timing: Optional[Dict] = None,
+                  other_input_tokens: Optional[int] = None, other_output_tokens: Optional[int] = None,
+                  precise_input_tokens: Optional[int] = None, precise_output_tokens: Optional[int] = None,
                   other_cost: Optional[float] = None, precise_cost: Optional[float] = None):
     print(f"\n=== Analysis for {filename_prefix} ===")
     print(f"Total other method items: {method_count}")
@@ -142,33 +165,28 @@ def print_analysis(filename_prefix: str, method_count: int, precise_count: int,
         contained_to_precise_ratio = contained_count / precise_count
         print(f"\nRatio of contained items to total precise items: {contained_to_precise_ratio:.4f} ({contained_to_precise_ratio*100:.2f}%)")
     
-    # Add timing and cost comparison
-    print_timing_comparison(other_timing, precise_timing, other_cost, precise_cost, filename_prefix)
+    # Add token and cost comparison
+    print_token_comparison(other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost, filename_prefix)
     
     print("-" * 60)
 
-def print_summary(results: List[Tuple[str, int, int, int, int, Optional[Dict], Optional[Dict], Optional[float], Optional[float]]]):
-    print("\n" + "="*135)
+def print_summary(results: List[Tuple[str, int, int, int, int, Optional[int], Optional[int], Optional[int], Optional[int], Optional[float], Optional[float]]]):
+    print("\n" + "="*155)
     print("SUMMARY TABLE")
-    print("="*135)
+    print("="*155)
     
-    headers = ["Dataset", "Other", "Precise", "Contained", "Coverage %", "Time (O)", "Time (P)", "Speedup", "Cost (O)", "Cost (P)", "Cost Ratio"]
-    print(f"{headers[0]:<30} {headers[1]:<9} {headers[2]:<8} {headers[3]:<10} {headers[4]:<11} {headers[5]:<9} {headers[6]:<9} {headers[7]:<8} {headers[8]:<10} {headers[9]:<10} {headers[10]:<10}")
-    print("-" * 135)
+    headers = ["Dataset", "Other", "Precise", "Contained", "Coverage %", "In Tokens (O)", "In Tokens (P)", "Out Tokens (O)", "Out Tokens (P)", "Cost (O)", "Cost (P)", "Cost Ratio"]
+    print(f"{headers[0]:<30} {headers[1]:<9} {headers[2]:<8} {headers[3]:<10} {headers[4]:<11} {headers[5]:<12} {headers[6]:<12} {headers[7]:<13} {headers[8]:<13} {headers[9]:<10} {headers[10]:<10} {headers[11]:<10}")
+    print("-" * 155)
     
-    for desc, method_count, precise_count, contained_count, not_contained_count, other_timing, precise_timing, other_cost, precise_cost in results:
+    for desc, method_count, precise_count, contained_count, not_contained_count, other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost in results:
         coverage_pct = (contained_count / precise_count * 100) if precise_count > 0 else 0
         
-        # Extract timing information
-        other_time = other_timing.get('total_duration', 0) if other_timing else 0
-        precise_time = precise_timing.get('total_duration', 0) if precise_timing else 0
-        
-        speedup = precise_time / other_time if other_time > 0 and precise_time > 0 else 0
-        
-        # Format time strings
-        other_time_str = f"{other_time:.0f}s" if other_time > 0 else "N/A"
-        precise_time_str = f"{precise_time:.0f}s" if precise_time > 0 else "N/A"
-        speedup_str = f"{speedup:.1f}x" if speedup > 0 else "N/A"
+        # Format token strings
+        other_input_str = f"{other_input_tokens:,}" if other_input_tokens is not None else "N/A"
+        precise_input_str = f"{precise_input_tokens:,}" if precise_input_tokens is not None else "N/A"
+        other_output_str = f"{other_output_tokens:,}" if other_output_tokens is not None else "N/A"
+        precise_output_str = f"{precise_output_tokens:,}" if precise_output_tokens is not None else "N/A"
         
         # Format cost strings
         other_cost_str = f"${other_cost:.4f}" if other_cost is not None else "N/A"
@@ -177,12 +195,11 @@ def print_summary(results: List[Tuple[str, int, int, int, int, Optional[Dict], O
         cost_ratio = precise_cost / other_cost if other_cost and other_cost > 0 and precise_cost is not None else 0
         cost_ratio_str = f"{cost_ratio:.2f}x" if cost_ratio > 0 else "N/A"
         
-        print(f"{desc:<30} {method_count:<9} {precise_count:<8} {contained_count:<10} {coverage_pct:>9.1f}% {other_time_str:>8} {precise_time_str:>8} {speedup_str:>7} {other_cost_str:>9} {precise_cost_str:>9} {cost_ratio_str:>9}")
+        print(f"{desc:<30} {method_count:<9} {precise_count:<8} {contained_count:<10} {coverage_pct:>9.1f}% {other_input_str:>11} {precise_input_str:>11} {other_output_str:>12} {precise_output_str:>12} {other_cost_str:>9} {precise_cost_str:>9} {cost_ratio_str:>9}")
 
 
 
 def main():
-    import glob
     
     bug_reports_folder = Path("bug_reports")
     results = []
@@ -220,15 +237,15 @@ def main():
                 precise_data = load_json_data(str(precise_file))
                 
                 # Analyze
-                other_count, precise_count, contained_count, not_contained_count, other_timing, precise_timing, other_cost, precise_cost = analyze_datasets(
+                other_count, precise_count, contained_count, not_contained_count, other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost = analyze_datasets(
                     other_data, precise_data
                 )
                 
                 # Store results
-                results.append((description, other_count, precise_count, contained_count, not_contained_count, other_timing, precise_timing, other_cost, precise_cost))
+                results.append((description, other_count, precise_count, contained_count, not_contained_count, other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost))
                 
                 # Print detailed results
-                print_analysis(description, other_count, precise_count, contained_count, not_contained_count, other_timing, precise_timing, other_cost, precise_cost)
+                print_analysis(description, other_count, precise_count, contained_count, not_contained_count, other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost)
                 
             except Exception as e:
                 print(f"Error analyzing {other_file.name}: {e}")
