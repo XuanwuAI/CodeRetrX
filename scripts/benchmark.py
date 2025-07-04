@@ -23,7 +23,7 @@ def parse_repos():
 
 async def main():
     repos = parse_repos()
-    modes = ["fast", "balance", "adaptive", "precise"]
+    modes = ["fast", "balance", "adaptive", "precise", "smart", "intelligent"]
     
     print(f"Running benchmark on {len(repos)} repositories with {len(modes)} modes")
 

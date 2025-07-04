@@ -31,6 +31,7 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from os import PathLike
+from attrs import define
 
 logger = logging.getLogger(__name__)
 class RecallStrategy(Enum):
@@ -42,6 +43,7 @@ class RecallStrategy(Enum):
     FILTER_SYMBOL_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
     ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = "adaptive_filter_keyword_by_vector_and_llm"
     ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM = "adaptive_filter_symbol_by_vector_and_llm"
+    INTELLIGENT_FILTER = "intelligent_filter"
 
 class CodeRecallSettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -68,78 +70,93 @@ class CodeRecallSettings(BaseSettings):
 async def _determine_strategy_by_llm(
     prompt: str,
     model_id: Optional[str] = None,
-) -> RecallStrategy:
+) -> List[RecallStrategy]:
     """
-    Use LLM to determine the best recall strategy based on the prompt.
+    Use LLM to determine the best recall strategies based on the prompt.
     
     Args:
         prompt: The user's prompt/query
         model_id: The model ID to use for strategy determination
         
     Returns:
-        The selected RecallStrategy
+        List of selected RecallStrategy
     """
     from codelib.utils.llm import call_llm_with_function_call
     
     # Define the function for strategy determination
     function_definition = {
         "name": "determine_search_strategy",
-        "description": "Determine the best code search strategy based on the user query",
+        "description": "Determine the best code search strategies based on the user query",
         "parameters": {
             "type": "object",
             "properties": {
-                "element_type": {
-                    "type": "string",
-                    "enum": ["FILENAME", "KEYWORD", "SYMBOL"],
-                    "description": "The type of code element to search for"
+                "element_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["FILENAME", "KEYWORD", "SYMBOL"]
+                    },
+                    "description": "The types of code elements to search for (can select one or multiple)",
+                    "minItems": 1,
+                    "maxItems": 3
                 },
                 "reason": {
                     "type": "string",
-                    "description": "Explanation for why this element type was chosen"
+                    "description": "Explanation for why these element types were chosen"
                 }
             },
-            "required": ["element_type", "reason"]
+            "required": ["element_types", "reason"]
         }
     }
     
-    system_prompt = """Analyze this filter_prompt and determine the most effective search method:
+    system_prompt = """Analyze this code search prompt and determine the most effective search method:
 
-Consider the complexity of the vulnerability:
+Consider what type of code element would best match the search criteria. PREFER TO SELECT ONLY ONE TYPE unless you are genuinely uncertain about which single approach would work best.
 
-FILENAME: Use ONLY when vulnerabilities can be identified purely by file characteristics:
-- Specific dangerous file extensions alone
-- Hardcoded sensitive file paths 
-- Configuration files with known vulnerabilities
-- Non-code files that are inherently risky
+FILENAME: Use when the search criteria can be identified primarily by file characteristics:
+- Specific file extensions or patterns
+- File naming conventions
+- Configuration files
+- Documentation files
+- Files in specific directories
+- Files with particular path patterns
 - etc.
 
-KEYWORD: Use when vulnerabilities can be identified by specific API/function usage:
-- Dangerous function calls
-- Specific API methods
-- Library imports that are risky
-- Configuration flags
-- etc. 
-
-SYMBOL: Use when vulnerabilities require understanding code behavior and context:
-- File processing logic
-- Path traversal patterns
-- Authentication bypass patterns
-- Complex injection vulnerabilities
-- Any vulnerability that needs to understand HOW files/data are processed
+SYMBOL: Use when the search criteria involve specific named code constructs:
+- Function names or method names
+- Class names or interface names
+- Module names or dependency names
+- When you know the exact name of what you're looking for
+- Shallow search based on identifiers
 - etc.
 
-Return only one of: FILENAME, KEYWORD, or SYMBOL
+KEYWORD: Use when the search criteria require understanding file content and behavior:
+- Complex patterns or logic flows
+- Code that performs specific operations
+- Algorithm implementations or patterns
+- Business logic analysis
+- Error handling patterns
+- Content-based search within files
+- When function/class names alone are not sufficient
+- Deep content analysis
+- etc.
 
-Filter prompt to analyze:
+SELECTION GUIDELINES:
+- Try to identify the SINGLE MOST APPROPRIATE type first
+- Only select multiple types if the search criteria genuinely spans multiple categories and you cannot determine which single approach would be most effective
+- When in doubt between two types, consider which one would capture the most relevant results for the specific query
+
+Search prompt to analyze:
 {prompt}"""
 
-    user_prompt = f"""Analyze the following user query and determine what type of code element to search for:
+    user_prompt = f"""Analyze the following code search query and determine what types of code elements to search for:
 
 <query>
 {prompt}
 </query>
 
-Call the determine_search_strategy function with your analysis."""
+Call the determine_search_strategy function with your analysis. 
+IMPORTANT: Try to select only ONE element type if possible. Only select multiple types if you genuinely cannot determine which single approach would be most effective."""
 
     try:
         # Use the same model list pattern as other function calls in the codebase
@@ -154,26 +171,35 @@ Call the determine_search_strategy function with your analysis."""
             model_ids=model_ids,
         )
         
-        element_type = function_args.get("element_type", "").upper()
+        element_types = function_args.get("element_types", [])
         reason = function_args.get("reason", "")
         
-        logger.info(f"LLM determined element type: {element_type}. Reason: {reason}")
+        # Ensure all element types are uppercase
+        element_types = [et.upper() for et in element_types if isinstance(et, str)]
         
-        # Map the response to RecallStrategy enum
-        # For now, use the vector+LLM strategies for keyword and symbol
-        if element_type == "FILENAME":
-            return RecallStrategy.FILTER_FILENAME_BY_LLM
-        elif element_type == "KEYWORD":
-            return RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM
-        elif element_type == "SYMBOL":
-            return RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM
-        else:
-            logger.warning(f"LLM returned invalid element type: {element_type}. Defaulting to FILTER_FILENAME_BY_LLM")
-            return RecallStrategy.FILTER_FILENAME_BY_LLM
+        logger.info(f"LLM determined element types: {element_types}. Reason: {reason}")
+        
+        # Map the response to RecallStrategy enum list
+        strategies = []
+        for element_type in element_types:
+            if element_type == "FILENAME":
+                strategies.append(RecallStrategy.FILTER_FILENAME_BY_LLM)
+            elif element_type == "KEYWORD":
+                strategies.append(RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM)
+            elif element_type == "SYMBOL":
+                strategies.append(RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM)
+            else:
+                logger.warning(f"LLM returned invalid element type: {element_type}. Skipping.")
+        
+        if not strategies:
+            logger.warning(f"No valid strategies determined. Defaulting to ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM")
+            return [RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM]
+        
+        return strategies
             
     except Exception as e:
-        logger.error(f"Error determining strategy by LLM: {e}. Defaulting to FILTER_FILENAME_BY_LLM")
-        return RecallStrategy.FILTER_FILENAME_BY_LLM
+        logger.error(f"Error determining strategy by LLM: {e}. Defaulting to ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM")
+        return [RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM]
 
 
 async def _perform_secondary_recall(
@@ -1212,6 +1238,438 @@ class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStr
         """
         return await super().execute(codebase, prompt, subdirs_or_files)
 
+
+@define
+class SymbolStruct:
+    """Structure to represent a symbol and its metadata for intelligent filtering."""
+    vectors: List[Any]       # Embeddings of the symbol lines
+    symbol: Symbol           # The original symbol object
+    lines: List[str]         # Individual lines of the symbol
+    symbol_id: str           # Unique identifier for the symbol
+    file_path: str           # File path for the symbol
+
+
+class IntelligentFilterStrategy(RecallStrategyExecutor):
+    """
+    Intelligent filtering strategy that performs line-level vector recall within symbols,
+    then uses LLM to judge and select the most relevant lines across all symbols.
+    """
+    
+    def __init__(self, 
+                 top_k_per_symbol: int = 5,
+                 max_queries: int = 20,
+                 topic_extractor: Optional[TopicExtractor] = None, 
+                 llm_call_mode: LLMCallMode = "traditional"):
+        """
+        Initialize the intelligent filtering strategy.
+        
+        Args:
+            top_k_per_symbol: Number of top lines to recall per symbol (default: 5)
+            max_queries: Maximum number of LLM queries allowed (default: 100)
+            topic_extractor: Optional TopicExtractor instance
+            llm_call_mode: Mode for LLM calls
+        """
+        super().__init__(topic_extractor=topic_extractor, llm_call_mode=llm_call_mode)
+        self.top_k_per_symbol = top_k_per_symbol
+        self.max_queries = max_queries
+    
+    def get_strategy_name(self) -> str:
+        return "INTELLIGENT_FILTER"
+    
+    async def _generate_line_embeddings(self, lines: List[str]) -> List[Any]:
+        """Generate embeddings for individual lines using cached embedder."""
+        from codelib.utils.embedding import cached_embedder
+        from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+        
+        filtered_lines = [line.strip() for line in lines if line.strip() and len(line.strip()) > 3]
+        if not filtered_lines:
+            return []
+        
+        @retry(
+            stop=stop_after_attempt(5),
+            wait=wait_exponential(min=30, max=600),
+            retry=retry_if_exception_type(Exception),
+        )
+        async def _embed_lines_with_retry():
+            """Embed lines using cached embedder."""
+            try:
+                # Use cached embedder instead of direct create_documents_embedding
+                embeddings = await cached_embedder.aembed_documents(filtered_lines)
+                return embeddings
+            except Exception as e:
+                logger.warning(f"Line embedding batch failed, will retry: {str(e)}")
+                raise
+        
+        try:
+            embeddings = await _embed_lines_with_retry()
+            logger.debug(f"Successfully generated {len(embeddings)} embeddings for {len(filtered_lines)} lines")
+            return embeddings
+        except Exception as e:
+            logger.error(f"All retry attempts failed for line embeddings: {e}")
+            return []
+    
+    async def _vector_recall_topk(self, func_struct: SymbolStruct, query: str, k: int) -> List[Tuple[str, int, float]]:
+        """
+        Perform vector-based top-k recall for lines within a function using in-memory computation.
+        
+        Args:
+            func_struct: Function structure containing vectors and lines
+            query: Query text for similarity search
+            k: Number of top lines to return
+            
+        Returns:
+            List of tuples (line_content, line_index, similarity_score)
+        """
+        if not func_struct.vectors or not func_struct.lines:
+            return []
+        
+        return await self._manual_vector_recall(func_struct, query, k)
+    
+    async def _manual_vector_recall(self, func_struct: SymbolStruct, query: str, k: int) -> List[Tuple[str, int, float]]:
+        """
+        Fallback manual vector recall using numpy operations.
+        """
+        try:
+            from codelib.utils.embedding import create_documents_embedding
+            import numpy as np
+            
+            # Generate query embedding using robust utilities
+            query_embedding = create_documents_embedding([query])
+            if not query_embedding:
+                return []
+            
+            query_vec = np.array(query_embedding[0])
+            line_vecs = np.array(func_struct.vectors)
+            
+            # Calculate cosine similarities with proper normalization
+            query_norm = query_vec / np.linalg.norm(query_vec)
+            line_norms = line_vecs / np.linalg.norm(line_vecs, axis=1, keepdims=True)
+            
+            similarities = np.dot(line_norms, query_norm)
+            top_indices = np.argsort(similarities)[-k:][::-1]
+            
+            results = []
+            filtered_lines = [line.strip() for line in func_struct.lines if line.strip() and len(line.strip()) > 3]
+            
+            for idx in top_indices:
+                if idx < len(filtered_lines):
+                    # Find original line index
+                    filtered_line = filtered_lines[idx]
+                    original_idx = -1
+                    for i, original_line in enumerate(func_struct.lines):
+                        if original_line.strip() == filtered_line:
+                            original_idx = i
+                            break
+
+                    if original_idx >= 0:
+                        normalized_score = (similarities[idx] + 1) / 2
+                        results.append((filtered_line, original_idx, normalized_score))
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error in manual vector recall for symbol {func_struct.symbol_id}: {e}")
+            return []
+    
+    async def _prepare_symbol_structures(self, symbols: List[Symbol], subdirs_or_files: List[str]) -> List[SymbolStruct]:
+        """
+        Prepare symbol structures with line-level embeddings.
+        
+        Args:
+            symbols: List of symbols to process
+            subdirs_or_files: List of subdirectories or files to filter by
+            
+        Returns:
+            List of SymbolStruct objects with embeddings
+        """
+        from tqdm import tqdm
+        
+        symbol_structs = []
+        
+        # Progress bar for symbol processing
+        with tqdm(total=len(symbols), desc="Processing symbols for intelligent filtering", unit="symbol") as pbar:
+            for symbol in symbols:
+                try:
+                    # Filter by subdirectories if specified
+                    file_path = str(symbol.file.path)
+                    if subdirs_or_files and not any(file_path.startswith(subdir) for subdir in subdirs_or_files):
+                        pbar.update(1)
+                        continue
+                    
+                    # Get symbol lines
+                    lines = symbol.chunk.lines()
+                    if not lines:
+                        pbar.update(1)
+                        continue
+                    
+                    # Generate embeddings for lines using existing utilities
+                    vectors = await self._generate_line_embeddings(lines)
+                    if not vectors:
+                        pbar.update(1)
+                        continue
+                    
+                    # Create function structure
+                    symbol_struct = SymbolStruct(
+                        vectors=vectors,
+                        symbol=symbol,
+                        lines=lines,
+                        symbol_id=symbol.id or f"{symbol.name}_{symbol.file.path}",
+                        file_path=file_path
+                    )
+                    
+                    symbol_structs.append(symbol_struct)
+                    
+                except Exception as e:
+                    logger.error(f"Error preparing symbol structure for {symbol.name}: {e}")
+                finally:
+                    pbar.update(1)
+        
+        logger.info(f"Prepared {len(symbol_structs)} symbol structures for intelligent filtering")
+        return symbol_structs
+    
+    async def _llm_recall_judgment(self, line_candidates: List[Tuple[str, str, str]], query: str) -> List[str]:
+        """
+        Use LLM to judge and select the most relevant lines from candidates.
+
+        Args:
+            line_candidates: List of (line_content, symbol_name, file_path) tuples
+            query: Original query for relevance judgment
+            
+        Returns:
+            List of selected line contents
+        """
+        if not line_candidates:
+            return []
+        
+        max_batch_size = 30
+        all_selected_lines = []
+        
+        # Process in batches
+        for i in range(0, len(line_candidates), max_batch_size):
+            batch = line_candidates[i:i + max_batch_size]
+            batch_selected = await self._process_candidate_batch(batch, query)
+            all_selected_lines.extend(batch_selected)
+            
+            if len(line_candidates) > max_batch_size:
+                logger.info(f"Processed batch {i//max_batch_size + 1}: Selected {len(batch_selected)} lines from {len(batch)} candidates")
+        
+        return all_selected_lines
+    
+    async def _process_candidate_batch(self, line_candidates: List[Tuple[str, str, str]], query: str) -> List[str]:
+        """Process a single batch of line candidates."""
+        try:
+            from codelib.utils.llm import call_llm_with_function_call
+            
+            # Prepare candidates text
+            candidates_text = []
+            for i, (line, symbol_name, file_path) in enumerate(line_candidates):
+                candidates_text.append(f"{i+1}. [{symbol_name} in {file_path}] {line.strip()}")
+            
+            candidates_str = "\n".join(candidates_text)
+            
+            # Define function for line selection
+            function_definition = {
+                "name": "select_relevant_lines",
+                "description": "Select the most relevant code lines based on the query criteria",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "selected_indices": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "List of indices (1-based) of the most relevant lines"
+                        },
+                        "reasoning": {
+                            "type": "string",
+                            "description": "Brief explanation for the selection"
+                        }
+                    },
+                    "required": ["selected_indices", "reasoning"]
+                }
+            }
+            
+            system_prompt = f"""You are analyzing code lines to find the most relevant ones for a specific query.
+
+Query: {query}
+
+Select the most relevant lines from the candidates below. Focus on:
+1. Direct relevance to the query requirements
+2. Functional significance and completeness
+3. Quality and clarity of the code
+
+Be selective and choose only the lines that truly match the query criteria."""
+            
+            user_prompt = f"""Here are the candidate code lines:
+
+{candidates_str}
+
+Select the most relevant lines for the query: "{query}"
+
+Call the select_relevant_lines function with your analysis."""
+            
+            function_args = await call_llm_with_function_call(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                function_definition=function_definition,
+                model_ids=["openai/gpt-4.1-mini", "anthropic/claude-sonnet-4"],
+            )
+            
+            selected_indices = function_args.get("selected_indices", [])
+            reasoning = function_args.get("reasoning", "")
+            
+            logger.info(f"LLM selected {len(selected_indices)} lines from batch of {len(line_candidates)}. Reasoning: {reasoning}")
+            
+            # Extract selected lines
+            selected_lines = []
+            for idx in selected_indices:
+                if 1 <= idx <= len(line_candidates):
+                    selected_lines.append(line_candidates[idx-1][0])
+            
+            return selected_lines
+            
+        except Exception as e:
+            logger.error(f"Error in LLM recall judgment batch: {e}")
+            # Fallback: return first few candidates from this batch
+            return [candidate[0] for candidate in line_candidates[:3]]
+    
+    async def execute(self, codebase: Codebase, prompt: str, subdirs_or_files: List[str]) -> Tuple[List[str], List[Any]]:
+        """
+        Execute the intelligent filter strategy with optimized batch processing.
+        
+        Args:
+            codebase: The codebase to search in
+            prompt: The prompt for filtering
+            subdirs_or_files: List of subdirectories or files to process
+            
+        Returns:
+            Tuple of (file_paths, llm_results)
+        """
+        strategy_name = self.get_strategy_name()
+        logger.info(f"Using {strategy_name} strategy")
+        
+        try:
+            # Extract topic for vector search
+            topic = (
+                await self.topic_extractor.extract_topic(input_text=prompt, llm_call_mode=self.llm_call_mode)
+                if self.topic_extractor
+                else prompt
+            )
+            
+            if not topic:
+                logger.warning("Topic extraction failed, using original prompt")
+                topic = prompt
+            else:
+                logger.info(f"Using extracted topic '{topic}' for intelligent filtering")
+            
+            # Step 1: Get all symbols and prepare structures with embeddings
+            print("Entering Step 1 - Preparing symbol structures")
+            all_symbols = codebase.symbols
+            filtered_symbols = self.filter_elements_by_subdirs(all_symbols, codebase, subdirs_or_files)
+
+            logger.info(f"Processing {len(filtered_symbols)} symbols for intelligent filtering")
+            
+            symbol_structs = await self._prepare_symbol_structures(filtered_symbols, subdirs_or_files)
+            
+            if not symbol_structs:
+                logger.info("No symbols found for intelligent filtering")
+                return [], []
+            
+            # Step 2: Perform vector-based recall for each symbol and sort by similarity
+            all_recalled_lines = []
+            print("Entering Step 2 - Vector recall for symbols")
+            for symbol_struct in symbol_structs:
+                recalled_lines = await self._vector_recall_topk(
+                    symbol_struct, topic, self.top_k_per_symbol
+                )
+                
+                if recalled_lines:
+                    # Store line candidates with metadata
+                    for line_content, line_idx, score in recalled_lines:
+                        all_recalled_lines.append((
+                            line_content, 
+                            symbol_struct.symbol.name,
+                            symbol_struct.file_path,
+                            symbol_struct.symbol_id,
+                            score
+                        ))
+            
+            logger.info(f"Collected {len(all_recalled_lines)} line candidates from vector recall")
+            
+            if not all_recalled_lines:
+                logger.info("No lines recalled from vector search")
+                return [], []
+            
+            # Sort by vector similarity score (descending)
+            all_recalled_lines.sort(key=lambda x: x[4], reverse=True)
+            logger.info("Sorted line candidates by vector similarity score")
+            
+            # Step 3: Optimized LLM processing with dynamic batch evaluation
+            print("Entering Step 3 - Dynamic batch processing")
+            selected_file_paths = set()
+            recalled_symbols = set()
+            batch_size = 120
+            
+            # Process candidates in dynamic batches
+            current_index = 0
+            batch_count = 0
+            query_count = 0
+            
+            # Progress bar for LLM queries
+            from tqdm import tqdm
+            with tqdm(total=self.max_queries, desc="LLM batch queries", unit="query") as pbar:
+                while current_index < len(all_recalled_lines) and query_count < self.max_queries:
+                    # Collect next batch of valid candidates
+                    batch_candidates = []
+                    
+                    while len(batch_candidates) < batch_size and current_index < len(all_recalled_lines):
+                        line_content, symbol_name, file_path, symbol_id, score = all_recalled_lines[current_index]
+                        current_index += 1
+                        
+                        # Skip if symbol already recalled
+                        if symbol_id in recalled_symbols:
+                            continue
+                        
+                        # Skip if file path already selected
+                        if file_path in selected_file_paths:
+                            continue
+                        
+                        batch_candidates.append((line_content, symbol_name, file_path, symbol_id, score))
+                    
+                    if not batch_candidates:
+                        break
+                    
+                    batch_count += 1
+                    
+                    # Prepare batch data for LLM judgment
+                    batch_data = [(line_content, symbol_name, file_path) for line_content, symbol_name, file_path, symbol_id, score in batch_candidates]
+                    
+                    # Get LLM judgment on this batch
+                    selected_lines = await self._llm_recall_judgment(batch_data, prompt)
+                    query_count += 1
+                    pbar.update(1)  # Update progress bar
+                    
+                    # Mark selected symbols as recalled
+                    for selected_line in selected_lines:
+                        for line_content, symbol_name, file_path, symbol_id, score in batch_candidates:
+                            if line_content == selected_line and symbol_id not in recalled_symbols:
+                                recalled_symbols.add(symbol_id)
+                                selected_file_paths.add(file_path)
+                                logger.info(f"Selected symbol {symbol_name} from {file_path} (score: {score:.3f})")
+                                break
+                    
+                    logger.info(f"Processed batch {batch_count}: Selected {len(selected_lines)} symbols from {len(batch_candidates)} candidates")
+            
+            file_paths = list(selected_file_paths)
+            print(f"Total selected file paths: {len(file_paths)}")
+            logger.info(f"Intelligent filtering completed. Selected {len(file_paths)} files from {len(recalled_symbols)} symbols.")
+            
+            return file_paths, []
+            
+        except Exception as e:
+            logger.error(f"Error in {strategy_name} strategy: {e}")
+            raise e
+
+
 class StrategyFactory:
     """Factory for creating strategy executors."""
 
@@ -1230,6 +1688,7 @@ class StrategyFactory:
             RecallStrategy.FILTER_SYMBOL_BY_VECTOR_AND_LLM: FilterSymbolByVectorAndLLMStrategy,
             RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM: AdaptiveFilterKeywordByVectorAndLLMStrategy,
             RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM: AdaptiveFilterSymbolByVectorAndLLMStrategy,
+            RecallStrategy.INTELLIGENT_FILTER: IntelligentFilterStrategy,
         }
 
         if strategy not in strategy_map:
@@ -1261,6 +1720,8 @@ async def _multi_strategy_code_recall(
             - "fast": Uses FILTER_FILENAME_BY_LLM only
             - "balance": Uses FILTER_KEYWORD_BY_VECTOR + FILTER_FILENAME_BY_LLM
             - "precise": Uses full LLM filtering/mapping (default behavior)
+            - "smart": Uses LLM to determine best strategy based on prompt
+            - "intelligent": Uses INTELLIGENT_FILTER strategy with line-level vector recall
             - "custom": Uses the provided custom_strategies
         custom_strategies: List of strategies to run in custom mode
         llm_method: The LLM method to call (codebase.llm_filter or codebase.llm_map)
@@ -1284,7 +1745,7 @@ async def _multi_strategy_code_recall(
         strategies_to_run = [RecallStrategy.FILTER_FILENAME_BY_LLM]
     elif mode == "balance":
         strategies_to_run = [
-            RecallStrategy.FILTER_KEYWORD_BY_VECTOR_AND_LLM,
+            RecallStrategy.FILTER_KEYWORD_BY_VECTOR,
             RecallStrategy.FILTER_FILENAME_BY_LLM,
         ]
     elif mode == "precise":
@@ -1300,12 +1761,15 @@ async def _multi_strategy_code_recall(
                     extended_subdirs_or_files.add(str(symbol.file.path))
                     break
     elif mode == "smart":
-        strategy = await _determine_strategy_by_llm(
+        strategies = await _determine_strategy_by_llm(
             prompt=prompt,
             model_id=settings.llm_smart_strategy_model_id,
         )
-        print(f"LLM smart strategy selected: {strategy.value}")
-        strategies_to_run = [strategy]
+        strategy_names = [strategy.value for strategy in strategies]
+        print(f"LLM smart strategies selected: {strategy_names}")
+        strategies_to_run = strategies
+    elif mode == "intelligent":
+        strategies_to_run = [RecallStrategy.INTELLIGENT_FILTER]
     elif mode == "custom" and custom_strategies:
         strategies_to_run = custom_strategies
     else:
@@ -1354,8 +1818,19 @@ async def _multi_strategy_code_recall(
 
     # Check if the llm_method supports mode parameter (for SmartCodebase methods)
     logger.debug(f"Function call mode: {llm_call_mode}")
+    
+    # Use relaxed prompt for primary recall if secondary recall is enabled
+    primary_prompt = prompt
+    if settings.enable_secondary_recall:
+        primary_prompt = f"""Please be more lenient and inclusive in your search criteria. Include items that might be related even if they don't perfectly match.
+
+{prompt}
+
+Note: This is the primary filtering stage - we prefer to include potentially relevant items rather than miss them. A more precise filtering will be applied in the secondary stage."""
+        logger.info("Using relaxed prompt for primary recall (secondary recall enabled)")
+    
     elements, llm_results = await llm_method(
-        prompt=prompt,
+        prompt=primary_prompt,
         target_type=granularity,
         subdirs_or_files=extended_subdirs_or_files,
         llm_call_mode=llm_call_mode,
@@ -1387,7 +1862,7 @@ async def multi_strategy_code_mapping(
     prompt: str,
     subdirs_or_files: List[str],
     granularity: LLMMapFilterTargetType,
-    mode: Literal["fast", "balance", "precise", "smart", "custom"],
+    mode: Literal["fast", "balance", "precise", "smart", "intelligent", "custom"],
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     llm_call_mode: LLMCallMode = "traditional",
@@ -1412,7 +1887,7 @@ async def multi_strategy_code_filter(
     prompt: str,
     subdirs_or_files: List[str],
     granularity: LLMMapFilterTargetType,
-    mode: Literal["fast", "balance", "precise", "smart", "custom"],
+    mode: Literal["fast", "balance", "precise", "smart", "intelligent", "custom"],
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     llm_call_mode: LLMCallMode = "traditional",

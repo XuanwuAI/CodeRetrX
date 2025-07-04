@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 def generate_prompts(limit=10):
     all_prompts = []
     bug_name = []
-    feature_file = "features/feature_outline_refiner_0_6d53965443.json"
+    feature_file = "features/test.json"
     try:
         with open(feature_file, 'r', encoding='utf-8') as f:
             features = json.load(f)
