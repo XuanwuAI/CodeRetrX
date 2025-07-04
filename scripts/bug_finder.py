@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 class BugFinder:
-    def __init__(self, repo_url: str, mode: Literal["fast", "balance", "precise", "smart", "custom"] = "balance", use_function_call: bool = False):
+    def __init__(self, repo_url: str, mode: Literal["fast", "balance", "precise", "smart", "intelligent", "custom"] = "intelligent", use_function_call: bool = False):
         """
         Initialize the bug finder with a repository URL
         
@@ -45,16 +45,16 @@ class BugFinder:
         self.repo_url = repo_url
         self.repo_path = get_data_dir() / "repos" / get_repo_id(repo_url)
         self.topic_extractor = TopicExtractor()
-        self.mode: Literal["fast", "balance", "precise", "custom"] = self._validate_mode(mode)
+        self.mode: Literal["fast", "balance", "precise", "smart", "intelligent", "custom"] = self._validate_mode(mode)
         self.use_function_call = use_function_call
         self.setup_environment()
 
-    def _validate_mode(self, mode: Literal["fast", "balance", "precise", "smart", "custom"]) -> Literal["fast", "balance", "precise", "smart", "custom"]:
+    def _validate_mode(self, mode: Literal["fast", "balance", "precise", "smart", "intelligent", "custom"]) -> Literal["fast", "balance", "precise", "smart", "intelligent", "custom"]:
         """Validate and return the mode parameter"""
-        valid_modes = ["fast", "balance", "precise", "adaptive", "smart"]
+        valid_modes = ["fast", "balance", "precise", "adaptive", "smart", "intelligent"]
         if mode not in valid_modes:
-            logger.warning(f"Invalid mode '{mode}'. Valid modes are: {valid_modes}. Defaulting to 'balance'.")
-            return "balance"
+            logger.warning(f"Invalid mode '{mode}'. Valid modes are: {valid_modes}. Defaulting to 'intelligent'.")
+            return "intelligent"
         return mode
 
     def setup_environment(self):
@@ -66,7 +66,7 @@ class BugFinder:
         os.environ["SYMBOL_NAME_EMBEDDING"] = "true"
         os.environ["SYMBOL_CONTENT_EMBEDDING"] = "true"
         
-        cache_root = Path.home() / ".cache"
+        cache_root = Path(__file__).parent.parent / ".cache"
         chroma_dir = cache_root / "chroma"
         chroma_dir.mkdir(parents=True, exist_ok=True)
         embedding.chromadb_client = chromadb.PersistentClient(path=str(chroma_dir))
@@ -81,7 +81,8 @@ class BugFinder:
             "balance": "Uses keyword vector + filename filtering (balanced speed/accuracy)",
             "precise": "Uses full LLM processing (most accurate but slowest)",
             "adaptive": "Uses adaptive vector + LLM strategy (smart filtering with early exit)",
-            "smart": "Uses LLM to determine the best strategy based on the prompt"
+            "smart": "Uses LLM to determine the best strategy based on the prompt",
+            "intelligent": "Uses intelligent filtering with line-level vector recall and LLM judgment"
         }
         return descriptions.get(self.mode, f"Unknown mode: {self.mode}")
 
@@ -131,7 +132,7 @@ class BugFinder:
             json.dump(codebase.to_json(), f, indent=4)
         return codebase
 
-    async def find_bugs(self, subdirs: list[str] = ["/"]) -> tuple[list[dict], dict]:
+    async def find_bugs(self, subdirs: list[str] = ["/"]) -> tuple[list[dict], dict, dict]:
         """Find potential bugs in the codebase using the specified mode"""
         start_time = time.time()
         timing_info = {
@@ -139,6 +140,13 @@ class BugFinder:
             "preparation_duration": 0,
             "prompt_durations": [],
             "average_prompt_duration": 0
+        }
+        cost_info = {
+            "total_cost": 0.0,
+            "total_input_tokens": 0,
+            "total_output_tokens": 0,
+            "prompt_costs": [],
+            "average_prompt_cost": 0.0
         }
         
         prep_start = time.time()
@@ -166,6 +174,18 @@ class BugFinder:
             logger.info(f"Searching for bugs with prompt: {prompt} (mode: {self.mode})")
             
             prompt_start_time = time.time()
+            
+            # Track cost before this prompt
+            log_path = llm_settings.get_json_log_path()
+            if log_path.exists():
+                initial_cost = await calc_llm_costs(log_path)
+                initial_input_tokens = calc_input_tokens(log_path)
+                initial_output_tokens = calc_output_tokens(log_path)
+            else:
+                initial_cost = 0.0
+                initial_input_tokens = 0
+                initial_output_tokens = 0
+            
             try:
                 if self.mode == "smart":
                     result, llm_output = await multi_strategy_code_filter(
@@ -205,6 +225,23 @@ class BugFinder:
                     )
                 
                 if result:
+                    # Calculate cost after this prompt
+                    final_cost = await calc_llm_costs(llm_settings.get_json_log_path())
+                    final_input_tokens = calc_input_tokens(llm_settings.get_json_log_path())
+                    final_output_tokens = calc_output_tokens(llm_settings.get_json_log_path())
+                    
+                    prompt_cost = final_cost - initial_cost
+                    prompt_input_tokens = final_input_tokens - initial_input_tokens
+                    prompt_output_tokens = final_output_tokens - initial_output_tokens
+                    
+                    # Add to cost_info
+                    cost_info["prompt_costs"].append({
+                        "prompt": prompt[:50] + "..." if len(prompt) > 50 else prompt,
+                        "cost": prompt_cost,
+                        "input_tokens": prompt_input_tokens,
+                        "output_tokens": prompt_output_tokens
+                    })
+                    
                     filtered_llm_output = None
                     if llm_output:
                         filtered_llm_output = [r for r in llm_output if hasattr(r, 'result') and r.result]
@@ -247,6 +284,26 @@ class BugFinder:
                     "duration": prompt_duration
                 })
                 print(f"Prompt processing time: {prompt_duration:.2f} seconds")
+                
+                # Calculate and print per-prompt cost for all cases
+                final_cost = await calc_llm_costs(llm_settings.get_json_log_path())
+                final_input_tokens = calc_input_tokens(llm_settings.get_json_log_path())
+                final_output_tokens = calc_output_tokens(llm_settings.get_json_log_path())
+                
+                prompt_cost = final_cost - initial_cost
+                prompt_input_tokens = final_input_tokens - initial_input_tokens
+                prompt_output_tokens = final_output_tokens - initial_output_tokens
+                
+                # Add to cost_info even if no results found
+                if not result:
+                    cost_info["prompt_costs"].append({
+                        "prompt": prompt[:50] + "..." if len(prompt) > 50 else prompt,
+                        "cost": prompt_cost,
+                        "input_tokens": prompt_input_tokens,
+                        "output_tokens": prompt_output_tokens
+                    })
+                
+                print(f"Prompt cost: ${prompt_cost:.6f} (Input: {prompt_input_tokens}, Output: {prompt_output_tokens})")
             
             print(f"{'='*80}\n")
         
@@ -258,6 +315,17 @@ class BugFinder:
             durations = [p["duration"] for p in timing_info["prompt_durations"]]
             timing_info["average_prompt_duration"] = sum(durations) / len(durations)
         
+        # Calculate final cost statistics
+        if cost_info["prompt_costs"]:
+            costs = [p["cost"] for p in cost_info["prompt_costs"]]
+            cost_info["total_cost"] = sum(costs)
+            cost_info["average_prompt_cost"] = sum(costs) / len(costs)
+            
+            input_tokens = [p["input_tokens"] for p in cost_info["prompt_costs"]]
+            output_tokens = [p["output_tokens"] for p in cost_info["prompt_costs"]]
+            cost_info["total_input_tokens"] = sum(input_tokens)
+            cost_info["total_output_tokens"] = sum(output_tokens)
+        
         # Print timing summary
         print(f"\n{'='*60}")
         print(f"TIMING SUMMARY")
@@ -267,10 +335,21 @@ class BugFinder:
         print(f"Average prompt duration: {timing_info['average_prompt_duration']:.2f} seconds")
         print(f"Number of prompts processed: {len(timing_info['prompt_durations'])}")
         print(f"{'='*60}")
+        
+        # Print cost summary
+        print(f"\n{'='*60}")
+        print(f"COST SUMMARY")
+        print(f"{'='*60}")
+        print(f"Total cost: ${cost_info['total_cost']:.6f}")
+        print(f"Average prompt cost: ${cost_info['average_prompt_cost']:.6f}")
+        print(f"Total input tokens: {cost_info['total_input_tokens']:,}")
+        print(f"Total output tokens: {cost_info['total_output_tokens']:,}")
+        print(f"Number of prompts processed: {len(cost_info['prompt_costs'])}")
+        print(f"{'='*60}")
                 
-        return all_bugs, timing_info
+        return all_bugs, timing_info, cost_info
 
-    async def save_results(self, bugs: list[dict], timing_info: dict, output_file: str = "bug_report.json"):
+    async def save_results(self, bugs: list[dict], timing_info: dict, cost_info: dict, output_file: str = "bug_report.json"):
         """Save the bug finding results to a JSON file"""
         # Create bug_reports/{repo_name} directory if it doesn't exist
         repo_id = get_repo_id(self.repo_url)
@@ -316,6 +395,7 @@ class BugFinder:
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "timing_info": timing_info,
+            "cost_info": cost_info,
             "bugs": serializable_bugs
         }
         
@@ -331,10 +411,11 @@ def parse_arguments():
         epilog="""
 Available modes:
   fast      - Uses filename filtering only (fastest, least accurate)
-  balance   - Uses keyword vector + filename filtering (balanced speed/accuracy) [DEFAULT]
+  balance   - Uses keyword vector + filename filtering (balanced speed/accuracy)
   precise   - Uses full LLM processing (most accurate but slowest)
   adaptive  - Uses adaptive vector + LLM strategy (smart filtering with early exit)
   smart     - Uses LLM to determine the best strategy based on the prompt
+  intelligent - Uses intelligent filtering with line-level vector recall and LLM judgment [DEFAULT]
 
 Function call modes:
   traditional     - Traditional mode (default)
@@ -352,9 +433,9 @@ Function call modes:
     parser.add_argument(
         "--mode", "-m",
         type=str,
-        choices=["fast", "balance", "precise", "adaptive", "smart"],
-        default="balance",
-        help="Analysis mode (default: balance)"
+        choices=["fast", "balance", "precise", "adaptive", "smart", "intelligent"],
+        default="intelligent",
+        help="Analysis mode (default: intelligent)"
     )
     
     parser.add_argument(
@@ -440,7 +521,7 @@ async def main():
         # Run the bug finder
         bug_finder = BugFinder(args.repo, mode=args.mode, use_function_call=args.use_function_call)
         
-        bugs, timing_info = await bug_finder.find_bugs(subdirs=args.subdirs)
+        bugs, timing_info, cost_info = await bug_finder.find_bugs(subdirs=args.subdirs)
         
         # Set default output file if not specified
         if not args.output:
@@ -456,7 +537,7 @@ async def main():
         else:
             output_file = args.output
             
-        await bug_finder.save_results(bugs, timing_info, output_file)
+        await bug_finder.save_results(bugs, timing_info, cost_info, output_file)
         
         print(f"\n" + "="*60)
         print(f"Bug analysis completed!")

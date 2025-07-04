@@ -171,13 +171,13 @@ def print_analysis(filename_prefix: str, method_count: int, precise_count: int,
     print("-" * 60)
 
 def print_summary(results: List[Tuple[str, int, int, int, int, Optional[int], Optional[int], Optional[int], Optional[int], Optional[float], Optional[float]]]):
-    print("\n" + "="*155)
+    print("\n" + "="*170)
     print("SUMMARY TABLE")
-    print("="*155)
+    print("="*170)
     
     headers = ["Dataset", "Other", "Precise", "Contained", "Coverage %", "In Tokens (O)", "In Tokens (P)", "Out Tokens (O)", "Out Tokens (P)", "Cost (O)", "Cost (P)", "Cost Ratio"]
-    print(f"{headers[0]:<30} {headers[1]:<9} {headers[2]:<8} {headers[3]:<10} {headers[4]:<11} {headers[5]:<12} {headers[6]:<12} {headers[7]:<13} {headers[8]:<13} {headers[9]:<10} {headers[10]:<10} {headers[11]:<10}")
-    print("-" * 155)
+    print(f"{headers[0]:<32} {headers[1]:<7} {headers[2]:<8} {headers[3]:<10} {headers[4]:>11} {headers[5]:>13} {headers[6]:>13} {headers[7]:>14} {headers[8]:>14} {headers[9]:>10} {headers[10]:>10} {headers[11]:>10}")
+    print("-" * 170)
     
     for desc, method_count, precise_count, contained_count, not_contained_count, other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost in results:
         coverage_pct = (contained_count / precise_count * 100) if precise_count > 0 else 0
@@ -195,7 +195,7 @@ def print_summary(results: List[Tuple[str, int, int, int, int, Optional[int], Op
         cost_ratio = precise_cost / other_cost if other_cost and other_cost > 0 and precise_cost is not None else 0
         cost_ratio_str = f"{cost_ratio:.2f}x" if cost_ratio > 0 else "N/A"
         
-        print(f"{desc:<30} {method_count:<9} {precise_count:<8} {contained_count:<10} {coverage_pct:>9.1f}% {other_input_str:>11} {precise_input_str:>11} {other_output_str:>12} {precise_output_str:>12} {other_cost_str:>9} {precise_cost_str:>9} {cost_ratio_str:>9}")
+        print(f"{desc:<32} {method_count:<7} {precise_count:<8} {contained_count:<10} {coverage_pct:>9.1f}% {other_input_str:>13} {precise_input_str:>13} {other_output_str:>14} {precise_output_str:>14} {other_cost_str:>10} {precise_cost_str:>10} {cost_ratio_str:>10}")
 
 
 
@@ -227,7 +227,7 @@ def main():
             try:
                 # Extract mode from filename
                 mode = "unknown"
-                for m in ["fast", "balance", "adaptive"]:
+                for m in ["fast", "balance", "adaptive", "smart", "intelligent"]:
                     if f"_{m}_" in other_file.name:
                         mode = m
                         break
