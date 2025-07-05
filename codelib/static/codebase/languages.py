@@ -38,6 +38,8 @@ EXTENSION_MAP: dict[str, IDXSupportedLanguage] = {
     "rs": "rust",
     "c": "c",
     "cpp": "cpp",
+    "h": "c",
+    "hpp": "cpp",
     "cs": "csharp",
     "go": "go",
     "ex": "elixir",
