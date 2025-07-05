@@ -118,12 +118,21 @@ class CodeHunk:
             uuid=hunk_uuid(src.path, start_line, end_line, start_column, end_column),
         )
 
+    def get_linerange(self):
+        """
+        Get inclusive line range
+        """
+        start, end = self.start_line, self.end_line
+        if self.end_column == 0 and end > start:
+            end -= 1
+        return start, end
+
     # @cached(cache=code_cache)
     def code(self, do_dedent: bool = True, show_line_numbers: bool = False, trunc_headlines: Optional[int] = None):
-        query = (self.start_line, self.end_line)
+        start, end = self.get_linerange()
         if trunc_headlines is not None:
-            query = (self.start_line, min(self.end_line, self.start_line + trunc_headlines - 1))
-        return self.src.lookup(query, do_dedent, show_line_numbers)
+            end = min(end, start + trunc_headlines-1)
+        return self.src.lookup((start, end), do_dedent, show_line_numbers)
 
     # @cached(cache=codeblock_cache)
     def codeblock(self, show_line_numbers: bool = False):
@@ -482,7 +491,8 @@ class File:
         self, x: CodeHunk | Tuple[int, int] | int, show_line_numbers: bool = False
     ) -> List[str]:
         if isinstance(x, CodeHunk):
-            lines = self.lines[x.start_line : x.end_line + 1]
+            start, end = x.get_linerange()
+            lines = self.lines[start : end + 1]
         elif isinstance(x, tuple):
             lines = self.lines[x[0] : x[1] + 1]
         elif isinstance(x, int):
