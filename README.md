@@ -111,13 +111,26 @@ Get help with available commands:
 uv run -m scripts.bug_finder --help
 ```
 
-### Recommended Usage
+### Bug Finding
 
 For optimal results, use the intelligent strategy:
 
 ```bash
 uv run -m scripts.bug_finder -f --mode intelligent
 ```
+
+### Bug Report Analysis
+
+Analyze and compare results from different strategies:
+
+```bash
+uv run -m scripts.analyze_bug_reports
+```
+
+This tool provides:
+- **Coverage Analysis**: Compare how many issues each strategy finds vs ground truth
+- **Cost Comparison**: Token usage and LLM costs between different strategies  
+- **Performance Metrics**: Effectiveness analysis of different approaches
 
 ## Extras
 
