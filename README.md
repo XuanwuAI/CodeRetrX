@@ -1,4 +1,4 @@
-# Code Analysis Library for XuanWu Lab / TSpark Security
+# Code Analysis Library for Security Research
 
 An AI-powered code analysis library that combines **static analysis** with **Large Language Model (LLM) capabilities** to perform intelligent code search, bug detection, and security vulnerability analysis.
 
