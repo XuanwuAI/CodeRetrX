@@ -12,7 +12,8 @@ import asyncio
 import json
 from pathlib import Path
 from codelib.impl.default import CodebaseFactory, TopicExtractor
-from codelib.retrieval.code_recall import multi_strategy_code_filter, RecallStrategy
+from codelib.retrieval import coderecx_precise, coderecx_optimised
+from codelib.retrieval.strategies import CodeRecallSettings
 from codelib.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
 from codelib.utils.llm import llm_settings
 from codelib.utils.cost_tracking import calc_llm_costs, calc_input_tokens, calc_output_tokens
@@ -27,38 +28,38 @@ import time
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
-class BugFinder:
-    def __init__(self, repo_url: str, mode: Literal["fast", "balance", "precise", "smart", "intelligent", "custom"] = "intelligent", use_function_call: bool = False):
+class CodeRetriever:
+    def __init__(self, repo_url: str, mode: Literal["filename", "symbol", "line", "auto", "precise", "custom"] = "line", use_function_call: bool = False):
         """
-        Initialize the bug finder with a repository URL
+        Initialize the code finder with a repository URL
         
         Args:
             repo_url: The repository URL to analyze
-            mode: Analysis mode - "fast", "balance", "precise", "smart", or "adaptive"
-                - fast: Uses filename filtering only (fastest)
-                - balance: Uses keyword vector + filename filtering (balanced speed/accuracy)
-                - precise: Uses full LLM processing (most accurate but slowest)
-                - adaptive: Uses adaptive vector + LLM strategy (smart filtering)
-                - smart: Uses LLM to determine the best strategy based on the prompt
+            mode: Analysis mode - "filename", "symbol", "line", "auto", "precise", "custom"
+                - filename: Uses filename filtering only
+                - symbol: Uses adaptive symbol vector filtering
+                - line: Uses intelligent line-level vector recall and LLM judgment
+                - auto: Uses LLM to determine the best strategy based on the prompt
+                - precise: Uses full LLM processing (slowest but comprehensive)
             use_function_call: Whether to use function call mode (default: False)
         """
         self.repo_url = repo_url
         self.repo_path = get_data_dir() / "repos" / get_repo_id(repo_url)
         self.topic_extractor = TopicExtractor()
-        self.mode: Literal["fast", "balance", "precise", "smart", "intelligent", "custom"] = self._validate_mode(mode)
+        self.mode: Literal["filename", "symbol", "line", "auto", "precise", "custom"] = self._validate_mode(mode)
         self.use_function_call = use_function_call
         self.setup_environment()
 
-    def _validate_mode(self, mode: Literal["fast", "balance", "precise", "smart", "intelligent", "custom"]) -> Literal["fast", "balance", "precise", "smart", "intelligent", "custom"]:
+    def _validate_mode(self, mode: Literal["filename", "symbol", "line", "auto", "precise", "custom"]) -> Literal["filename", "symbol", "line", "auto", "precise", "custom"]:
         """Validate and return the mode parameter"""
-        valid_modes = ["fast", "balance", "precise", "adaptive", "smart", "intelligent"]
+        valid_modes = ["filename", "symbol", "line", "auto", "precise", "custom"]
         if mode not in valid_modes:
-            logger.warning(f"Invalid mode '{mode}'. Valid modes are: {valid_modes}. Defaulting to 'intelligent'.")
-            return "intelligent"
+            logger.warning(f"Invalid mode '{mode}'. Valid modes are: {valid_modes}. Defaulting to 'line'.")
+            return "line"
         return mode
 
     def setup_environment(self):
-        """Setup the necessary environment for bug finding"""
+        """Setup the necessary environment for code finding"""
         if os.environ.get("DISABLE_LLM_CACHE", "").lower() == "true":
             del os.environ["DISABLE_LLM_CACHE"]
         
@@ -77,12 +78,12 @@ class BugFinder:
     def _get_mode_description(self) -> str:
         """Get description for the current mode"""
         descriptions = {
-            "fast": "Uses filename filtering only (fastest, least accurate)",
-            "balance": "Uses keyword vector + filename filtering (balanced speed/accuracy)",
+            "filename": "Uses filename filtering only (fastest, least accurate)",
+            "symbol": "Uses adaptive symbol vector filtering (balanced speed/accuracy)",
+            "line": "Uses intelligent filtering with line-level vector recall and LLM judgment (most accurate)",
+            "auto": "Uses LLM to determine the best strategy based on the prompt",
             "precise": "Uses full LLM processing (most accurate but slowest)",
-            "adaptive": "Uses adaptive vector + LLM strategy (smart filtering with early exit)",
-            "smart": "Uses LLM to determine the best strategy based on the prompt",
-            "intelligent": "Uses intelligent filtering with line-level vector recall and LLM judgment"
+            "custom": "Uses custom strategies"
         }
         return descriptions.get(self.mode, f"Unknown mode: {self.mode}")
 
@@ -132,8 +133,8 @@ class BugFinder:
             json.dump(codebase.to_json(), f, indent=4)
         return codebase
 
-    async def find_bugs(self, subdirs: list[str] = ["/"]) -> tuple[list[dict], dict, dict]:
-        """Find potential bugs in the codebase using the specified mode"""
+    async def find_codes(self, subdirs: list[str] = ["/"], enable_secondary_recall: bool = False, limit: int = 10) -> tuple[list[dict], dict, dict]:
+        """Find potential codes in the codebase using the specified mode"""
         start_time = time.time()
         timing_info = {
             "total_duration": 0,
@@ -154,8 +155,8 @@ class BugFinder:
         prep_end = time.time()
         timing_info["preparation_duration"] = prep_end - prep_start
         
-        bug_prompts = self.generate_prompts(parse_arguments().limit)
-        all_bugs = []
+        code_prompts = self.generate_prompts(limit)
+        all_codes = []
         
         # Determine function call mode based on the use_function_call parameter
         llm_call_mode: LLMCallMode = "function_call" if self.use_function_call else "traditional"
@@ -166,12 +167,12 @@ class BugFinder:
         print(f"Key extraction mode: {self._get_key_extraction_mode()}")
         print(f"Preparation time: {timing_info['preparation_duration']:.2f} seconds")
         
-        for prompt in bug_prompts:
+        for prompt in code_prompts:
             print(f"\n{'='*80}")
-            print(f"Searching for bugs with prompt: {prompt}")
+            print(f"Searching for codes with prompt: {prompt}")
             print(f"Mode: {self.mode}")
             print(f"{'='*80}")
-            logger.info(f"Searching for bugs with prompt: {prompt} (mode: {self.mode})")
+            logger.info(f"Searching for codes with prompt: {prompt} (mode: {self.mode})")
             
             prompt_start_time = time.time()
             
@@ -187,41 +188,30 @@ class BugFinder:
                 initial_output_tokens = 0
             
             try:
-                if self.mode == "smart":
-                    result, llm_output = await multi_strategy_code_filter(
+                # Create settings with appropriate llm_call_mode
+                settings = CodeRecallSettings(llm_call_mode=llm_call_mode)
+                
+                if self.mode == "precise":
+                    result, llm_output = await coderecx_precise(
                         codebase=codebase,
                         subdirs_or_files=subdirs,
                         prompt=prompt,
                         granularity="symbol_content",
-                        mode="smart",
                         topic_extractor=self.topic_extractor,
-                        llm_call_mode=llm_call_mode
-                    )
-                elif self.mode == "adaptive":
-                    # Use custom mode with adaptive strategies
-                    result, llm_output = await multi_strategy_code_filter(
-                        codebase=codebase,
-                        subdirs_or_files=subdirs,
-                        prompt=prompt,
-                        granularity="symbol_content",
-                        mode="custom",
-                        custom_strategies=[
-                            RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM,
-                            RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM,
-                        ],
-                        topic_extractor=self.topic_extractor,
-                        llm_call_mode=llm_call_mode
+                        settings=settings,
+                        enable_secondary_recall=enable_secondary_recall
                     )
                 else:
-                    # Use built-in modes: fast, balance, precise
-                    result, llm_output = await multi_strategy_code_filter(
+                    # Use optimized modes: filename, symbol, line, auto, custom
+                    result, llm_output = await coderecx_optimised(
                         codebase=codebase,
                         subdirs_or_files=subdirs,
                         prompt=prompt,
                         granularity="symbol_content",
-                        mode=self.mode,
+                        coarse_recall_strategy=self.mode,
                         topic_extractor=self.topic_extractor,
-                        llm_call_mode=llm_call_mode
+                        settings=settings,
+                        enable_secondary_recall=enable_secondary_recall
                     )
                 
                 if result:
@@ -246,15 +236,15 @@ class BugFinder:
                     if llm_output:
                         filtered_llm_output = [r for r in llm_output if hasattr(r, 'result') and r.result]
                     
-                    bug_info = {
-                        "bug_type": prompt,
+                    code_info = {
+                        "code_type": prompt,
                         "locations": result,
                         "llm_analysis": filtered_llm_output
                     }
-                    all_bugs.append(bug_info)
+                    all_codes.append(code_info)
                     
                     print(f"\nFound {len(result)} potential issues:")
-                    print(f"Bug Type: {prompt}")
+                    print(f"code Type: {prompt}")
                     print("\nLocations:")
                     for i, location in enumerate(result, 1):
                         print(f"  {i}. {location}")
@@ -347,18 +337,18 @@ class BugFinder:
         print(f"Number of prompts processed: {len(cost_info['prompt_costs'])}")
         print(f"{'='*60}")
                 
-        return all_bugs, timing_info, cost_info
+        return all_codes, timing_info, cost_info
 
-    async def save_results(self, bugs: list[dict], timing_info: dict, cost_info: dict, output_file: str = "bug_report.json"):
-        """Save the bug finding results to a JSON file"""
-        # Create bug_reports/{repo_name} directory if it doesn't exist
+    async def save_results(self, codes: list[dict], timing_info: dict, cost_info: dict, output_file: str = "code_report.json"):
+        """Save the code finding results to a JSON file"""
+        # Create code_reports/{repo_name} directory if it doesn't exist
         repo_id = get_repo_id(self.repo_url)
-        bug_report_dir = Path("bug_reports") / repo_id
-        bug_report_dir.mkdir(parents=True, exist_ok=True)
+        code_report_dir = Path("code_reports") / repo_id
+        code_report_dir.mkdir(parents=True, exist_ok=True)
         
-        # Ensure output file is saved in bug_reports/{repo_name} directory
+        # Ensure output file is saved in code_reports/{repo_name} directory
         if not Path(output_file).is_absolute():
-            output_file = bug_report_dir / output_file
+            output_file = code_report_dir / output_file
         
         def make_serializable(obj):
             """Convert objects to JSON-serializable format"""
@@ -379,7 +369,7 @@ class BugFinder:
                 except (TypeError, ValueError):
                     return str(obj)
         
-        serializable_bugs = make_serializable(bugs)
+        serializable_codes = make_serializable(codes)
         
         # Calculate LLM cost and tokens
         cost = await calc_llm_costs(llm_settings.get_json_log_path())
@@ -396,26 +386,26 @@ class BugFinder:
             "output_tokens": output_tokens,
             "timing_info": timing_info,
             "cost_info": cost_info,
-            "bugs": serializable_bugs
+            "codes": serializable_codes
         }
         
         with open(output_file, "w") as f:
             json.dump(report, f, indent=2)
-        logger.info(f"Bug report saved to {output_file}")
+        logger.info(f"code report saved to {output_file}")
 
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
-        description="Bug Finder - Analyze code repositories for potential bugs",
+        description="code Finder - Analyze code repositories for potential codes",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Available modes:
-  fast      - Uses filename filtering only (fastest, least accurate)
-  balance   - Uses keyword vector + filename filtering (balanced speed/accuracy)
+  filename  - Uses filename filtering only (fastest, least accurate)
+  symbol    - Uses adaptive symbol vector filtering (balanced speed/accuracy) 
+  line      - Uses intelligent filtering with line-level vector recall and LLM judgment [DEFAULT]
+  auto      - Uses LLM to determine the best strategy based on the prompt
   precise   - Uses full LLM processing (most accurate but slowest)
-  adaptive  - Uses adaptive vector + LLM strategy (smart filtering with early exit)
-  smart     - Uses LLM to determine the best strategy based on the prompt
-  intelligent - Uses intelligent filtering with line-level vector recall and LLM judgment [DEFAULT]
+  custom    - Uses custom strategies
 
 Function call modes:
   traditional     - Traditional mode (default)
@@ -433,15 +423,15 @@ Function call modes:
     parser.add_argument(
         "--mode", "-m",
         type=str,
-        choices=["fast", "balance", "precise", "adaptive", "smart", "intelligent"],
-        default="intelligent",
-        help="Analysis mode (default: intelligent)"
+        choices=["filename", "symbol", "line", "auto", "precise", "custom"],
+        default="line",
+        help="Analysis mode (default: line)"
     )
     
     parser.add_argument(
         "--output", "-o",
         type=str,
-        help="Output file name (default: bug_report_{mode}.json)"
+        help="Output file name (default: code_report_{mode}.json)"
     )
     
     parser.add_argument(
@@ -476,6 +466,12 @@ Function call modes:
         help="Clear cache to run tests precisely (default: False)"
     )
 
+    parser.add_argument(
+        "--sec",
+        action="store_true",
+        help="Enable secondary recall (default: False)"
+    )
+
     return parser.parse_args()
 
 async def main():
@@ -501,14 +497,14 @@ async def main():
         logging.basicConfig(level=logging.INFO, force=True)
         logger.setLevel(logging.INFO)
     
-    print(f"Bug Finder - Repository Analysis")
+    print(f"code Finder - Repository Analysis")
     print(f"Repository: {args.repo}")
     print(f"Mode: {args.mode}")
     print(f"Function Call: {args.use_function_call}")
     
-    # Create a temporary bug_finder instance to get key extraction mode
-    temp_bug_finder = BugFinder(args.repo, mode=args.mode, use_function_call=args.use_function_call)
-    key_extraction_mode = temp_bug_finder._get_key_extraction_mode()
+    # Create a temporary code_finder instance to get key extraction mode
+    temp_code_finder = CodeRetriever(args.repo, mode=args.mode, use_function_call=args.use_function_call)
+    key_extraction_mode = temp_code_finder._get_key_extraction_mode()
     print(f"Key Extraction: {key_extraction_mode}")
     
     print(f"Subdirectories: {args.subdirs}")
@@ -518,40 +514,38 @@ async def main():
     print("-" * 60)
     
     try:
-        # Run the bug finder
-        bug_finder = BugFinder(args.repo, mode=args.mode, use_function_call=args.use_function_call)
+        # Run the code finder
+        code_finder = CodeRetriever(args.repo, mode=args.mode, use_function_call=args.use_function_call)
         
-        bugs, timing_info, cost_info = await bug_finder.find_bugs(subdirs=args.subdirs)
+        codes, timing_info, cost_info = await code_finder.find_codes(subdirs=args.subdirs, enable_secondary_recall=args.sec, limit=args.limit)
         
         # Set default output file if not specified
         if not args.output:
-            key_extraction_mode = bug_finder._get_key_extraction_mode()
+            key_extraction_mode = code_finder._get_key_extraction_mode()
             
-            # Check if secondary recall is enabled
-            from codelib.retrieval.code_recall import CodeRecallSettings
-            recall_settings = CodeRecallSettings()
-            secondary_recall_suffix = "_sec" if recall_settings.enable_secondary_recall else "_pri"
+            # Determine secondary recall suffix based on --sec flag
+            secondary_recall_suffix = "_sec" if args.sec else "_pri"
             
-            default_filename = f"bug_report_{args.limit}_{args.mode}_{key_extraction_mode}_{args.use_function_call}{secondary_recall_suffix}.json"
+            default_filename = f"code_report_{args.limit}_{args.mode}_{key_extraction_mode}_{args.use_function_call}{secondary_recall_suffix}.json"
             output_file = default_filename
         else:
             output_file = args.output
             
-        await bug_finder.save_results(bugs, timing_info, cost_info, output_file)
+        await code_finder.save_results(codes, timing_info, cost_info, output_file)
         
         print(f"\n" + "="*60)
-        print(f"Bug analysis completed!")
-        print(f"Found {len(bugs)} different types of potential issues")
+        print(f"code analysis completed!")
+        print(f"Found {len(codes)} different types of potential issues")
         print(f"Results saved to {output_file}")
         print(f"="*60)
         
         # Display summary
-        if bugs:
+        if codes:
             print(f"\nSummary of issues found:")
-            for i, bug in enumerate(bugs, 1):
-                bug_type = bug['bug_type']
-                locations = bug['locations']
-                print(f"  {i}. {bug_type}: {len(locations)} locations")
+            for i, code in enumerate(codes, 1):
+                code_type = code['code_type']
+                locations = code['locations']
+                print(f"  {i}. {code_type}: {len(locations)} locations")
         else:
             print(f"\nNo potential issues found.")
         

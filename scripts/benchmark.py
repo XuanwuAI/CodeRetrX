@@ -23,14 +23,14 @@ def parse_repos():
 
 async def main():
     repos = parse_repos()
-    modes = ["fast", "balance", "adaptive", "precise", "smart", "intelligent"]
+    modes = ["filename", "symbol", "line", "precise", "auto"]
     
     print(f"Running benchmark on {len(repos)} repositories with {len(modes)} modes")
 
     repo_url = "https://github.com/ollama/ollama"
     for mode in modes:
         print(f"  Running {mode} mode...")
-        cmd = ["uv", "run", "scripts/bug_finder.py", "-l", "9", "-f", "--mode", mode, "--repo", repo_url]
+        cmd = ["uv", "run", "scripts/code_retriever.py", "-l", "9", "-f", "--mode", mode, "--repo", repo_url]
         exit_code = await run_command(cmd)
         if exit_code != 0:
             print(f"  Failed with exit code {exit_code}")
@@ -40,15 +40,15 @@ async def main():
     #
     #     for mode in modes:
     #         print(f"  Running {mode} mode...")
-    #         cmd = ["uv", "run", "scripts/bug_finder.py", "-l", "9", "-f", "--mode", mode, "--repo", repo_url, "-t"]
+    #         cmd = ["uv", "run", "scripts/code_retriever.py", "-l", "9", "-f", "--mode", mode, "--repo", repo_url, "-t"]
     #         exit_code = await run_command(cmd)
     #         if exit_code != 0:
     #             print(f"  Failed with exit code {exit_code}")
     #
     #     break
     
-    print("\nRunning analyze_bug_reports...")
-    await run_command(["uv", "run", "scripts/analyze_bug_reports.py"])
+    print("\nRunning analyze_code_reports...")
+    await run_command(["uv", "run", "scripts/analyze_code_reports.py"])
     
     print("Benchmark completed")
 

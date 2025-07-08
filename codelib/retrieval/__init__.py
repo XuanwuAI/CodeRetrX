@@ -1,6 +1,10 @@
 from .code_recall import (
-    multi_strategy_code_mapping,
-    multi_strategy_code_filter,
+    coderecx_precise,
+    coderecx_optimised,
+    llm_polling_precise,
+    llm_polling_optimised,
+)
+from .strategies import (
     RecallStrategy,
 )
 from .smart_codebase import (
@@ -12,8 +16,10 @@ from .smart_codebase import (
 from .topic_extractor import TopicExtractor
 
 __all__ = [
-    "multi_strategy_code_mapping",
-    "multi_strategy_code_filter",
+    "coderecx_precise",
+    "coderecx_optimised", 
+    "llm_polling_precise",
+    "llm_polling_optimised",
     "RecallStrategy",
     "SmartCodebase",
     "LLMMapFilterTargetType",

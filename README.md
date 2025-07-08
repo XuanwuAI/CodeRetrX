@@ -1,73 +1,33 @@
 # Code Analysis Library for Security Research
 
-An AI-powered code analysis library that combines **static analysis** with **Large Language Model (LLM) capabilities** to perform intelligent code search, bug detection, and security vulnerability analysis.
+An AI-powered code analysis library that combines **static analysis** with **LLM-based code retrieval strategies** to perform intelligent code search, bug detection, and security vulnerability analysis.
 
 ## 🏗️ System Architecture
 
-CodeLib processes repositories through a multi-stage pipeline: **Static Analysis** → **Coarse Filter** → **Refined Filter**
+CodeLib processes repositories through a multi-stage pipeline: **Static Analysis** → **Code Retrieval** (**Coarse Filter** → **Refined Filter**)
 
-### 📝 Static Analysis Tools
-- **Structures for representing codebases and code elements**
-- **Python wrappers for static analysis tools like `ripgrep`**
-- **Tree-sitter based parsing for multiple programming languages**
-- **Symbol and dependency extraction**
+### 📝 Static Analysis Stage (`codelib/static/`)
 
-### 🤖 Code Retrieval Tools
-- **Semantic code search and understanding**
-- **Vector similarity matching for intelligent retrieval**
-- **Hybrid approaches combining multiple search strategies**
+The static analysis stage transforms unstructured source code into searchable, structured representations that enable both fast pattern matching and semantic understanding for security research.
 
-## 🔍 Search Strategies
+#### Core processes
 
-CodeLib provides multiple search strategies optimized for different use cases:
+- **Code Parsing**: Uses tree-sitter to parse source code into abstract syntax trees across 9 programming languages
+- **Symbol Extraction**: Extracts functions, classes with hierarchical relationships and dependency
+- **Content Structuring**: Breaks code into semantic chunks (definitions, references, imports) with keyword extraction
+- **Search Infrastructure**: Integrates ripgrep for fast pattern matching and prepares data for vector similarity search
 
-### Strategy Types
-- **`fast`**: Basic filename filtering and pattern matching - fastest execution
-- **`balance`**: Keyword vector search combined with filename filtering - relatively good balance of speed and accuracy
-- **`precise`**: Full LLM processing for maximum accuracy - most thorough but slower
-- **`smart`**: LLM automatically determines the optimal strategy based on query context
-- **`intelligent`**: Advanced line-level vector search with LLM judgment for fine-grained analysis
-- **`adaptive`**: Dynamic strategy adjustment based on result quality and performance
+### 🎯 Code Retrieval Stage (`codelib/retrieval` & `codelib/impl` )
 
-### Recall Strategies (Internal)
+The two-stage filtering approach balances recall (finding all relevant code) with precision (avoiding false positives) for effective code analysis and security research.
 
-The system uses multiple recall strategies internally:
+#### Coarse Filter Stage
 
-#### Basic Strategies
-- **`FILTER_FILENAME_BY_LLM`**: Uses LLM to filter files by path patterns and naming conventions
-- **`FILTER_KEYWORD_BY_VECTOR`**: Vector similarity search on extracted keywords from code content
-- **`FILTER_SYMBOL_BY_VECTOR`**: Vector similarity search on symbol names (functions, classes, variables)
-- **`FILTER_SYMBOL_BY_LLM`**: LLM-based filtering of symbols based on semantic understanding
+To achieve efficient and comprehensive filtering, the coarse filter employs a high-recall, low-cost strategy to identify potentially relevant code elements. This is accomplished by utilizing vector-based retrieval, LLM-driven semantic analysis, and adaptive algorithm.
 
-#### Hybrid Strategies
-- **`FILTER_KEYWORD_BY_VECTOR_AND_LLM`**: Combines vector search with LLM refinement on keywords
-- **`FILTER_SYMBOL_BY_VECTOR_AND_LLM`**: Combines vector search with LLM refinement on symbols
+#### Refined Filter Stage
 
-#### Advanced Strategies
-- **`ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM`**: Adaptive keyword search with dynamic result expansion/contraction
-- **`ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM`**: Adaptive symbol search with quality-based early termination
-- **`INTELLIGENT_FILTER`**: Line-level vector recall with LLM judgment for fine-grained analysis
-
-### LLM Call Modes
-- **`traditional`**: Standard LLM text generation with structured output
-- **`function_call`**: Structured LLM output using function calling
-
-## 🚀 Key Features
-
-### Multi-Modal Code Analysis
-- **Static Analysis**: Tree-sitter based parsing and symbol extraction
-- **LLM Integration**: Semantic understanding of code patterns
-- **Vector Similarity Search**: Embedding-based content matching
-- **Hybrid Approaches**: Combining multiple search strategies for optimal results
-
-### Security-Focused Analysis
-- **Pattern Recognition**: Automated detection of security-relevant code patterns
-- **Vulnerability Analysis**: Comprehensive analysis of potential security risks
-
-### Performance & Cost Optimization
-- **Adaptive Algorithms**: Dynamic strategy adjustment based on result quality
-- **Resource Management**: Intelligent batching and concurrent processing
-- **Cost Tracking**: Real-time monitoring of LLM usage and costs
+To improve precision and reduce false positives, the refined filter employs a high-precision, strict-validation strategy to identify truly relevant code elements. This is accomplished by utilizing stronger LLM-based semantic analysis with stricter filtering criteria, alongside optional secondary validation that re-evaluates the primary filter's results using better models.
 
 ## 🚀 Setup & Installation
 
@@ -75,7 +35,7 @@ The system uses multiple recall strategies internally:
 
 - **uv** package manager ([Install uv](https://docs.astral.sh/uv/getting-started/installation/)), with python 3.12+
 - **LLM provider API keys** (OpenAI, Anthropic, etc.)
-- **Vector embedding models** (for similarity search)
+- **Vector embedding model keys** (for similarity search)
 
 ### Local Development Setup
 
@@ -94,45 +54,180 @@ The system uses multiple recall strategies internally:
 
 3. **Configure environment:**
 
-   **Required Environment Variables:**
-
    ```bash
+   EMBEDDING_BASE_URL=https://your-embedding-service.com
+   EMBEDDING_API_KEY=your_embedding_api_key_here
+   OPENAI_BASE_URL=https://your-key-service.com/
    OPENAI_API_KEY=your_openai_api_key_here
-   ANTHROPIC_API_KEY=your_anthropic_api_key_here
    ```
 
 ## 🖥️ Usage
 
-### Command Line Interface
+### Programmatic API
+
+CodeLib provides a powerful programmatic interface through the `coderecx_optimised` and `coderecx_precise` API, which enables flexible code analysis and retrieval across different search strategies and filtering modes.
+
+The core API combines multiple search strategies with two-stage filtering to balance recall and precision:
+
+#### Using coderecx_optimised (Fast & Efficient)
+
+The `coderecx_optimised` function provides fast, efficient code retrieval with configurable search strategies:
+
+```python
+from codelib.retrieval import coderecx_optimised
+from codelib.impl.default import CodebaseFactory
+
+# Initialize codebase
+codebase = CodebaseFactory.new("repo_name", "/path/to/your/repo")
+
+# Basic symbol search
+elements, llm_results = await coderecx_optimised(
+    codebase=codebase,
+    prompt="This code snippet performs deserialization of data using PyTorch's `torch.load()` (or similar model loading functions in AI/ML frameworks), Python's `shelve` module (e.g., `shelve.open()`, `shelf[key]`), or JDBC connection mechanisms (e.g., constructing connection URLs or using drivers). The deserialization is flagged if the input data (such as a model file path or content, data from a shelve file, or components of a JDBC URL) is not a hardcoded literal and could originate from an untrusted external source.",
+    subdirs_or_files=["src/"],
+    granularity="symbol_content",
+    coarse_recall_strategy="symbol"
+)
+
+# Process results
+for element in elements:
+    print(f"Found: {element.name} in {element.file.path}")
+```
+
+**Advanced Configuration with coderecx_optimised:**
+
+```python
+from codelib.retrieval import coderecx_optimised
+from codelib.retrieval.strategies import CodeRecallSettings
+
+# Configure advanced settings
+settings = CodeRecallSettings(
+    llm_primary_recall_model_id="google/gemini-2.5-flash-lite-preview-06-17",
+    llm_secondary_recall_model_id="openai/gpt-4.1-mini"
+)
+
+# Cost-efficient and complete search with line mode and secondary recall
+elements, llm_results = await coderecx_optimised(
+    codebase=codebase,
+    prompt="This code snippet performs deserialization of data using PyTorch's `torch.load()` (or similar model loading functions in AI/ML frameworks), Python's `shelve` module (e.g., `shelve.open()`, `shelf[key]`), or JDBC connection mechanisms (e.g., constructing connection URLs or using drivers). The deserialization is flagged if the input data (such as a model file path or content, data from a shelve file, or components of a JDBC URL) is not a hardcoded literal and could originate from an untrusted external source.", 
+    subdirs_or_files=["src/", "lib/"],
+    granularity="symbol_content",
+    coarse_recall_strategy="line",
+    settings=settings,
+    enable_secondary_recall=True
+)
+```
+
+#### Using coderecx_precise (Ground Truth & Maximum Accuracy)
+
+The `coderecx_precise` function provides the most comprehensive and accurate analysis, ideal for establishing ground truth:
+
+```python
+from codelib.retrieval import coderecx_precise
+
+# Ground truth search - most comprehensive and accurate
+elements, llm_results = await coderecx_precise(
+    codebase=codebase,
+    prompt="This code snippet performs deserialization of data using PyTorch's `torch.load()` (or similar model loading functions in AI/ML frameworks), Python's `shelve` module (e.g., `shelve.open()`, `shelf[key]`), or JDBC connection mechanisms (e.g., constructing connection URLs or using drivers). The deserialization is flagged if the input data (such as a model file path or content, data from a shelve file, or components of a JDBC URL) is not a hardcoded literal and could originate from an untrusted external source.",
+    subdirs_or_files=["src/", "lib/"],
+    granularity="symbol_content",
+    settings=settings
+)
+```
+
+
+#### Search Strategies
+
+**coderecx_optimised** supports `filename`, `symbol`, `line`, and `auto` strategies for different speed/accuracy tradeoffs. **coderecx_precise** uses full LLM processing for maximum accuracy.
+
+[See detailed strategy comparison](#-search-strategies)
+
+#### Granularity Options
+
+- **`symbol_content`**: Symbol code content (functions, classes, dependencies)
+- **`class_content`**: Class code content  
+- **`function_content`**: Function code content  
+- **`dependency_name`**: Dependency names  
+- **`keyword`**: Keywords/key phrases from code 
+
+#### Settings Configuration
+
+The `CodeRecallSettings` class allows fine-tuning of the search behavior:
+
+```python
+settings = CodeRecallSettings(
+    llm_primary_recall_model_id="...",      # Model for initial filtering
+    llm_secondary_recall_model_id="...",    # Model for refinement
+    llm_selector_strategy_model_id="...",   # Model for strategy selection
+    llm_call_mode="traditional"             # LLM call mode (default: "function_call")
+)
+```
+
+#### Working with Results
+
+```python
+# Process different types of results
+for element in elements:
+    if hasattr(element, 'name'):  # Symbol
+        print(f"Symbol: {element.name} in {element.file.path}")
+        print(f"Content: {element.chunk.content}")
+    elif hasattr(element, 'path'):  # File
+        print(f"File: {element.path}")
+    elif hasattr(element, 'text'):  # Keyword
+        print(f"Keyword: {element.text}")
+        
+# Access LLM analysis results
+for result in llm_results:
+    print(f"Analysis: {result.analysis}")
+    print(f"Confidence: {result.confidence}")
+```
+
+### Quick Start
 
 Get help with available commands:
 
 ```bash
-uv run -m scripts.bug_finder --help
+uv run -m scripts.code_retriever --help
 ```
 
-### Bug Finding
-
-For optimal results, use the intelligent strategy:
+For optimal results, use the line strategy with function call:
 
 ```bash
-uv run -m scripts.bug_finder -f --mode intelligent
+uv run -m scripts.code_retriever -f --mode auto
 ```
-
-### Bug Report Analysis
 
 Analyze and compare results from different strategies:
 
 ```bash
-uv run -m scripts.analyze_bug_reports
+uv run -m scripts.analyze_code_reports
 ```
 
-This tool provides:
-- **Coverage Analysis**: Compare how many issues each strategy finds vs ground truth
-- **Cost Comparison**: Token usage and LLM costs between different strategies  
-- **Performance Metrics**: Effectiveness analysis of different approaches
+This tool provides comprehensive evaluation capabilities, including **coverage analysis** to compare how many issues each strategy finds against the ground truth, **cost comparison** to assess token usage and LLM costs across strategies, and **performance metrics** to analyse the overall effectiveness of different approaches.
 
-## Extras
+## 🔍 Search Strategies
+
+CodeLib provides multiple search strategies optimized for different use cases:
+
+### For coderecx_optimised (coarse_recall_strategy parameter)
+
+- **`filename`**: Fastest filename-based filtering, ideal for file discovery and structural queries
+- **`symbol`**: Balanced symbol vector filtering, good for function/class search with moderate accuracy
+- **`line`**: High-accuracy line-level vector search with LLM judgment, best for complex analysis
+- **`auto`**: LLM automatically selects optimal strategy based on query complexity
+
+### For coderecx_precise
+
+- Full LLM processing for maximum accuracy and comprehensive analysis - no strategy parameter needed
+
+### Performance Characteristics
+
+- **Speed**: `filename` > `symbol` > `auto` > `line` > `precise`
+- **Accuracy**: `precise` > `line` > `auto` > `symbol` > `filename`
+- **Cost**: `filename` < `line` < `auto` < `symbol` < `precise`
+
+Use `filename` for structural queries, `symbol` for API search, `line` for specific code related analysis, `auto` for general purpose, and `precise` for ground truth.
+
+## 📚 Extras
 
 - `stats`: for codebase statistics
 - `builtin-impl`: for builtin LLM code retrieval tools

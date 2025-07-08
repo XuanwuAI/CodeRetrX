@@ -14,23 +14,23 @@ def load_json_data(filename: str) -> Dict:
         print(f"Error parsing JSON in {filename}: {e}")
         sys.exit(1)
 
-def extract_bug_ids(data: Dict) -> Set[str]:
+def extract_code_ids(data: Dict) -> Set[str]:
     ids = set()
-    for bug in data.get('bugs', []):
-        for location in bug.get('locations', []):
+    for code in data.get('codes', []):
+        for location in code.get('locations', []):
             ids.add(location.get('id', ''))
     return ids
 
 def extract_input_tokens(data: Dict) -> Optional[int]:
-    """Extract input tokens from bug report data"""
+    """Extract input tokens from code report data"""
     return data.get('input_tokens')
 
 def extract_output_tokens(data: Dict) -> Optional[int]:
-    """Extract output tokens from bug report data"""
+    """Extract output tokens from code report data"""
     return data.get('output_tokens')
 
 def extract_llm_cost(data: Dict) -> Optional[float]:
-    """Extract LLM cost from bug report data"""
+    """Extract LLM cost from code report data"""
     return data.get('llm_cost')
 
 def analyze_datasets(other_data: Dict, precise_data: Dict) -> Tuple[int, int, int, int, Optional[int], Optional[int], Optional[int], Optional[int], Optional[float], Optional[float]]:
@@ -49,8 +49,8 @@ def analyze_datasets(other_data: Dict, precise_data: Dict) -> Tuple[int, int, in
         - other_cost: LLM cost from other data
         - precise_cost: LLM cost from precise data
     """
-    method_ids = extract_bug_ids(other_data)
-    precise_ids = extract_bug_ids(precise_data)
+    method_ids = extract_code_ids(other_data)
+    precise_ids = extract_code_ids(precise_data)
     
     # Remove empty IDs
     method_ids.discard('')
@@ -201,11 +201,11 @@ def print_summary(results: List[Tuple[str, int, int, int, int, Optional[int], Op
 
 def main():
     
-    bug_reports_folder = Path("bug_reports")
+    code_reports_folder = Path("code_reports")
     results = []
     
     # Find all repo directories
-    for repo_dir in bug_reports_folder.iterdir():
+    for repo_dir in code_reports_folder.iterdir():
         if not repo_dir.is_dir():
             continue
             
@@ -227,7 +227,7 @@ def main():
             try:
                 # Extract mode from filename
                 mode = "unknown"
-                for m in ["fast", "balance", "adaptive", "smart", "intelligent"]:
+                for m in ["filename", "symbol", "line", "auto"]:
                     if f"_{m}_" in other_file.name:
                         mode = m
                         break
