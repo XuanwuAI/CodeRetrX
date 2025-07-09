@@ -32,6 +32,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from os import PathLike
 from attrs import define
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +46,14 @@ class RecallStrategy(Enum):
     FILTER_SYMBOL_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
     ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = "adaptive_filter_keyword_by_vector_and_llm"
     ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM = "adaptive_filter_symbol_by_vector_and_llm"
-    INTELLIGENT_FILTER = "intelligent_filter"
+    FILTER_TOPK_LINE_BY_VECTOR_AND_LLM = "intelligent_filter"
 
 
+class StrategyExecuteResult(BaseModel):
+    file_paths: List[str] = Field(description="List of file paths returned by the strategy")
+    elements: List[CodeElement] = Field(description="List of code elements returned by the strategy")
+    llm_results: List[CodeMapFilterResult] = Field(description="List of LLM results returned by the strategy")
+    
 class CodeRecallSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8", env_file=".env", extra="allow"
@@ -199,7 +205,7 @@ IMPORTANT: Try to select only ONE element type if possible. Only select multiple
             if element_type == "FILENAME":
                 strategies.append(RecallStrategy.FILTER_FILENAME_BY_LLM)
             elif element_type == "LINE":
-                strategies.append(RecallStrategy.INTELLIGENT_FILTER)
+                strategies.append(RecallStrategy.FILTER_TOPK_LINE_BY_VECTOR_AND_LLM)
             elif element_type == "SYMBOL":
                 strategies.append(RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM)
             elif element_type == "DEPENDENCY":
@@ -220,6 +226,48 @@ IMPORTANT: Try to select only ONE element type if possible. Only select multiple
 
 def rel_path(a: PathLike, b: PathLike) -> str:
     return str(Path(a).relative_to(Path(b)))
+
+def deduplicate_elements(elements: List[CodeElement]) -> List[CodeElement]:
+    """
+    Deduplicate elements by their id attribute.
+    
+    Args:
+        elements: List of code elements to deduplicate
+        
+    Returns:
+        List of deduplicated code elements, preserving order of first occurrence
+    """
+    if not elements:
+        return elements
+    
+    seen_ids: Set[str] = set()
+    deduplicated_elements: List[CodeElement] = []
+    
+    for element in elements:
+        # Get element id, fallback to a generated id if not available
+        element_id = getattr(element, 'id', None)
+        if element_id is None:
+            # Generate fallback id based on element type and attributes
+            if hasattr(element, 'name') and hasattr(element, 'file'):
+                element_id = f"{element.name}_{element.file.path}"
+            elif hasattr(element, 'path'):
+                element_id = str(element.path)
+            else:
+                # Last resort: use object id
+                element_id = str(id(element))
+        
+        if element_id not in seen_ids:
+            seen_ids.add(element_id)
+            deduplicated_elements.append(element)
+        else:
+            logger.debug(f"Deduplicated element with id: {element_id}")
+    
+    if len(deduplicated_elements) < len(elements):
+        logger.info(f"Deduplicated {len(elements) - len(deduplicated_elements)} elements, "
+                    f"keeping {len(deduplicated_elements)} unique elements")
+    
+    return deduplicated_elements
+
 
 
 class RecallStrategyExecutor(ABC):
@@ -269,7 +317,7 @@ class RecallStrategyExecutor(ABC):
     @abstractmethod
     async def execute(
         self, codebase: Any, prompt: str, subdirs_or_files: List[str]
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         """
         Execute the recall strategy.
 
@@ -279,7 +327,7 @@ class RecallStrategyExecutor(ABC):
             subdirs_or_files: List of subdirectories or files to process
 
         Returns:
-            Tuple of (file_paths, llm_results)
+            StrategyExecuteResult containing file_paths, elements, and llm_results
         """
         pass
 
@@ -306,7 +354,7 @@ class FilterByLLMStrategy(RecallStrategyExecutor, Generic[CodeElement], ABC):
 
     async def execute(
         self, codebase: Codebase, prompt: str, subdirs_or_files: List[str]
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy")
         try:
@@ -317,7 +365,11 @@ class FilterByLLMStrategy(RecallStrategyExecutor, Generic[CodeElement], ABC):
                 elements, codebase, subdirs_or_files
             )
             file_paths = self.extract_file_paths(elements, codebase)
-            return list(set(file_paths)), llm_results
+            return StrategyExecuteResult(
+                file_paths=list(set(file_paths)),
+                elements=deduplicate_elements(elements),
+                llm_results=llm_results
+            )
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
@@ -353,7 +405,7 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElement], ABC):
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy")
         try:
@@ -396,7 +448,11 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElement], ABC):
                 elements = filtered_elements
 
             file_paths = self.extract_file_paths(elements, codebase, subdirs_or_files)
-            return file_paths, []
+            return StrategyExecuteResult(
+                file_paths=file_paths,
+                elements=deduplicate_elements(elements),
+                llm_results=[]
+            )
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
@@ -462,7 +518,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy")
         try:
@@ -510,7 +566,11 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                 logger.info(
                     f"No elements found by vector search, returning empty result"
                 )
-                return [], []
+                return StrategyExecuteResult(
+                    file_paths=[],
+                    elements=[],
+                    llm_results=[]
+                )
 
             # Use LLM to filter the elements
             refined_elements, llm_results = await codebase.llm_filter(
@@ -528,7 +588,11 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                 refined_elements, codebase, subdirs_or_files
             )
 
-            return list(set(file_paths)), llm_results
+            return StrategyExecuteResult(
+                file_paths=list(set(file_paths)),
+                elements=deduplicate_elements(refined_elements),
+                llm_results=llm_results
+            )
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
@@ -724,7 +788,7 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy")
         try:
@@ -748,7 +812,11 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
             # Perform adaptive retrieval (includes both vector search and LLM filtering)
             file_paths, llm_results = await self.adaptive_retrieval(codebase, prompt, topic, subdirs_or_files)
 
-            return file_paths, llm_results
+            return StrategyExecuteResult(
+                file_paths=file_paths,
+                elements=[],  # Adaptive strategies don't return elements directly
+                llm_results=llm_results
+            )
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
@@ -772,7 +840,7 @@ class FilterFilenameByLLMStrategy(FilterByLLMStrategy[File]):
     @override
     async def execute(
         self, codebase: Codebase, prompt: str, subdirs_or_files: List[str]
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         prompt = f"""
         A file with this path is highly likely to contain content that matches the following criteria:
         <content_criterias>
@@ -833,7 +901,7 @@ class FilterDependencyByLLMStrategy(FilterByLLMStrategy[Dependency]):
     @override
     async def execute(
         self, codebase: Codebase, prompt: str, subdirs_or_files: List[str]
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         enhanced_prompt = f"""
         A dependency that matches the following criteria is highly likely to be relevant:
         <dependency_criteria>
@@ -973,7 +1041,7 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         prompt = f"""
         A code chunk containing the specified keywords is highly likely to meet the following criteria:
         <content_criteria>
@@ -1051,7 +1119,7 @@ class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMSt
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         prompt = f"""
         A code chunk containing the specified keywords is highly likely to meet the following criteria:
         <content_criteria>
@@ -1112,6 +1180,7 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         filtered_elements: List[Any],
         codebase: Codebase,
         subdirs_or_files: List[str],
+
     ) -> List[str]:
         file_paths = []
         for symbol in filtered_elements:
@@ -1127,7 +1196,7 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         prompt = f"""
         requirement: A code chunk with this name is highly likely to meet the following criteria:
         <content_criteria>
@@ -1203,7 +1272,7 @@ class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStr
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> StrategyExecuteResult:
         prompt = f"""
         requirement: A code chunk with this name is highly likely to meet the following criteria:
         <content_criteria>
@@ -1217,6 +1286,20 @@ class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStr
         return await super().execute(codebase, prompt, subdirs_or_files)
 
 
+class RecalledLineEntry(BaseModel):
+    """Pydantic model representing a recalled line entry with metadata."""
+    line_content: str = Field(description="The content of the recalled line")
+    symbol: Symbol = Field(description="Symbol object containing this line")
+    score: float = Field(description="Vector similarity score for this line")
+
+
+class VectorLineRecallResult(BaseModel):
+    """Pydantic model representing the result of manual vector recall."""
+    line_content: str = Field(description="The content of the recalled line")
+    line_index: int = Field(description="The original line index in the symbol")
+    similarity_score: float = Field(description="The normalized similarity score")
+
+
 @define
 class SymbolStruct:
     """Structure to represent a symbol and its metadata for intelligent filtering."""
@@ -1227,7 +1310,7 @@ class SymbolStruct:
     file_path: str           # File path for the symbol
 
 
-class IntelligentFilterStrategy(RecallStrategyExecutor):
+class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
     """
     Intelligent filtering strategy that performs line-level vector recall within symbols,
     then uses LLM to judge and select the most relevant lines across all symbols.
@@ -1286,7 +1369,7 @@ class IntelligentFilterStrategy(RecallStrategyExecutor):
             logger.error(f"All retry attempts failed for line embeddings: {e}")
             return []
     
-    async def _vector_recall_topk(self, func_struct: SymbolStruct, query: str, k: int) -> List[Tuple[str, int, float]]:
+    async def _vector_recall_topk(self, func_struct: SymbolStruct, query: str, k: int) -> List[VectorLineRecallResult]:
         """
         Perform vector-based top-k recall for lines within a function using in-memory computation.
         
@@ -1296,14 +1379,14 @@ class IntelligentFilterStrategy(RecallStrategyExecutor):
             k: Number of top lines to return
             
         Returns:
-            List of tuples (line_content, line_index, similarity_score)
+            List of ManualVectorRecallResult objects
         """
         if not func_struct.vectors or not func_struct.lines:
             return []
         
         return await self._manual_vector_recall(func_struct, query, k)
     
-    async def _manual_vector_recall(self, func_struct: SymbolStruct, query: str, k: int) -> List[Tuple[str, int, float]]:
+    async def _manual_vector_recall(self, func_struct: SymbolStruct, query: str, k: int) -> List[VectorLineRecallResult]:
         """
         Fallback manual vector recall using numpy operations.
         """
@@ -1341,7 +1424,11 @@ class IntelligentFilterStrategy(RecallStrategyExecutor):
 
                     if original_idx >= 0:
                         normalized_score = (similarities[idx] + 1) / 2
-                        results.append((filtered_line, original_idx, normalized_score))
+                        results.append(VectorLineRecallResult(
+                            line_content=filtered_line,
+                            line_index=original_idx,
+                            similarity_score=normalized_score
+                        ))
             
             return results
             
@@ -1553,7 +1640,7 @@ Call the select_relevant_lines function with your analysis."""
                 return [], []
             
             # Step 2: Perform vector-based recall for each symbol and sort by similarity
-            all_recalled_lines = []
+            all_recalled_lines: List[RecalledLineEntry] = []
             print("Entering Step 2 - Vector recall for symbols")
             for symbol_struct in symbol_structs:
                 recalled_lines = await self._vector_recall_topk(
@@ -1563,12 +1650,10 @@ Call the select_relevant_lines function with your analysis."""
                 if recalled_lines:
                     # Store line candidates with metadata
                     for line_content, line_idx, score in recalled_lines:
-                        all_recalled_lines.append((
-                            line_content, 
-                            symbol_struct.symbol.name,
-                            symbol_struct.file_path,
-                            symbol_struct.symbol_id,
-                            score
+                        all_recalled_lines.append(RecalledLineEntry(
+                            line_content=line_content,
+                            symbol=symbol_struct.symbol,
+                            score=score
                         ))
             
             logger.info(f"Collected {len(all_recalled_lines)} line candidates from vector recall")
@@ -1578,13 +1663,14 @@ Call the select_relevant_lines function with your analysis."""
                 return [], []
             
             # Sort by vector similarity score (descending)
-            all_recalled_lines.sort(key=lambda x: x[4], reverse=True)
+            all_recalled_lines.sort(key=lambda x: x.score, reverse=True)
             logger.info("Sorted line candidates by vector similarity score")
             
             # Step 3: Optimized LLM processing with dynamic batch evaluation
             print("Entering Step 3 - Dynamic batch processing")
             selected_file_paths = set()
-            recalled_symbols = set()
+            recalled_symbols = [] 
+            recalled_symbol_ids = set()
             batch_size = 120
             
             # Process candidates in dynamic batches
@@ -1597,21 +1683,23 @@ Call the select_relevant_lines function with your analysis."""
             with tqdm(total=self.max_queries, desc="LLM batch queries", unit="query") as pbar:
                 while current_index < len(all_recalled_lines) and query_count < self.max_queries:
                     # Collect next batch of valid candidates
-                    batch_candidates = []
+                    batch_candidates:list[RecalledLineEntry] = []
                     
                     while len(batch_candidates) < batch_size and current_index < len(all_recalled_lines):
-                        line_content, symbol_name, file_path, symbol_id, score = all_recalled_lines[current_index]
+                        entry = all_recalled_lines[current_index]
                         current_index += 1
                         
                         # Skip if symbol already recalled
-                        if symbol_id in recalled_symbols:
+                        symbol_id = entry.symbol.id or f"{entry.symbol.name}_{entry.symbol.file.path}"
+                        if symbol_id in recalled_symbol_ids:
                             continue
                         
                         # Skip if file path already selected
+                        file_path = str(entry.symbol.file.path)
                         if file_path in selected_file_paths:
                             continue
                         
-                        batch_candidates.append((line_content, symbol_name, file_path, symbol_id, score))
+                        batch_candidates.append(entry)
                     
                     if not batch_candidates:
                         break
@@ -1619,7 +1707,7 @@ Call the select_relevant_lines function with your analysis."""
                     batch_count += 1
                     
                     # Prepare batch data for LLM judgment
-                    batch_data = [(line_content, symbol_name, file_path) for line_content, symbol_name, file_path, symbol_id, score in batch_candidates]
+                    batch_data = [(entry.line_content, entry.symbol.name, str(entry.symbol.file.path)) for entry in batch_candidates]
                     
                     # Get LLM judgment on this batch
                     selected_lines = await self._llm_recall_judgment(batch_data, prompt)
@@ -1628,11 +1716,13 @@ Call the select_relevant_lines function with your analysis."""
                     
                     # Mark selected symbols as recalled
                     for selected_line in selected_lines:
-                        for line_content, symbol_name, file_path, symbol_id, score in batch_candidates:
-                            if line_content == selected_line and symbol_id not in recalled_symbols:
-                                recalled_symbols.add(symbol_id)
+                        for entry in batch_candidates:
+                            file_path = str(entry.symbol.file.path)
+                            if entry.line_content == selected_line and symbol_id not in recalled_symbol_ids:
+                                recalled_symbols.append(entry.symbol)
+                                recalled_symbol_ids.add(symbol_id)
                                 selected_file_paths.add(file_path)
-                                logger.info(f"Selected symbol {symbol_name} from {file_path} (score: {score:.3f})")
+                                logger.info(f"Selected symbol {entry.symbol.name} from {file_path} (score: {entry.score:.3f})")
                                 break
                     
                     logger.info(f"Processed batch {batch_count}: Selected {len(selected_lines)} symbols from {len(batch_candidates)} candidates")
@@ -1641,7 +1731,11 @@ Call the select_relevant_lines function with your analysis."""
             print(f"Total selected file paths: {len(file_paths)}")
             logger.info(f"Intelligent filtering completed. Selected {len(file_paths)} files from {len(recalled_symbols)} symbols.")
             
-            return file_paths, []
+            return StrategyExecuteResult(
+                file_paths=file_paths,
+                elements=deduplicate_elements(recalled_symbols),
+                llm_results=[]
+            )
             
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
@@ -1667,7 +1761,7 @@ class StrategyFactory:
             RecallStrategy.FILTER_SYMBOL_BY_VECTOR_AND_LLM: FilterSymbolByVectorAndLLMStrategy,
             RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM: AdaptiveFilterKeywordByVectorAndLLMStrategy,
             RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM: AdaptiveFilterSymbolByVectorAndLLMStrategy,
-            RecallStrategy.INTELLIGENT_FILTER: IntelligentFilterStrategy,
+            RecallStrategy.FILTER_TOPK_LINE_BY_VECTOR_AND_LLM: FilterTopkLineByVectorAndLLMStrategy,
         }
 
         if strategy not in strategy_map:
