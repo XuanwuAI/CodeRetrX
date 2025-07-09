@@ -255,7 +255,7 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
     return final_elements, final_llm_results
 
 
-async def llm_polling_precise(
+async def llm_traversal_mapping(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
@@ -278,7 +278,7 @@ async def llm_polling_precise(
         enable_secondary_recall
     )
 
-async def llm_polling_optimised(
+async def coderetrx_mapping(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
@@ -302,7 +302,7 @@ async def llm_polling_optimised(
         enable_secondary_recall
     )
 
-async def coderetrx_precise(
+async def llm_traversal_filter(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
@@ -325,7 +325,7 @@ async def coderetrx_precise(
         enable_secondary_recall
     )
 
-async def coderetrx_optimised(
+async def coderetrx_filter(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],

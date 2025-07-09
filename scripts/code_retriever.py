@@ -12,7 +12,7 @@ import asyncio
 import json
 from pathlib import Path
 from coderetrx.impl.default import CodebaseFactory, TopicExtractor
-from coderetrx.retrieval import coderetrx_precise, coderetrx_optimised
+from coderetrx.retrieval import coderetrx_filter, llm_traversal_filter
 from coderetrx.retrieval.strategies import CodeRecallSettings
 from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
 from coderetrx.utils.llm import llm_settings
@@ -187,7 +187,7 @@ class CodeRetriever:
                 settings = CodeRecallSettings(llm_call_mode=llm_call_mode)
                 
                 if self.mode == "precise":
-                    result, llm_output = await coderetrx_precise(
+                    result, llm_output = await llm_traversal_filter(
                         codebase=codebase,
                         subdirs_or_files=subdirs,
                         prompt=prompt,
@@ -198,7 +198,7 @@ class CodeRetriever:
                     )
                 else:
                     # Use optimized modes: filename, symbol, line, auto, custom
-                    result, llm_output = await coderetrx_optimised(
+                    result, llm_output = await coderetrx_filter(
                         codebase=codebase,
                         subdirs_or_files=subdirs,
                         prompt=prompt,
