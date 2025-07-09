@@ -228,6 +228,12 @@ In the coarse recall stage, multiple strategies are used to efficiently retrieve
 
 Use `filename` for structural queries, `symbol` for API search, `line` for specific code related analysis, `auto` for general purpose, and `precise` for ground truth.
 
+## 🧪 Experiments
+
+We conducted comprehensive experiments on the *Ollama* repository to validate the effectiveness of our code retrieval strategies. The analysis demonstrates how **`coderetrx`** performs across various bug types and complexity levels.
+
+For detailed results, see: [Ollama Analysis by Bug Type](bench/Ollama_Analysis_by_Bug_Type.md)
+
 ## 📚 Extras
 
 - `stats`: for codebase statistics
