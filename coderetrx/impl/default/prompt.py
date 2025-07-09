@@ -150,12 +150,6 @@ return a JSONObject that contains:
 ).strip()
 
 
-class CodeMapFilterResult(BaseModel):
-    index: int
-    reason: str
-    result: Any
-
-
 class KeywordExtractorResult(BaseModel):
     reason: str
     result: str

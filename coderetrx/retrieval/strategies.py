@@ -51,6 +51,8 @@ class RecallStrategy(Enum):
 
 
 class StrategyExecuteResult(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+    
     file_paths: List[str] = Field(description="List of file paths returned by the strategy")
     elements: List[CodeElement] = Field(description="List of code elements returned by the strategy")
     llm_results: List[CodeMapFilterResult] = Field(description="List of LLM results returned by the strategy")

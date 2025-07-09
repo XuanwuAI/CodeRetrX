@@ -714,6 +714,8 @@ class CallGraphEdge:
 
 class CodeLine(BaseModel):
     """Pydantic model representing a code line entry with metadata."""
+    model_config = {"arbitrary_types_allowed": True}
+    
     line_content: str = Field(description="The content of the code line")
     symbol: Symbol = Field(description="Symbol object containing this line")
     score: float = Field(description="Vector similarity score for this line")
