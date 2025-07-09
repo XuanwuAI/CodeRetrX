@@ -19,6 +19,7 @@ from .strategies import (
     CodeRecallSettings,
     _determine_strategy_by_llm,
     StrategyFactory,
+    StrategyExecuteResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -146,7 +147,7 @@ async def _multi_strategy_code_recall(
     elif mode == "symbol":
         strategies_to_run = [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM]
     elif mode == "line":
-        strategies_to_run = [RecallStrategy.INTELLIGENT_FILTER]
+        strategies_to_run = [RecallStrategy.FILTER_TOPK_LINE_BY_VECTOR_AND_LLM]
     elif mode == "dependency":
         strategies_to_run = [RecallStrategy.FILTER_DEPENDENCY_BY_LLM]
     elif mode == "auto":
@@ -189,16 +190,16 @@ async def _multi_strategy_code_recall(
         for strategy in strategies_to_run:
             try:
                 strategy_executor = strategy_factory.create_strategy(strategy)
-                file_paths, strategy_llm_results = await strategy_executor.execute(
+                strategy_result = await strategy_executor.execute(
                     codebase, prompt, subdirs_or_files
                 )
 
                 # Add file paths to the set of extended_subdirs_or_files
-                extended_subdirs_or_files.update(file_paths)
+                extended_subdirs_or_files.update(strategy_result.file_paths)
 
                 # Add LLM results if any
-                if strategy_llm_results:
-                    all_llm_results.extend(strategy_llm_results)
+                if strategy_result.llm_results:
+                    all_llm_results.extend(strategy_result.llm_results)
 
             except Exception as e:
                 logger.error(f"Error executing strategy {strategy}: {e}")
