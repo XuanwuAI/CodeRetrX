@@ -155,7 +155,7 @@ Granularity defines the retrieval target, determining the type of code object to
 
 The `CodeRecallSettings` class allows fine-tuning of the search behavior:
 
-``python
+```python
 settings = CodeRecallSettings(
     llm_primary_recall_model_id="...",      # Model used for coarse recall and the primary recall in the refined stage.
     llm_secondary_recall_model_id="...",    # Model used for secondary recall in the refined stage. If set (not None), secondary recall will be enabled.
@@ -230,7 +230,7 @@ Use `filename` for structural queries, `symbol` for API search, `line` for speci
 
 ## 🧪 Experiments
 
-We conducted comprehensive experiments on the *Ollama* repository to validate the effectiveness of our code retrieval strategies. The analysis demonstrates how **`coderetrx`** performs across various bug types and complexity levels.
+We conducted comprehensive experiments on the *Ollama* repository to validate the effectiveness of our code retrieval strategies. The analysis demonstrates how **`coderetrx_filter`** performs across various bug types and complexity levels.
 
 For detailed results, see: [Ollama Analysis by Bug Type](bench/Ollama_Analysis_by_Bug_Type.md)
 
