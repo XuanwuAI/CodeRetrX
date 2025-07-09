@@ -1,5 +1,5 @@
 from typing import Optional, List, Tuple, Any, Union, Literal, TYPE_CHECKING
-from coderetrx.static import Codebase
+from coderetrx.static import Codebase, Dependency
 from coderetrx.static.codebase import Symbol, Keyword, File
 from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
 from attrs import define, field
@@ -177,7 +177,7 @@ class SmartCodebase(SmartCodebaseBase):
         """
 
         elements = self._get_filtered_elements(target_type, subdirs_or_files, additional_code_elements)
-        if target_type == "keyword" or target_type == "symbol_name":
+        if target_type == "keyword" or target_type == "symbol_name" or target_type == "dependency_name":
             model_id = self.settings.llm_mapfilter_special_model_id
 
         if llm_call_mode == "function_call":
@@ -448,6 +448,8 @@ class SmartCodebase(SmartCodebaseBase):
                 content_length = len(element.chunk.code())
             elif isinstance(element, File):
                 content_length = len(element.content)
+            elif isinstance(element, Dependency):
+                content_length = len(element.name)
             else:
                 content_length = len(str(element))
 

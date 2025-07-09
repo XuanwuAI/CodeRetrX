@@ -97,11 +97,11 @@ async def _determine_strategy_by_llm(
                     "type": "array",
                     "items": {
                         "type": "string",
-                        "enum": ["FILENAME", "SYMBOL", "LINE"]
+                        "enum": ["FILENAME", "SYMBOL", "LINE", "DEPENDENCY"]
                     },
                     "description": "The types of code elements to search for (can select one or multiple)",
                     "minItems": 1,
-                    "maxItems": 3
+                    "maxItems": 4
                 },
                 "reason": {
                     "type": "string",
@@ -145,13 +145,23 @@ LINE: Use when the search criteria require understanding file content and behavi
 - Line-level vector recall and LLM judgment
 - etc.
 
+DEPENDENCY: Use when the search criteria focus on external libraries, packages, or modules:
+- Finding code that uses specific libraries or frameworks
+- Package imports and usage patterns
+- Third-party dependency analysis
+- Module relationships and dependencies
+- Library version compatibility
+- Framework-specific code patterns
+- API usage from external packages
+- Import statement analysis
+- Dependencies listed in package managers
+- etc.
+
 SELECTION GUIDELINES:
 - Try to identify the SINGLE MOST APPROPRIATE type first
 - Only select multiple types if the search criteria genuinely spans multiple categories and you cannot determine which single approach would be most effective
 - When in doubt between two types, consider which one would capture the most relevant results for the specific query
-
-Search prompt to analyze:
-{prompt}"""
+"""
 
     user_prompt = f"""Analyze the following code search query and determine what types of code elements to search for:
 
@@ -192,6 +202,8 @@ IMPORTANT: Try to select only ONE element type if possible. Only select multiple
                 strategies.append(RecallStrategy.INTELLIGENT_FILTER)
             elif element_type == "SYMBOL":
                 strategies.append(RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM)
+            elif element_type == "DEPENDENCY":
+                strategies.append(RecallStrategy.FILTER_DEPENDENCY_BY_LLM)
             else:
                 logger.warning(f"LLM returned invalid element type: {element_type}. Skipping.")
         
@@ -242,6 +254,15 @@ class RecallStrategyExecutor(ABC):
                 file_path = str(element.path)
                 if any(file_path.startswith(subdir) for subdir in subdirs_or_files):
                     filtered_elements.append(element)
+            elif isinstance(element, Dependency):
+                if element.imported_by:
+                    for imported_file in element.imported_by:
+                        relative_path = str(imported_file.path)
+                        if any(
+                            relative_path.startswith(subdir) for subdir in subdirs_or_files
+                        ):
+                            filtered_elements.append(element)
+                            break
 
         return filtered_elements
 
@@ -801,12 +822,13 @@ class FilterDependencyByLLMStrategy(FilterByLLMStrategy[Dependency]):
         self, elements: List[Dependency], codebase: Codebase
     ) -> List[str]:
         """Extract file paths from dependencies by getting files that import these dependencies."""
-        file_paths = set()
+        file_paths = []
         for dependency in elements:
-            if isinstance(dependency, Dependency) and dependency.imported_by:
-                for imported_file in dependency.imported_by:
-                    file_paths.add(str(imported_file.path))
-        return list(file_paths)
+            if isinstance(dependency, Dependency):
+                file_paths.extend([str(f.path) for f in dependency.imported_by])
+            elif isinstance(dependency, Symbol) and dependency.type == "dependency":
+                file_paths.append(str(dependency.file.path))
+        return list(set(file_paths))
 
     @override
     async def execute(
