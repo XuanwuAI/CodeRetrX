@@ -118,6 +118,7 @@ async def _multi_strategy_code_recall(
             - "filename": Uses FILTER_FILENAME_BY_LLM only
             - "symbol": Uses ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM strategy
             - "line": Uses INTELLIGENT_FILTER strategy with line-level vector recall
+            - "dependency": Uses FILTER_DEPENDENCY_BY_LLM strategy
             - "auto": Uses LLM to determine best strategy based on prompt (chooses from filename, symbol, line)
             - "precise": Uses full LLM filtering/mapping (default behavior)
             - "custom": Uses the provided custom_strategies
@@ -146,6 +147,8 @@ async def _multi_strategy_code_recall(
         strategies_to_run = [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM]
     elif mode == "line":
         strategies_to_run = [RecallStrategy.INTELLIGENT_FILTER]
+    elif mode == "dependency":
+        strategies_to_run = [RecallStrategy.FILTER_DEPENDENCY_BY_LLM]
     elif mode == "auto":
         strategies = await _determine_strategy_by_llm(
             prompt=prompt,
@@ -283,7 +286,7 @@ async def coderetrx_mapping(
     prompt: str,
     subdirs_or_files: List[str],
     granularity: LLMMapFilterTargetType,
-    coarse_recall_strategy: Literal["filename", "symbol", "line", "auto", "custom"],
+    coarse_recall_strategy: Literal["filename", "symbol", "line", "auto", "custom", "dependency"],
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
@@ -330,7 +333,7 @@ async def coderetrx_filter(
     prompt: str,
     subdirs_or_files: List[str],
     granularity: LLMMapFilterTargetType,
-    coarse_recall_strategy: Literal["filename", "symbol", "line", "auto", "custom"],
+    coarse_recall_strategy: Literal["filename", "symbol", "line", "auto", "custom", "dependency"],
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
