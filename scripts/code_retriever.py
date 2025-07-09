@@ -93,28 +93,23 @@ class CodeRetriever:
         return "sentence" if use_sentence_extraction else "word"
 
     def generate_prompts(self, limit: int = 10) -> list[str]:
-        """Load test prompts from a feature_outline_refiner JSON file"""
         all_prompts = []
         
-        # Get the absolute path of the feature file from features folder
-        feature_file = Path(__file__).parent.parent / "features" / "features.json"
+        # Get the absolute path of the query file from queries folder
+        query_file = Path(__file__).parent.parent / "bench" / "queries.json"
         
         try:
-            with open(feature_file, 'r', encoding='utf-8') as f:
-                features = json.load(f)
-                for feature in features:
+            with open(query_file, 'r', encoding='utf-8') as f:
+                queries = json.load(f)
+                for query in queries:
                     if len(all_prompts) >= limit:
                         break
                     # Extract filter prompts from resources
-                    for resource in feature.get('resources', []):
-                        if resource.get('type') == 'ToolCallingResource':
-                            filter_prompt = resource.get('tool_input_kwargs', {}).get('filter_prompt')
-                            if filter_prompt:
-                                all_prompts.append(filter_prompt)
-                                if len(all_prompts) >= limit:
-                                    break
+                    filter_prompt = query.get('filter_prompt')
+                    if filter_prompt:
+                        all_prompts.append(filter_prompt)
         except Exception as e:
-            logger.warning(f"Failed to load feature file {feature_file}: {e}")
+            logger.warning(f"Failed to load query file {query_file}: {e}")
             
         logger.info(f"Generated {len(all_prompts)} prompts for analysis")
         return all_prompts[:limit]
