@@ -65,25 +65,25 @@ To improve precision and reduce false positives, the refined filter employs a hi
 
 ### Programmatic API
 
-CodeLib provides a powerful programmatic interface through the `coderecx_optimised` and `coderecx_precise` API, which enables flexible code analysis and retrieval across different search strategies and filtering modes.
+CodeLib provides a powerful programmatic interface through the `coderecx_filter` and `llm_traversal_filter` API, which enables flexible code analysis and retrieval across different search strategies and filtering modes.
 
 The core API combines multiple search strategies with two-stage filtering to balance recall and precision:
 
-#### Using coderecx_optimised (Fast & Efficient)
+#### Using coderecx_filter (Fast & Efficient)
 
-The `coderecx_optimised` function provides fast, efficient code retrieval with configurable search strategies:
+The `coderecx_filter` function provides fast, efficient code retrieval with configurable search strategies:
 
 ```python
-from codelib.retrieval import coderecx_optimised
+from codelib.retrieval import coderecx_filter
 from codelib.impl.default import CodebaseFactory
 
 # Initialize codebase
 codebase = CodebaseFactory.new("repo_name", "/path/to/your/repo")
 
 # Basic symbol search
-elements, llm_results = await coderecx_optimised(
+elements, llm_results = await coderecx_filter(
     codebase=codebase,
-    prompt="This code snippet performs deserialization of data using PyTorch's `torch.load()` (or similar model loading functions in AI/ML frameworks), Python's `shelve` module (e.g., `shelve.open()`, `shelf[key]`), or JDBC connection mechanisms (e.g., constructing connection URLs or using drivers). The deserialization is flagged if the input data (such as a model file path or content, data from a shelve file, or components of a JDBC URL) is not a hardcoded literal and could originate from an untrusted external source.",
+    prompt="your_filter_prompt",
     subdirs_or_files=["src/"],
     granularity="symbol_content",
     coarse_recall_strategy="symbol"
@@ -94,10 +94,10 @@ for element in elements:
     print(f"Found: {element.name} in {element.file.path}")
 ```
 
-**Advanced Configuration with coderecx_optimised:**
+**Advanced Configuration with coderecx_filter:**
 
 ```python
-from codelib.retrieval import coderecx_optimised
+from codelib.retrieval import coderecx_filter
 from codelib.retrieval.strategies import CodeRecallSettings
 
 # Configure advanced settings
@@ -107,9 +107,9 @@ settings = CodeRecallSettings(
 )
 
 # Cost-efficient and complete search with line mode and secondary recall
-elements, llm_results = await coderecx_optimised(
+elements, llm_results = await coderecx_filter(
     codebase=codebase,
-    prompt="This code snippet performs deserialization of data using PyTorch's `torch.load()` (or similar model loading functions in AI/ML frameworks), Python's `shelve` module (e.g., `shelve.open()`, `shelf[key]`), or JDBC connection mechanisms (e.g., constructing connection URLs or using drivers). The deserialization is flagged if the input data (such as a model file path or content, data from a shelve file, or components of a JDBC URL) is not a hardcoded literal and could originate from an untrusted external source.", 
+    prompt="your_filter_prompt", 
     subdirs_or_files=["src/", "lib/"],
     granularity="symbol_content",
     coarse_recall_strategy="line",
@@ -118,17 +118,17 @@ elements, llm_results = await coderecx_optimised(
 )
 ```
 
-#### Using coderecx_precise (Ground Truth & Maximum Accuracy)
+#### Using llm_traversal_filter (Ground Truth & Maximum Accuracy)
 
-The `coderecx_precise` function provides the most comprehensive and accurate analysis, ideal for establishing ground truth:
+The `llm_traversal_filter` function provides the most comprehensive and accurate analysis, ideal for establishing ground truth:
 
 ```python
-from codelib.retrieval import coderecx_precise
+from codelib.retrieval import llm_traversal_filter
 
 # Ground truth search - most comprehensive and accurate
-elements, llm_results = await coderecx_precise(
+elements, llm_results = await llm_traversal_filter(
     codebase=codebase,
-    prompt="This code snippet performs deserialization of data using PyTorch's `torch.load()` (or similar model loading functions in AI/ML frameworks), Python's `shelve` module (e.g., `shelve.open()`, `shelf[key]`), or JDBC connection mechanisms (e.g., constructing connection URLs or using drivers). The deserialization is flagged if the input data (such as a model file path or content, data from a shelve file, or components of a JDBC URL) is not a hardcoded literal and could originate from an untrusted external source.",
+    prompt="your_filter_prompt",
     subdirs_or_files=["src/", "lib/"],
     granularity="symbol_content",
     settings=settings
@@ -138,7 +138,7 @@ elements, llm_results = await coderecx_precise(
 
 #### Search Strategies
 
-**coderecx_optimised** supports `filename`, `symbol`, `line`, and `auto` strategies for different speed/accuracy tradeoffs. **coderecx_precise** uses full LLM processing for maximum accuracy.
+**coderecx_filter** supports `filename`, `symbol`, `line`, and `auto` strategies for different speed/accuracy tradeoffs. **llm_traversal_filter** uses full LLM processing for maximum accuracy.
 
 [See detailed strategy comparison](#-search-strategies)
 
@@ -208,14 +208,14 @@ This tool provides comprehensive evaluation capabilities, including **coverage a
 
 CodeLib provides multiple search strategies optimized for different use cases:
 
-### For coderecx_optimised (coarse_recall_strategy parameter)
+### For coderecx_filter (coarse_recall_strategy parameter)
 
 - **`filename`**: Fastest filename-based filtering, ideal for file discovery and structural queries
 - **`symbol`**: Balanced symbol vector filtering, good for function/class search with moderate accuracy
 - **`line`**: High-accuracy line-level vector search with LLM judgment, best for complex analysis
 - **`auto`**: LLM automatically selects optimal strategy based on query complexity
 
-### For coderecx_precise
+### For llm_traversal_filter
 
 - Full LLM processing for maximum accuracy and comprehensive analysis - no strategy parameter needed
 
