@@ -29,16 +29,17 @@ logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 class CodeRetriever:
-    def __init__(self, repo_url: str, mode: Literal["filename", "symbol", "line", "auto", "precise", "custom"] = "line", use_function_call: bool = False):
+    def __init__(self, repo_url: str, mode: Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"] = "line", use_function_call: bool = False):
         """
         Initialize the code finder with a repository URL
         
         Args:
             repo_url: The repository URL to analyze
-            mode: Analysis mode - "filename", "symbol", "line", "auto", "precise", "custom"
+            mode: Analysis mode - "filename", "symbol", "line", "dependency", "auto", "precise", "custom"
                 - filename: Uses filename filtering only
                 - symbol: Uses adaptive symbol vector filtering
                 - line: Uses intelligent line-level vector recall and LLM judgment
+                - dependency: Uses dependency analysis to find related code
                 - auto: Uses LLM to determine the best strategy based on the prompt
                 - precise: Uses full LLM processing (slowest but comprehensive)
             use_function_call: Whether to use function call mode (default: False)
@@ -46,13 +47,13 @@ class CodeRetriever:
         self.repo_url = repo_url
         self.repo_path = get_data_dir() / "repos" / get_repo_id(repo_url)
         self.topic_extractor = TopicExtractor()
-        self.mode: Literal["filename", "symbol", "line", "auto", "precise", "custom"] = self._validate_mode(mode)
+        self.mode: Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"] = self._validate_mode(mode)
         self.use_function_call = use_function_call
         self.setup_environment()
 
-    def _validate_mode(self, mode: Literal["filename", "symbol", "line", "auto", "precise", "custom"]) -> Literal["filename", "symbol", "line", "auto", "precise", "custom"]:
+    def _validate_mode(self, mode: Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"]) -> Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"]:
         """Validate and return the mode parameter"""
-        valid_modes = ["filename", "symbol", "line", "auto", "precise", "custom"]
+        valid_modes = ["filename", "symbol", "line", "dependency", "auto", "precise", "custom"]
         if mode not in valid_modes:
             logger.warning(f"Invalid mode '{mode}'. Valid modes are: {valid_modes}. Defaulting to 'line'.")
             return "line"
@@ -81,6 +82,7 @@ class CodeRetriever:
             "filename": "Uses filename filtering only (fastest, least accurate)",
             "symbol": "Uses adaptive symbol vector filtering (balanced speed/accuracy)",
             "line": "Uses intelligent filtering with line-level vector recall and LLM judgment (most accurate)",
+            "dependency": "Uses dependency analysis to find related code (dependent on libraries)",
             "auto": "Uses LLM to determine the best strategy based on the prompt",
             "precise": "Uses full LLM processing (most accurate but slowest)",
             "custom": "Uses custom strategies"
@@ -395,12 +397,13 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Available modes:
-  filename  - Uses filename filtering only (fastest, least accurate)
-  symbol    - Uses adaptive symbol vector filtering (balanced speed/accuracy) 
-  line      - Uses intelligent filtering with line-level vector recall and LLM judgment [DEFAULT]
-  auto      - Uses LLM to determine the best strategy based on the prompt
-  precise   - Uses full LLM processing (most accurate but slowest)
-  custom    - Uses custom strategies
+  filename   - Uses filename filtering only (fastest, least accurate)
+  symbol     - Uses adaptive symbol vector filtering (balanced speed/accuracy) 
+  line       - Uses intelligent filtering with line-level vector recall and LLM judgment [DEFAULT]
+  dependency - Uses dependency analysis to find related code
+  auto       - Uses LLM to determine the best strategy based on the prompt
+  precise    - Uses full LLM processing (most accurate but slowest)
+  custom     - Uses custom strategies
 
 Function call modes:
   traditional     - Traditional mode (default)
@@ -418,7 +421,7 @@ Function call modes:
     parser.add_argument(
         "--mode", "-m",
         type=str,
-        choices=["filename", "symbol", "line", "auto", "precise", "custom"],
+        choices=["filename", "symbol", "line", "dependency", "auto", "precise", "custom"],
         default="line",
         help="Analysis mode (default: line)"
     )
