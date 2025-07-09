@@ -338,7 +338,7 @@ class PopularTopicsAnalyzer:
         print(f"\nAnalysis complete!")
         print(f"Results saved to: {self.data_dir / 'topics_analysis.json'}")
         print(f"Spec file created: {spec_file}")
-        print(f"If needed, you can use: python -m codelib.utils.bench_repos {spec_file}")
+        print(f"If needed, you can use: python -m coderetrx.utils.bench_repos {spec_file}")
         
         return analyses
 

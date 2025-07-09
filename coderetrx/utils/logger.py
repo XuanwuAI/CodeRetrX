@@ -6,8 +6,8 @@ from typing import Literal, Optional, List, TYPE_CHECKING
 
 from pydantic import BaseModel, RootModel
 
-from codelib.static.codebase.models import IsolatedCodeChunkModel
-from codelib.static.codebase.languages import IDXSupportedTag
+from coderetrx.static.codebase.models import IsolatedCodeChunkModel
+from coderetrx.static.codebase.languages import IDXSupportedTag
 
 
 class FilteringLog(BaseModel):

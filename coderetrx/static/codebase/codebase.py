@@ -45,7 +45,7 @@ from .languages import (
     is_dependency,
     is_sourcecode,
 )
-from codelib.static.ripgrep import (
+from coderetrx.static.ripgrep import (
     GrepMatchResult,
     ripgrep_search,
     ripgrep_search_symbols,

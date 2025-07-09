@@ -2,7 +2,7 @@ from typing import Literal
 
 from dotenv import load_dotenv
 
-from codelib.retrieval import LLMCallMode
+from coderetrx.retrieval import LLMCallMode
 
 load_dotenv()
 
@@ -11,15 +11,15 @@ import os
 import asyncio
 import json
 from pathlib import Path
-from codelib.impl.default import CodebaseFactory, TopicExtractor
-from codelib.retrieval import coderecx_precise, coderecx_optimised
-from codelib.retrieval.strategies import CodeRecallSettings
-from codelib.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
-from codelib.utils.llm import llm_settings
-from codelib.utils.cost_tracking import calc_llm_costs, calc_input_tokens, calc_output_tokens
+from coderetrx.impl.default import CodebaseFactory, TopicExtractor
+from coderetrx.retrieval import coderetrx_precise, coderetrx_optimised
+from coderetrx.retrieval.strategies import CodeRecallSettings
+from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
+from coderetrx.utils.llm import llm_settings
+from coderetrx.utils.cost_tracking import calc_llm_costs, calc_input_tokens, calc_output_tokens
 import logging
 import chromadb
-from codelib.utils import embedding
+from coderetrx.utils import embedding
 import datetime
 import argparse
 import sys
@@ -192,7 +192,7 @@ class CodeRetriever:
                 settings = CodeRecallSettings(llm_call_mode=llm_call_mode)
                 
                 if self.mode == "precise":
-                    result, llm_output = await coderecx_precise(
+                    result, llm_output = await coderetrx_precise(
                         codebase=codebase,
                         subdirs_or_files=subdirs,
                         prompt=prompt,
@@ -203,7 +203,7 @@ class CodeRetriever:
                     )
                 else:
                     # Use optimized modes: filename, symbol, line, auto, custom
-                    result, llm_output = await coderecx_optimised(
+                    result, llm_output = await coderetrx_optimised(
                         codebase=codebase,
                         subdirs_or_files=subdirs,
                         prompt=prompt,

@@ -11,12 +11,12 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from codelib.impl.default import CodebaseFactory, TopicExtractor
-from codelib.retrieval.code_recall import multi_strategy_code_filter, RecallStrategy
-from codelib.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
+from coderetrx.impl.default import CodebaseFactory, TopicExtractor
+from coderetrx.retrieval.code_recall import multi_strategy_code_filter, RecallStrategy
+from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
 import logging
 import chromadb
-from codelib.utils import embedding
+from coderetrx.utils import embedding
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 

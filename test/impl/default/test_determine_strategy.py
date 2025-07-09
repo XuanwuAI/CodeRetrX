@@ -1,6 +1,6 @@
 import unittest
 import asyncio
-from codelib.retrieval.code_recall import _determine_strategy_by_llm
+from coderetrx.retrieval.code_recall import _determine_strategy_by_llm
 import json
 import logging
 

@@ -26,7 +26,7 @@ from .smart_codebase import (
 )
 import random
 from .topic_extractor import TopicExtractor
-from codelib.static import Symbol, Keyword, File, CodeElement
+from coderetrx.static import Symbol, Keyword, File, CodeElement
 from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -83,7 +83,7 @@ async def _determine_strategy_by_llm(
     Returns:
         List of selected RecallStrategy
     """
-    from codelib.utils.llm import call_llm_with_function_call
+    from coderetrx.utils.llm import call_llm_with_function_call
     
     # Define the function for strategy determination
     function_definition = {
@@ -1192,7 +1192,7 @@ class IntelligentFilterStrategy(RecallStrategyExecutor):
     
     async def _generate_line_embeddings(self, lines: List[str]) -> List[Any]:
         """Generate embeddings for individual lines using cached embedder."""
-        from codelib.utils.embedding import cached_embedder
+        from coderetrx.utils.embedding import cached_embedder
         from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
         
         filtered_lines = [line.strip() for line in lines if line.strip() and len(line.strip()) > 3]
@@ -1244,7 +1244,7 @@ class IntelligentFilterStrategy(RecallStrategyExecutor):
         Fallback manual vector recall using numpy operations.
         """
         try:
-            from codelib.utils.embedding import create_documents_embedding
+            from coderetrx.utils.embedding import create_documents_embedding
             import numpy as np
             
             # Generate query embedding using robust utilities
@@ -1372,7 +1372,7 @@ class IntelligentFilterStrategy(RecallStrategyExecutor):
     async def _process_candidate_batch(self, line_candidates: List[Tuple[str, str, str]], query: str) -> List[str]:
         """Process a single batch of line candidates."""
         try:
-            from codelib.utils.llm import call_llm_with_function_call
+            from coderetrx.utils.llm import call_llm_with_function_call
             
             # Prepare candidates text
             candidates_text = []

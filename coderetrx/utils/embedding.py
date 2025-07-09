@@ -21,7 +21,7 @@ from tenacity import (
     wait_exponential,
     retry_if_exception_type,
 )
-from codelib.utils.concurrency import abatch_func_call, run_coroutine_sync
+from coderetrx.utils.concurrency import abatch_func_call, run_coroutine_sync
 import chromadb
 import logging
 

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
-from codelib.static import Codebase
-from codelib.utils.stats import CodebaseStats
+from coderetrx.static import Codebase
+from coderetrx.utils.stats import CodebaseStats
 import os
 import subprocess
 import json

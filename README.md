@@ -1,14 +1,14 @@
-# Code Analysis Library for Security Research
+# CodeRetrX: Code Analysis and Semantic Retrieval Library with Smart Strategies 
 
-An AI-powered code analysis library that combines **static analysis** with **LLM-based code retrieval strategies** to perform intelligent code search, bug detection, and security vulnerability analysis.
+An AI-powered code analysis library that combines **static analysis** with **LLM-based code retrieval strategies** to perform intelligent code search.
 
 ## 🏗️ System Architecture
 
-CodeLib processes repositories through a multi-stage pipeline: **Static Analysis** → **Code Retrieval** (**Coarse Filter** → **Refined Filter**)
+CodeRetrX processes repositories through a multi-stage pipeline: **Static Analysis** → **Code Retrieval** (**Coarse Filter** → **Refined Filter**)
 
-### 📝 Static Analysis Stage (`codelib/static/`)
+### 📝 Static Analysis 
 
-The static analysis stage transforms unstructured source code into searchable, structured representations that enable both fast pattern matching and semantic understanding for security research.
+Static analysis extracts metadata, including file structures, dependencies, symbols (e.g., classes, functions), and other relevant details. The results of static analysis serve as the foundation for code retrieval and can also be utilized independently for tasks like repository exploration and visualization.
 
 #### Core processes
 
@@ -17,17 +17,17 @@ The static analysis stage transforms unstructured source code into searchable, s
 - **Content Structuring**: Breaks code into semantic chunks (definitions, references, imports) with keyword extraction
 - **Search Infrastructure**: Integrates ripgrep for fast pattern matching and prepares data for vector similarity search
 
-### 🎯 Code Retrieval Stage (`codelib/retrieval` & `codelib/impl` )
+### 🎯 Code Retrieval 
 
-The two-stage filtering approach balances recall (finding all relevant code) with precision (avoiding false positives) for effective code analysis and security research.
+The code retrieval process operates in two stages filtering: prioritizes high recall in the coarse stage (retrieving as many relevant code snippets as possible at minimal cost) and high precision in the refined stage (eliminating false positives), ensuring effective code analysis and security research.
 
 #### Coarse Filter Stage
 
-To achieve efficient and comprehensive filtering, the coarse filter employs a high-recall, low-cost strategy to identify potentially relevant code elements. This is accomplished by utilizing vector-based retrieval, LLM-driven semantic analysis, and adaptive algorithm.
+The coarse filter focuses on maximizing recall while keeping costs low, aiming to retrieve as many potentially relevant code snippets as possible. This stage prioritizes recall over precision, allowing for false positives to ensure comprehensive coverage. Techniques such as vector-based retrieval, LLM-driven semantic analysis, and adaptive algorithms are employed to achieve efficient, large-scale filtering.
 
 #### Refined Filter Stage
 
-To improve precision and reduce false positives, the refined filter employs a high-precision, strict-validation strategy to identify truly relevant code elements. This is accomplished by utilizing stronger LLM-based semantic analysis with stricter filtering criteria, alongside optional secondary validation that re-evaluates the primary filter's results using better models.
+The refined filter targets precision by removing the false positives introduced in the coarse stage. It applies a high-precision, strict-validation strategy to isolate truly relevant code snippets. This is achieved through advanced LLM-based semantic analysis with stricter filtering criteria, combined with optional secondary validation using enhanced models to re-evaluate and refine the results from the coarse stage.
 
 ## 🚀 Setup & Installation
 
@@ -42,8 +42,8 @@ To improve precision and reduce false positives, the refined filter employs a hi
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/SparkSecurity/codelib
-   cd codelib
+   git clone https://github.com/SparkSecurity/coderetrx
+   cd coderetrx
    ```
 
 2. **Install Python dependencies:**
@@ -65,23 +65,23 @@ To improve precision and reduce false positives, the refined filter employs a hi
 
 ### Programmatic API
 
-CodeLib provides a powerful programmatic interface through the `coderecx_filter` and `llm_traversal_filter` API, which enables flexible code analysis and retrieval across different search strategies and filtering modes.
+CodeRetrX provides a powerful programmatic interface through the `coderetrx_filter` and `llm_traversal_filter` API, which enables flexible code analysis and retrieval across different search strategies and filtering modes.
 
 The core API combines multiple search strategies with two-stage filtering to balance recall and precision:
 
-#### Using coderecx_filter (Fast & Efficient)
+#### Using coderetrx_filter (Fast & Efficient)
 
-The `coderecx_filter` function provides fast, efficient code retrieval with configurable search strategies:
+The `coderetrx_filter` function provides fast, efficient code retrieval with configurable search strategies:
 
 ```python
-from codelib.retrieval import coderecx_filter
-from codelib.impl.default import CodebaseFactory
+from coderetrx.retrieval import coderetrx_filter
+from coderetrx.impl.default import CodebaseFactory
 
 # Initialize codebase
 codebase = CodebaseFactory.new("repo_name", "/path/to/your/repo")
 
 # Basic symbol search
-elements, llm_results = await coderecx_filter(
+elements, llm_results = await coderetrx_filter(
     codebase=codebase,
     prompt="your_filter_prompt",
     subdirs_or_files=["src/"],
@@ -94,11 +94,11 @@ for element in elements:
     print(f"Found: {element.name} in {element.file.path}")
 ```
 
-**Advanced Configuration with coderecx_filter:**
+**Advanced Configuration with coderetrx_filter:**
 
 ```python
-from codelib.retrieval import coderecx_filter
-from codelib.retrieval.strategies import CodeRecallSettings
+from coderetrx.retrieval import coderetrx_filter
+from coderetrx.retrieval.strategies import CodeRecallSettings
 
 # Configure advanced settings
 settings = CodeRecallSettings(
@@ -107,7 +107,7 @@ settings = CodeRecallSettings(
 )
 
 # Cost-efficient and complete search with line mode and secondary recall
-elements, llm_results = await coderecx_filter(
+elements, llm_results = await coderetrx_filter(
     codebase=codebase,
     prompt="your_filter_prompt", 
     subdirs_or_files=["src/", "lib/"],
@@ -123,7 +123,7 @@ elements, llm_results = await coderecx_filter(
 The `llm_traversal_filter` function provides the most comprehensive and accurate analysis, ideal for establishing ground truth:
 
 ```python
-from codelib.retrieval import llm_traversal_filter
+from coderetrx.retrieval import llm_traversal_filter
 
 # Ground truth search - most comprehensive and accurate
 elements, llm_results = await llm_traversal_filter(
@@ -138,28 +138,30 @@ elements, llm_results = await llm_traversal_filter(
 
 #### Search Strategies
 
-**coderecx_filter** supports `filename`, `symbol`, `line`, and `auto` strategies for different speed/accuracy tradeoffs. **llm_traversal_filter** uses full LLM processing for maximum accuracy.
+**coderetrx_filter** supports `filename`, `symbol`, `line`, and `auto` strategies for different speed/accuracy tradeoffs. **llm_traversal_filter** uses full LLM processing for maximum accuracy.
 
-[See detailed strategy comparison](#-search-strategies)
+[See detailed strategy comparison](#-coarse-recall-strategies)
 
 #### Granularity Options
+
+Granularity defines the retrieval target, determining the type of code object to be recalled and returned. For example, if the granularity is set to class_content, the result will include the full content of the relevant classes. Below are the available granularity options:
 
 - **`symbol_content`**: Symbol code content (functions, classes, dependencies)
 - **`class_content`**: Class code content  
 - **`function_content`**: Function code content  
 - **`dependency_name`**: Dependency names  
-- **`keyword`**: Keywords/key phrases from code 
 
 #### Settings Configuration
 
 The `CodeRecallSettings` class allows fine-tuning of the search behavior:
 
-```python
+``python
 settings = CodeRecallSettings(
-    llm_primary_recall_model_id="...",      # Model for initial filtering
-    llm_secondary_recall_model_id="...",    # Model for refinement
-    llm_selector_strategy_model_id="...",   # Model for strategy selection
-    llm_call_mode="traditional"             # LLM call mode (default: "function_call")
+    llm_primary_recall_model_id="...",      # Model used for coarse recall and the primary recall in the refined stage.
+    llm_secondary_recall_model_id="...",    # Model used for secondary recall in the refined stage. If set (not None), secondary recall will be enabled.
+    llm_selector_strategy_model_id="...",   # Model used for strategy selection in "auto" mode during the coarse recall stage.
+    llm_call_mode="function_call"           # LLM call mode. If set to "function_call", the LLM will return results as a function call (recommended for models supporting this feature). 
+                                             # If set to "traditional", the LLM will return results in plain text format.
 )
 ```
 
@@ -190,7 +192,7 @@ Get help with available commands:
 uv run -m scripts.code_retriever --help
 ```
 
-For optimal results, use the line strategy with function call:
+Use the auto strategy
 
 ```bash
 uv run -m scripts.code_retriever -f --mode auto
@@ -204,20 +206,19 @@ uv run -m scripts.analyze_code_reports
 
 This tool provides comprehensive evaluation capabilities, including **coverage analysis** to compare how many issues each strategy finds against the ground truth, **cost comparison** to assess token usage and LLM costs across strategies, and **performance metrics** to analyse the overall effectiveness of different approaches.
 
-## 🔍 Search Strategies
+## 🔍 Coarse Recall Strategies 
 
-CodeLib provides multiple search strategies optimized for different use cases:
+In the coarse recall stage, multiple strategies are used to efficiently retrieve potentially relevant code snippets at low cost. The retrieved results will then be further processed in the refined filter stage to improve precision and accuracy.
 
-### For coderecx_filter (coarse_recall_strategy parameter)
+### Available Strategies 
 
-- **`filename`**: Fastest filename-based filtering, ideal for file discovery and structural queries
-- **`symbol`**: Balanced symbol vector filtering, good for function/class search with moderate accuracy
-- **`line`**: High-accuracy line-level vector search with LLM judgment, best for complex analysis
-- **`auto`**: LLM automatically selects optimal strategy based on query complexity
+- **`filename`**: The fastest filtering strategy, ideal for coarse recall by directly determining relevance based on filenames. This approach is highly effective for cases where the query can be matched through filenames alone, such as "retrieve all configuration files." Its simplicity makes it extremely efficient for structural queries and file discovery.
 
-### For llm_traversal_filter
+- **`symbol`**: A balanced filtering approach that focuses on symbol names (e.g., function or class names) during coarse recall. This method excels in cases like "retrieve functions implementing cryptographic algorithms," where relevance can be inferred directly from the symbol name. It balances recall and precision for targeted queries at the symbol level.
 
-- Full LLM processing for maximum accuracy and comprehensive analysis - no strategy parameter needed
+- **`line`**: A high-accuracy filtering strategy that leverages line-level vector search combined with LLM analysis. It identifies relevance by focusing on the most relevant code lines (`top-k`) within a function body. This method is particularly effective for complex cases where understanding the function’s implementation is necessary, such as "retrieve code implementing authentication logic." While powerful, it’s also versatile enough to handle most queries effectively. Our benchmarking shows that the algorithm achieves over 80% recall with approximately 20% of the computational cost, making it both precise and efficient.
+
+- **`auto`**: Automatically selects the optimal filtering strategy based on query complexity, routing requests to the most appropriate method. For the majority of cases, `line` is a well-balanced and reliable choice, but `filename` or `symbol` can also be explicitly used for scenarios where they excel.
 
 ### Performance Characteristics
 
@@ -233,4 +234,4 @@ Use `filename` for structural queries, `symbol` for API search, `line` for speci
 - `builtin-impl`: for builtin LLM code retrieval tools
 - `cli`: for command-line interface tools
 
-e.g. specify `codelib[builtin-impl]` in `pyproject.toml` to have builtin LLM code retrieval tools.
+e.g. specify `coderetrx[builtin-impl]` in `pyproject.toml` to have builtin LLM code retrieval tools.

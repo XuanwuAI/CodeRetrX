@@ -1,9 +1,9 @@
 from typing import Optional, List, Tuple, Any, Union, Literal, TYPE_CHECKING
-from codelib.static import Codebase
-from codelib.static.codebase import Symbol, Keyword, File
-from codelib.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
+from coderetrx.static import Codebase
+from coderetrx.static.codebase import Symbol, Keyword, File
+from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
 from attrs import define, field
-from codelib.utils.embedding import SimilaritySearcher
+from coderetrx.utils.embedding import SimilaritySearcher
 import os
 import logging
 from pathlib import Path
@@ -194,7 +194,7 @@ class SmartCodebase(SmartCodebaseBase):
         model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[Any]]:
         """Process elements using traditional prompt-based approach."""
-        from codelib.utils.llm import call_llm_with_fallback
+        from coderetrx.utils.llm import call_llm_with_fallback
 
         # Process elements in batches
         async def process_element_batch(
@@ -326,7 +326,7 @@ class SmartCodebase(SmartCodebaseBase):
         model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[Any]]:
         """Process elements using function call approach."""
-        from codelib.utils.llm import call_llm_with_function_call
+        from coderetrx.utils.llm import call_llm_with_function_call
 
         # Process elements in batches
         async def process_element_batch_with_function_call(

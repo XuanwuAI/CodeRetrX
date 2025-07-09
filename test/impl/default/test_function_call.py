@@ -1,13 +1,13 @@
 from dotenv import load_dotenv
 import json
 from pathlib import Path
-from codelib.impl.default import CodebaseFactory
-from codelib.impl.default import TopicExtractor
-from codelib.retrieval.code_recall import multi_strategy_code_filter, multi_strategy_code_mapping
+from coderetrx.impl.default import CodebaseFactory
+from coderetrx.impl.default import TopicExtractor
+from coderetrx.retrieval.code_recall import multi_strategy_code_filter, multi_strategy_code_mapping
 import asyncio
 import unittest
 from typing import Literal
-from codelib.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
+from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
 import logging
 
 load_dotenv()
@@ -120,10 +120,10 @@ class TestLLMCodeFilterTool(unittest.TestCase):
         
         # Get all relevant loggers that might log missing field errors
         loggers_to_monitor = [
-            logging.getLogger('codelib.impl.default.smart_codebase'),
-            logging.getLogger('codelib.utils.llm'),
-            logging.getLogger('codelib.retrieval.code_recall'),
-            logging.getLogger('codelib.utils.jsonparser'),
+            logging.getLogger('coderetrx.impl.default.smart_codebase'),
+            logging.getLogger('coderetrx.utils.llm'),
+            logging.getLogger('coderetrx.retrieval.code_recall'),
+            logging.getLogger('coderetrx.utils.jsonparser'),
             logging.getLogger(),  # Root logger as fallback
         ]
         
@@ -203,10 +203,10 @@ class TestLLMCodeFilterTool(unittest.TestCase):
         
         # Get all relevant loggers that might log missing field errors
         loggers_to_monitor = [
-            logging.getLogger('codelib.impl.default.smart_codebase'),
-            logging.getLogger('codelib.utils.llm'),
-            logging.getLogger('codelib.retrieval.code_recall'),
-            logging.getLogger('codelib.utils.jsonparser'),
+            logging.getLogger('coderetrx.impl.default.smart_codebase'),
+            logging.getLogger('coderetrx.utils.llm'),
+            logging.getLogger('coderetrx.retrieval.code_recall'),
+            logging.getLogger('coderetrx.utils.jsonparser'),
             logging.getLogger(),  # Root logger as fallback
         ]
         

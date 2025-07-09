@@ -2,16 +2,16 @@ from dotenv import load_dotenv
 load_dotenv()
 import json
 from pathlib import Path
-from codelib.impl.default import CodebaseFactory
-from codelib.impl.default import TopicExtractor
-from codelib.retrieval.code_recall import multi_strategy_code_filter, multi_strategy_code_mapping
+from coderetrx.impl.default import CodebaseFactory
+from coderetrx.impl.default import TopicExtractor
+from coderetrx.retrieval.code_recall import multi_strategy_code_filter, multi_strategy_code_mapping
 import os
 import asyncio
 import unittest
 from typing import Literal
 from unittest.mock import patch, MagicMock
-from codelib.utils.embedding import create_documents_embedding
-from codelib.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
+from coderetrx.utils.embedding import create_documents_embedding
+from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
 import logging
 
 logger = logging.getLogger(__name__)

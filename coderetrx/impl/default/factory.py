@@ -3,8 +3,8 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from codelib.utils.embedding import SimilaritySearcher
-from codelib.static.codebase import Codebase
+from coderetrx.utils.embedding import SimilaritySearcher
+from coderetrx.static.codebase import Codebase
 from .smart_codebase import SmartCodebase
 
 import logging

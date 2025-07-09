@@ -9,8 +9,8 @@ from pathlib import Path
 import tiktoken
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from codelib.static.codebase import Codebase, File, CodeChunk, ChunkType
-from codelib.static.codebase.languages import get_language
+from coderetrx.static.codebase import Codebase, File, CodeChunk, ChunkType
+from coderetrx.static.codebase.languages import get_language
 
 
 class ChunkStats(BaseModel):

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from codelib.static import Codebase, Keyword, Symbol, File
+from coderetrx.static import Codebase, Keyword, Symbol, File
 from typing import Literal, List, Tuple, Any, Union, Optional
 from pydantic import BaseModel
 

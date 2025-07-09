@@ -13,7 +13,7 @@ from .smart_codebase import (
     CodeMapFilterResult, LLMCallMode,
 )
 from .topic_extractor import TopicExtractor
-from codelib.static import Symbol, Keyword, File
+from coderetrx.static import Symbol, Keyword, File
 from .strategies import (
     RecallStrategy,
     CodeRecallSettings,
@@ -302,7 +302,7 @@ async def llm_polling_optimised(
         enable_secondary_recall
     )
 
-async def coderecx_precise(
+async def coderetrx_precise(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
@@ -325,7 +325,7 @@ async def coderecx_precise(
         enable_secondary_recall
     )
 
-async def coderecx_optimised(
+async def coderetrx_optimised(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],

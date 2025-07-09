@@ -344,7 +344,7 @@ wheels = [
 ]
 
 [[package]]
-name = "codelib"
+name = "coderetrx"
 version = "0.1.16"
 source = { editable = "." }
 dependencies = [

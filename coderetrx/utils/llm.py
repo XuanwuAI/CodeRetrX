@@ -40,9 +40,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from codelib.utils.cost_tracking import get_cost_hook
-from codelib.utils.jsonparser import TolerantJsonParser
-from codelib.utils.logger import JsonLogger
+from coderetrx.utils.cost_tracking import get_cost_hook
+from coderetrx.utils.jsonparser import TolerantJsonParser
+from coderetrx.utils.logger import JsonLogger
 
 
 def generate_session_id() -> str:

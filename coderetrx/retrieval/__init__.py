@@ -1,6 +1,6 @@
 from .code_recall import (
-    coderecx_precise,
-    coderecx_optimised,
+    coderetrx_precise,
+    coderetrx_optimised,
     llm_polling_precise,
     llm_polling_optimised,
 )
@@ -16,8 +16,8 @@ from .smart_codebase import (
 from .topic_extractor import TopicExtractor
 
 __all__ = [
-    "coderecx_precise",
-    "coderecx_optimised", 
+    "coderetrx_precise",
+    "coderetrx_optimised", 
     "llm_polling_precise",
     "llm_polling_optimised",
     "RecallStrategy",

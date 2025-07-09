@@ -1,5 +1,5 @@
 [project]
-name = "codelib"
+name = "coderetrx"
 version = "0.1.16"
 description = "Library for Code Analysis via Static Analysis and LLMs"
 readme = "README.md"
@@ -22,7 +22,7 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["codelib*"]
+include = ["coderetrx*"]
 exclude = []
 namespaces = false
 
@@ -56,4 +56,4 @@ build-backend = "setuptools.build_meta"
 include-package-data = true
 
 [tool.setuptools.package-data]
-"codelib" = ["**/*.scm", "**/*.py"]
+"coderetrx" = ["**/*.scm", "**/*.py"]

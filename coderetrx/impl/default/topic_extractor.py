@@ -3,18 +3,18 @@ import logging
 import json
 from pydantic import BaseModel
 
-from codelib.impl.default.prompt import (
+from coderetrx.impl.default.prompt import (
     KeywordExtractorResult,
     topic_extraction_prompt_template,
     topic_extraction_function_call_system_prompt,
     get_topic_extraction_function_definition, topic_extraction_function_call_user_prompt_template,
 )
-from codelib.utils.llm import call_llm_with_fallback, call_llm_with_function_call
-from codelib.retrieval import (
+from coderetrx.utils.llm import call_llm_with_fallback, call_llm_with_function_call
+from coderetrx.retrieval import (
     TopicExtractor as TopicExtractorBase,
     SimilaritySearchTargetType,
 )
-from codelib.retrieval import SmartCodebase
+from coderetrx.retrieval import SmartCodebase
 import os
 
 logger = logging.getLogger(__name__)
