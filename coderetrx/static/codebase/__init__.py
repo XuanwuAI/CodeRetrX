@@ -1,4 +1,4 @@
-from .codebase import (
+coderetrx/impl/default/smart_codebase.pyfrom .codebase import (
     Codebase,
     File,
     FileType,
@@ -10,6 +10,7 @@ from .codebase import (
     CodeChunk,
     ChunkType,
     CodeHunk,
+    CodeLine,
 )
 from .models import (
     CodebaseModel,
@@ -39,6 +40,7 @@ __all__ = [
     "CodeChunk",
     "ChunkType",
     "CodeHunk",
+    "CodeLine",
     "IDXSupportedLanguage",
     "IDXSupportedTag",
     "BUILTIN_CRYPTO_LIBS",

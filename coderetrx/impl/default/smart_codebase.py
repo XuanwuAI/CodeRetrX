@@ -1,6 +1,6 @@
 from typing import Optional, List, Tuple, Any, Union, Literal, TYPE_CHECKING
 from coderetrx.static import Codebase, Dependency
-from coderetrx.static.codebase import Symbol, Keyword, File
+from coderetrx.static.codebase import Symbol, Keyword, File, CodeLine
 from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
 from attrs import define, field
 from coderetrx.utils.embedding import SimilaritySearcher
@@ -41,7 +41,7 @@ LLMMapFilterTargetType = Literal[
     "keyword",
 ]
 
-SimilaritySearchTargetType = Literal["symbol_name", "symbol_content", "keyword"]
+SimilaritySearchTargetType = Literal["symbol_name", "symbol_content", "keyword", "symbol_codeline"]
 
 def get_smart_codebase_settings() -> "SmartCodebaseSettings":
     from .factory import SmartCodebaseSettings
@@ -52,6 +52,9 @@ class SmartCodebase(SmartCodebaseBase):
     symbol_name_searcher: Optional["SimilaritySearcher"] = field(default=None)
     symbol_content_searcher: Optional["SimilaritySearcher"] = field(default=None)
     keyword_searcher: Optional["SimilaritySearcher"] = field(default=None)
+    # each symbol will has a codeline searcher, which is a similarity searcher for the symbol's code line
+    # symbol_id -> SimilaritySearcher
+    symbol_codeline_searcher: Optional[dict[str, "SimilaritySearcher"]] = field(default_factory=dict)
     settings: "SmartCodebaseSettings" = field(factory=get_smart_codebase_settings)
 
     def _get_filtered_elements(
@@ -552,7 +555,7 @@ class SmartCodebase(SmartCodebaseBase):
         Perform similarity search on symbols based on the specified types.
 
         Args:
-            target_types: List of types to search on (symbol_name, symbol_content, keyword)
+            target_types: List of types to search on (symbol_name, symbol_content, keyword, symbol_codeline)
             query: The search query
             threshold: Similarity threshold, defaults to value from environment variable
             top_k: Maximum number of results to return
@@ -596,5 +599,22 @@ class SmartCodebase(SmartCodebaseBase):
                 for doc, score in self.keyword_searcher.search(query, top_k):
                     if score >= threshold and doc in keyword_map:
                         results.append(keyword_map[doc])
+
+            elif search_type == "symbol_codeline":
+                if self.symbol_codeline_searcher is None:
+                    raise ValueError("Symbol codeline searcher is not initialized")
+                symbol_by_id = {symbol.id: symbol for symbol in self.symbols} 
+                for symbol_id, searcher in self.symbol_codeline_searcher.items():
+                        # Search for matching lines in this symbol
+                    for doc, score in searcher.search(query, top_k):
+                        if score >= threshold:
+                            results.append(
+                                CodeLine.new(
+                                    symbol=symbol_by_id[symbol_id],
+                                    content=doc,
+                                    score=score
+                                )
+                            )
+                
 
         return results
