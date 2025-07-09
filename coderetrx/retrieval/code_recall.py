@@ -58,31 +58,17 @@ async def _perform_secondary_recall(
     logger.info(f"Starting secondary recall on {len(elements)} elements")
     
     # Use a more powerful model for secondary recall
-    secondary_model_id = model_id or "anthropic/claude-3.5-sonnet"
+    secondary_model_id = model_id or "anthropic/claude-4-sonnet"
     
     try:
-        file_paths = []
-        if elements:
-            for element in elements:
-                if hasattr(element, 'file') and hasattr(element.file, 'path'):
-                    file_paths.append(str(element.file.path))
-                elif hasattr(element, 'path'):
-                    file_paths.append(str(element.path))
-                elif isinstance(element, str):
-                    file_paths.append(element)
         
-        unique_file_paths = list(dict.fromkeys(file_paths))
         
-        if not unique_file_paths:
-            logger.warning("No file paths extracted from elements for secondary recall")
-            return elements, llm_results
-        
-        logger.info(f"Performing secondary recall on {len(unique_file_paths)} unique files")
+        logger.info(f"Performing secondary recall on {len(elements)} code elements")
         
         secondary_elements, secondary_llm_results = await llm_method(
             prompt=prompt,
             target_type=granularity,
-            subdirs_or_files=unique_file_paths,
+            additional_code_elements=elements,
             llm_call_mode=llm_call_mode,
             model_id=secondary_model_id,
         )
@@ -107,6 +93,7 @@ async def _multi_strategy_code_recall(
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
+    use_coarse_recall_returned_elements = True,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     """
     Process code elements based on the specified prompt and mode.
@@ -231,10 +218,14 @@ async def _multi_strategy_code_recall(
 Note: This is the primary filtering stage - we prefer to include potentially relevant items rather than miss them. A more precise filtering will be applied in the secondary stage."""
         logger.info("Using relaxed prompt for primary recall (secondary recall enabled)")
     
+    if use_coarse_recall_returned_elements:
+        subdirs_or_files = []
+        additional_code_elements = strategy_result.elements 
     elements, llm_results = await llm_method(
         prompt=primary_prompt,
         target_type=granularity,
         subdirs_or_files=extended_subdirs_or_files,
+        additional_code_elements = additional_code_elements,
         llm_call_mode=settings.llm_call_mode,
         model_id=settings.llm_primary_recall_model_id,
     )
@@ -292,6 +283,7 @@ async def coderetrx_mapping(
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
+    use_coarse_recall_returned_elements: bool = True,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     return await _multi_strategy_code_recall(
         codebase,
@@ -303,7 +295,8 @@ async def coderetrx_mapping(
         custom_strategies,
         topic_extractor,
         settings,
-        enable_secondary_recall
+        enable_secondary_recall,
+        use_coarse_recall_returned_elements
     )
 
 async def llm_traversal_filter(
@@ -339,6 +332,7 @@ async def coderetrx_filter(
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
+    use_coarse_recall_returned_elements: bool = True,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     return await _multi_strategy_code_recall(
         codebase,
@@ -350,5 +344,6 @@ async def coderetrx_filter(
         custom_strategies,
         topic_extractor,
         settings,
-        enable_secondary_recall
+        enable_secondary_recall,
+        use_coarse_recall_returned_elements
     )

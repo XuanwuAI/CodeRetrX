@@ -1,4 +1,4 @@
-coderetrx/impl/default/smart_codebase.pyfrom .codebase import (
+from .codebase import (
     Codebase,
     File,
     FileType,
