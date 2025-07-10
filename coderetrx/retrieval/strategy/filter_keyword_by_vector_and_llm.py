@@ -6,7 +6,11 @@ from typing import Any, List, Union, Optional, override
 
 from coderetrx.retrieval.strategy.base import StrategyExecuteResult
 from coderetrx.retrieval.strategy.base import FilterByVectorAndLLMStrategy
-from coderetrx.retrieval.smart_codebase import SmartCodebase as Codebase, LLMMapFilterTargetType, SimilaritySearchTargetType
+from coderetrx.retrieval.smart_codebase import (
+    SmartCodebase as Codebase,
+    LLMMapFilterTargetType,
+    SimilaritySearchTargetType,
+)
 from coderetrx.static import Keyword, Symbol, File
 
 

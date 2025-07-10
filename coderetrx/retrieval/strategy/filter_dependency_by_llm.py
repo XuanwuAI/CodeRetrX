@@ -7,6 +7,7 @@ from .base import FilterByLLMStrategy, StrategyExecuteResult
 from ..smart_codebase import SmartCodebase as Codebase, LLMMapFilterTargetType
 from coderetrx.static import Dependency, Symbol
 
+
 class FilterDependencyByLLMStrategy(FilterByLLMStrategy[Dependency]):
     """Strategy to filter dependencies by LLM and retrieve code chunks that use these dependencies."""
 
@@ -47,4 +48,3 @@ class FilterDependencyByLLMStrategy(FilterByLLMStrategy[Dependency]):
         </note>
         """
         return await super().execute(codebase, enhanced_prompt, subdirs_or_files)
-

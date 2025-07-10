@@ -7,6 +7,7 @@ from .base import FilterByVectorStrategy
 from ..smart_codebase import SmartCodebase as Codebase, SimilaritySearchTargetType
 from coderetrx.static import Keyword
 
+
 class FilterKeywordByVectorStrategy(FilterByVectorStrategy[Keyword]):
     """Strategy to filter keywords using vector similarity search."""
 

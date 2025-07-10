@@ -7,6 +7,7 @@ from .base import FilterByVectorStrategy
 from ..smart_codebase import SmartCodebase as Codebase, SimilaritySearchTargetType
 from coderetrx.static import Symbol
 
+
 class FilterSymbolByVectorStrategy(FilterByVectorStrategy[Symbol]):
     """Strategy to filter symbols using vector similarity search."""
 
@@ -26,7 +27,7 @@ class FilterSymbolByVectorStrategy(FilterByVectorStrategy[Symbol]):
 
     @override
     def extract_file_paths(
-        self, elements: List[Symbol], codebase:  Codebase, subdirs_or_files: List[str]
+        self, elements: List[Symbol], codebase: Codebase, subdirs_or_files: List[str]
     ) -> List[str]:
         file_paths = []
         for symbol in elements:
@@ -35,5 +36,3 @@ class FilterSymbolByVectorStrategy(FilterByVectorStrategy[Symbol]):
                 if file_path.startswith(tuple(subdirs_or_files)):
                     file_paths.append(file_path)
         return list(set(file_paths))
-
-

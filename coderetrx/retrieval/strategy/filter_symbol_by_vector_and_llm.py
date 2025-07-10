@@ -4,7 +4,11 @@ Strategy for filtering symbols using vector similarity search followed by LLM re
 
 from typing import List, Union, Optional, override
 from .base import FilterByVectorAndLLMStrategy
-from ..smart_codebase import SmartCodebase as Codebase, LLMMapFilterTargetType, SimilaritySearchTargetType
+from ..smart_codebase import (
+    SmartCodebase as Codebase,
+    LLMMapFilterTargetType,
+    SimilaritySearchTargetType,
+)
 from coderetrx.static import Keyword, Symbol, File
 
 
@@ -49,6 +53,8 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         for symbol in filtered_elements:
             if isinstance(symbol, Symbol):
                 file_path = str(symbol.file.path)
-                if not subdirs_or_files or any(file_path.startswith(subdir) for subdir in subdirs_or_files):
+                if not subdirs_or_files or any(
+                    file_path.startswith(subdir) for subdir in subdirs_or_files
+                ):
                     file_paths.add(file_path)
         return list(file_paths)

@@ -3,9 +3,18 @@ Strategy for adaptive filtering of symbols using vector similarity search follow
 """
 
 from typing import List, Union, Optional, override, Literal, Any
-from .base import AdaptiveFilterByVectorAndLLMStrategy, FilterByVectorAndLLMStrategy, StrategyExecuteResult
-from ..smart_codebase import SmartCodebase as Codebase, LLMMapFilterTargetType, SimilaritySearchTargetType
+from .base import (
+    AdaptiveFilterByVectorAndLLMStrategy,
+    FilterByVectorAndLLMStrategy,
+    StrategyExecuteResult,
+)
+from ..smart_codebase import (
+    SmartCodebase as Codebase,
+    LLMMapFilterTargetType,
+    SimilaritySearchTargetType,
+)
 from coderetrx.static import Keyword, Symbol, File
+
 
 class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStrategy):
     """Strategy to filter symbols using adaptive vector similarity search followed by LLM refinement."""

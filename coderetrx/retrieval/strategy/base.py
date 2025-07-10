@@ -24,18 +24,27 @@ from abc import ABC, abstractmethod
 from coderetrx.retrieval.smart_codebase import (
     SimilaritySearchTargetType,
     SmartCodebase as Codebase,
-    CodeMapFilterResult, LLMCallMode,
-    LLMMapFilterTargetType
+    CodeMapFilterResult,
+    LLMCallMode,
+    LLMMapFilterTargetType,
 )
 import random
 from ..topic_extractor import TopicExtractor
-from coderetrx.static import Symbol, Keyword, File, CodeElementTypeVar, Dependency, CodeElement
+from coderetrx.static import (
+    Symbol,
+    Keyword,
+    File,
+    CodeElementTypeVar,
+    Dependency,
+    CodeElement,
+)
 from pathlib import Path
 from pydantic import Field
 from os import PathLike
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
 
 class RecallStrategy(Enum):
     FILTER_FILENAME_BY_LLM = "filter_filename_by_llm"
@@ -45,75 +54,93 @@ class RecallStrategy(Enum):
     FILTER_DEPENDENCY_BY_LLM = "filter_dependency_by_llm"
     FILTER_KEYWORD_BY_VECTOR_AND_LLM = "filter_keyword_by_vector_and_llm"
     FILTER_SYMBOL_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
-    ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = "adaptive_filter_keyword_by_vector_and_llm"
-    ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM = "adaptive_filter_symbol_by_vector_and_llm"
+    ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = (
+        "adaptive_filter_keyword_by_vector_and_llm"
+    )
+    ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM = (
+        "adaptive_filter_symbol_by_vector_and_llm"
+    )
     FILTER_TOPK_LINE_BY_VECTOR_AND_LLM = "intelligent_filter"
 
 
 class StrategyExecuteResult(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
-    
-    file_paths: List[str] = Field(description="List of file paths returned by the strategy")
-    elements: List[CodeElement] = Field(description="List of code elements returned by the strategy")
-    llm_results: List[CodeMapFilterResult] = Field(description="List of LLM results returned by the strategy")
-    
 
+    file_paths: List[str] = Field(
+        description="List of file paths returned by the strategy"
+    )
+    elements: List[CodeElement] = Field(
+        description="List of code elements returned by the strategy"
+    )
+    llm_results: List[CodeMapFilterResult] = Field(
+        description="List of LLM results returned by the strategy"
+    )
 
 
 def rel_path(a: PathLike, b: PathLike) -> str:
     return str(Path(a).relative_to(Path(b)))
 
+
 def deduplicate_elements(elements: List[CodeElement]) -> List[CodeElement]:
     """
     Deduplicate elements by their id attribute.
-    
+
     Args:
         elements: List of code elements to deduplicate
-        
+
     Returns:
         List of deduplicated code elements, preserving order of first occurrence
     """
     if not elements:
         return elements
-    
+
     seen_ids: Set[str] = set()
     deduplicated_elements: List[CodeElement] = []
-    
+
     for element in elements:
         # Get element id, fallback to a generated id if not available
-        element_id = getattr(element, 'id', None)
+        element_id = getattr(element, "id", None)
         if element_id is None:
             # Generate fallback id based on element type and attributes
-            if hasattr(element, 'name') and hasattr(element, 'file'):
+            if hasattr(element, "name") and hasattr(element, "file"):
                 element_id = f"{element.name}_{element.file.path}"
-            elif hasattr(element, 'path'):
+            elif hasattr(element, "path"):
                 element_id = str(element.path)
             else:
                 # Last resort: use object id
                 element_id = str(id(element))
-        
+
         if element_id not in seen_ids:
             seen_ids.add(element_id)
             deduplicated_elements.append(element)
         else:
             logger.debug(f"Deduplicated element with id: {element_id}")
-    
+
     if len(deduplicated_elements) < len(elements):
-        logger.info(f"Deduplicated {len(elements) - len(deduplicated_elements)} elements, "
-                    f"keeping {len(deduplicated_elements)} unique elements")
-    
+        logger.info(
+            f"Deduplicated {len(elements) - len(deduplicated_elements)} elements, "
+            f"keeping {len(deduplicated_elements)} unique elements"
+        )
+
     return deduplicated_elements
 
 
 class RecallStrategyExecutor(ABC):
     llm_call_mode: LLMCallMode
 
-    def __init__(self, topic_extractor: Optional[TopicExtractor] = None, llm_call_mode: LLMCallMode = "traditional"):
+    def __init__(
+        self,
+        topic_extractor: Optional[TopicExtractor] = None,
+        llm_call_mode: LLMCallMode = "traditional",
+    ):
         self.topic_extractor = topic_extractor
         self.llm_call_mode = llm_call_mode
 
     def filter_elements_by_subdirs(
-        self, elements: List[CodeElement], codebase: Codebase, subdirs_or_files: List[str]
+        self,
+        elements: List[CodeElement],
+        codebase: Codebase,
+        subdirs_or_files: List[str],
     ) -> List[CodeElement]:
         """Filter elements to only include those from the specified subdirectories."""
         if not subdirs_or_files:
@@ -142,7 +169,8 @@ class RecallStrategyExecutor(ABC):
                     for imported_file in element.imported_by:
                         relative_path = str(imported_file.path)
                         if any(
-                            relative_path.startswith(subdir) for subdir in subdirs_or_files
+                            relative_path.startswith(subdir)
+                            for subdir in subdirs_or_files
                         ):
                             filtered_elements.append(element)
                             break
@@ -194,7 +222,10 @@ class FilterByLLMStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar], A
         logger.info(f"Using {strategy_name} strategy")
         try:
             elements, llm_results = await codebase.llm_filter(
-                prompt, self.get_target_type(), subdirs_or_files, llm_call_mode=self.llm_call_mode
+                prompt,
+                self.get_target_type(),
+                subdirs_or_files,
+                llm_call_mode=self.llm_call_mode,
             )
             elements = self.filter_elements_by_subdirs(
                 elements, codebase, subdirs_or_files
@@ -203,7 +234,7 @@ class FilterByLLMStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar], A
             return StrategyExecuteResult(
                 file_paths=list(set(file_paths)),
                 elements=deduplicate_elements(elements),
-                llm_results=llm_results
+                llm_results=llm_results,
             )
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
@@ -246,7 +277,9 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar]
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (
-                await self.topic_extractor.extract_topic(input_text=prompt, llm_call_mode=self.llm_call_mode)
+                await self.topic_extractor.extract_topic(
+                    input_text=prompt, llm_call_mode=self.llm_call_mode
+                )
                 if self.topic_extractor
                 else prompt
             )
@@ -286,7 +319,7 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar]
             return StrategyExecuteResult(
                 file_paths=file_paths,
                 elements=deduplicate_elements(elements),
-                llm_results=[]
+                llm_results=[],
             )
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
@@ -359,7 +392,9 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (
-                await self.topic_extractor.extract_topic(input_text=prompt, llm_call_mode=self.llm_call_mode)
+                await self.topic_extractor.extract_topic(
+                    input_text=prompt, llm_call_mode=self.llm_call_mode
+                )
                 if self.topic_extractor
                 else prompt
             )
@@ -401,11 +436,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                 logger.info(
                     f"No elements found by vector search, returning empty result"
                 )
-                return StrategyExecuteResult(
-                    file_paths=[],
-                    elements=[],
-                    llm_results=[]
-                )
+                return StrategyExecuteResult(file_paths=[], elements=[], llm_results=[])
 
             # Use LLM to filter the elements
             refined_elements, llm_results = await codebase.llm_filter(
@@ -426,22 +457,29 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
             return StrategyExecuteResult(
                 file_paths=list(set(file_paths)),
                 elements=deduplicate_elements(refined_elements),
-                llm_results=llm_results
+                llm_results=llm_results,
             )
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
 
-
             # Extract topic from input text
+
 
 class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     """Base strategy to filter code elements using adaptive vector similarity search followed by LLM refinement."""
 
-    def __init__(self, initial_limit: int = 50, 
-                 threshold: float = 0.3, multiplier: float = 1.8, exit_probability: float = 0.9, 
-                 tail_analysis_size: int = 10, max_iterations: int = 5, 
-                 topic_extractor: Optional[TopicExtractor] = None, llm_call_mode: LLMCallMode = "traditional"):
+    def __init__(
+        self,
+        initial_limit: int = 50,
+        threshold: float = 0.3,
+        multiplier: float = 1.8,
+        exit_probability: float = 0.9,
+        tail_analysis_size: int = 10,
+        max_iterations: int = 5,
+        topic_extractor: Optional[TopicExtractor] = None,
+        llm_call_mode: LLMCallMode = "traditional",
+    ):
         """
         Initialize the adaptive filtering strategy with configurable parameters.
 
@@ -515,7 +553,13 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         """Collect file paths from the filtered elements."""
         pass
 
-    async def adaptive_retrieval(self, codebase: Codebase, prompt: str, query_embedding_text: str, subdirs_or_files: List[str]) -> Tuple[List[str], List[Any]]:
+    async def adaptive_retrieval(
+        self,
+        codebase: Codebase,
+        prompt: str,
+        query_embedding_text: str,
+        subdirs_or_files: List[str],
+    ) -> Tuple[List[str], List[Any]]:
         """
         Adaptive retrieval algorithm with reduced LLM calls and smarter early exit.
 
@@ -531,7 +575,9 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         total_available_chunks = self.get_collection_size(codebase)
         running_limit = min(self.initial_limit, total_available_chunks)
 
-        logger.info(f"Starting optimized adaptive retrieval with initial limit: {running_limit}, total available: {total_available_chunks}")
+        logger.info(
+            f"Starting optimized adaptive retrieval with initial limit: {running_limit}, total available: {total_available_chunks}"
+        )
 
         accumulated_file_paths = set()
         previous_limit = 0
@@ -541,10 +587,14 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
 
         vector_cache = {}
 
-        while running_limit <= total_available_chunks and iterations < self.max_iterations:
+        while (
+            running_limit <= total_available_chunks and iterations < self.max_iterations
+        ):
             print("iterations, running_limit: ", iterations, running_limit)
             iterations += 1
-            logger.info(f"Adaptive retrieval iteration {iterations}: searching with limit {running_limit}")
+            logger.info(
+                f"Adaptive retrieval iteration {iterations}: searching with limit {running_limit}"
+            )
 
             cache_key = running_limit
             vector_results = await codebase.similarity_search(
@@ -556,16 +606,26 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
             vector_cache[cache_key] = vector_results
             new_vector_results = vector_results[previous_limit:]
 
-            logger.info(f"Processing {len(new_vector_results)} new vector results (total: {len(vector_results)})")
+            logger.info(
+                f"Processing {len(new_vector_results)} new vector results (total: {len(vector_results)})"
+            )
 
             if not new_vector_results:
                 logger.info(f"No new results found, stopping adaptive retrieval")
                 break
 
-            new_elements = self.filter_elements_by_subdirs(new_vector_results, codebase, subdirs_or_files)
-            new_filtered_elements = self.filter_elements(new_elements, subdirs_or_files, codebase)
+            new_elements = self.filter_elements_by_subdirs(
+                new_vector_results, codebase, subdirs_or_files
+            )
+            new_filtered_elements = self.filter_elements(
+                new_elements, subdirs_or_files, codebase
+            )
 
-            accumulated_file_paths.update(self.collect_file_paths(new_filtered_elements, codebase, subdirs_or_files))
+            accumulated_file_paths.update(
+                self.collect_file_paths(
+                    new_filtered_elements, codebase, subdirs_or_files
+                )
+            )
 
             if not new_filtered_elements:
                 logger.info(f"No filtered elements found, stopping adaptive retrieval")
@@ -582,13 +642,17 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
             )
 
             if tail_elements:
-                tail_success_ratio = len(tail_elements) / min(self.tail_analysis_size, len(new_filtered_elements))
+                tail_success_ratio = len(tail_elements) / min(
+                    self.tail_analysis_size, len(new_filtered_elements)
+                )
                 logger.info(f"Estimated tail success ratio: {tail_success_ratio:.3f}")
             else:
                 tail_success_ratio = 0
 
             quality_trend = tail_success_ratio / last_success_ratio
-            logger.info(f"Quality trend: {quality_trend:.3f} (current: {tail_success_ratio:.3f}, last: {last_success_ratio:.3f})")
+            logger.info(
+                f"Quality trend: {quality_trend:.3f} (current: {tail_success_ratio:.3f}, last: {last_success_ratio:.3f})"
+            )
             if tail_success_ratio >= self.threshold and quality_trend >= 0.3:
                 consecutive_low_quality = 0
                 previous_limit = running_limit
@@ -601,22 +665,33 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                 else:
                     expansion_factor = (self.multiplier - 1) * 0.5 + 1
 
-                running_limit = min(int(running_limit * expansion_factor), total_available_chunks)
+                running_limit = min(
+                    int(running_limit * expansion_factor), total_available_chunks
+                )
 
-                logger.info(f"Expanding search from {old_limit} to {running_limit} (success ratio {tail_success_ratio:.3f} > threshold {self.threshold})")
+                logger.info(
+                    f"Expanding search from {old_limit} to {running_limit} (success ratio {tail_success_ratio:.3f} > threshold {self.threshold})"
+                )
             else:
                 consecutive_low_quality += 1
-                logger.info(f"Quality dropped (success ratio {tail_success_ratio:.3f}, last success ratio {last_success_ratio:.3f}), consecutive count: {consecutive_low_quality}")
+                logger.info(
+                    f"Quality dropped (success ratio {tail_success_ratio:.3f}, last success ratio {last_success_ratio:.3f}), consecutive count: {consecutive_low_quality}"
+                )
 
                 if consecutive_low_quality >= 2:
-                    logger.info(f"Consecutive low quality count reached 2, stopping adaptive retrieval")
+                    logger.info(
+                        f"Consecutive low quality count reached 2, stopping adaptive retrieval"
+                    )
                     break
 
                 rand = random.random()
-                if (rand < self.exit_probability):
+                if rand < self.exit_probability:
                     break
                 else:
-                    running_limit = min(int(running_limit * (self.multiplier - 1) * 0.2 + 1), total_available_chunks)
+                    running_limit = min(
+                        int(running_limit * (self.multiplier - 1) * 0.2 + 1),
+                        total_available_chunks,
+                    )
         print("accumulated_file_paths size: ", len(accumulated_file_paths))
         return list(accumulated_file_paths), []
 
@@ -631,7 +706,9 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (
-                await self.topic_extractor.extract_topic(input_text=prompt, llm_call_mode=self.llm_call_mode)
+                await self.topic_extractor.extract_topic(
+                    input_text=prompt, llm_call_mode=self.llm_call_mode
+                )
                 if self.topic_extractor
                 else prompt
             )
@@ -647,14 +724,15 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                 )
 
             # Perform adaptive retrieval (includes both vector search and LLM filtering)
-            file_paths, llm_results = await self.adaptive_retrieval(codebase, prompt, topic, subdirs_or_files)
+            file_paths, llm_results = await self.adaptive_retrieval(
+                codebase, prompt, topic, subdirs_or_files
+            )
 
             return StrategyExecuteResult(
                 file_paths=file_paths,
                 elements=[],  # Adaptive strategies don't return elements directly
-                llm_results=llm_results
+                llm_results=llm_results,
             )
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
-

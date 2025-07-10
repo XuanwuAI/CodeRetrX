@@ -25,22 +25,24 @@ from .filter_keyword_by_vector import FilterKeywordByVectorStrategy
 from .filter_symbol_by_vector import FilterSymbolByVectorStrategy
 from .filter_keyword_by_vector_and_llm import FilterKeywordByVectorAndLLMStrategy
 from .filter_symbol_by_vector_and_llm import FilterSymbolByVectorAndLLMStrategy
-from .adaptive_filter_keyword_by_vector_and_llm import AdaptiveFilterKeywordByVectorAndLLMStrategy
-from .adaptive_filter_symbol_by_vector_and_llm import AdaptiveFilterSymbolByVectorAndLLMStrategy
+from .adaptive_filter_keyword_by_vector_and_llm import (
+    AdaptiveFilterKeywordByVectorAndLLMStrategy,
+)
+from .adaptive_filter_symbol_by_vector_and_llm import (
+    AdaptiveFilterSymbolByVectorAndLLMStrategy,
+)
 from .filter_topk_line_by_vector_and_llm import FilterTopkLineByVectorAndLLMStrategy
 
 __all__ = [
     # Enums and Models
     "RecallStrategy",
     "StrategyExecuteResult",
-    
     # Base Classes
     "RecallStrategyExecutor",
     "FilterByLLMStrategy",
-    "FilterByVectorStrategy", 
+    "FilterByVectorStrategy",
     "FilterByVectorAndLLMStrategy",
     "AdaptiveFilterByVectorAndLLMStrategy",
-    
     # Concrete Strategy Implementations
     "FilterFilenameByLLMStrategy",
     "FilterSymbolByLLMStrategy",
@@ -52,7 +54,6 @@ __all__ = [
     "AdaptiveFilterKeywordByVectorAndLLMStrategy",
     "AdaptiveFilterSymbolByVectorAndLLMStrategy",
     "FilterTopkLineByVectorAndLLMStrategy",
-    
     # Factory and Utilities
     "StrategyFactory",
     "deduplicate_elements",

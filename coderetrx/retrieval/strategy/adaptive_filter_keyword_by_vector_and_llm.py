@@ -4,8 +4,13 @@ Strategy for adaptive filtering of keywords using vector similarity search follo
 
 from typing import List, Union, Optional, override, Any, Literal
 from .base import AdaptiveFilterByVectorAndLLMStrategy, StrategyExecuteResult
-from ..smart_codebase import SmartCodebase as Codebase, LLMMapFilterTargetType, SimilaritySearchTargetType
+from ..smart_codebase import (
+    SmartCodebase as Codebase,
+    LLMMapFilterTargetType,
+    SimilaritySearchTargetType,
+)
 from coderetrx.static import Keyword, Symbol, File
+
 
 class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStrategy):
     """Strategy to filter keywords using adaptive vector similarity search followed by LLM refinement."""
@@ -83,4 +88,3 @@ class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMSt
         </note>
         """
         return await super().execute(codebase, prompt, subdirs_or_files)
-
