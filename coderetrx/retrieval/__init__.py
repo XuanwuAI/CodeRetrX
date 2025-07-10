@@ -4,7 +4,7 @@ from .code_recall import (
     llm_traversal_filter,
     llm_traversal_mapping,
 )
-from .strategies import (
+from .strategy import (
     RecallStrategy,
 )
 from .smart_codebase import (

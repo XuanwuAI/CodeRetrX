@@ -20,9 +20,7 @@ from typing import (
     override,
 )
 import logging
-import os
 from abc import ABC, abstractmethod
-from coderetrx.retrieval.strategy.filter_symbol_by_vector import FilterSymbolByVectorStrategy
 from coderetrx.retrieval.smart_codebase import (
     SimilaritySearchTargetType,
     SmartCodebase as Codebase,
@@ -32,11 +30,9 @@ from coderetrx.retrieval.smart_codebase import (
 import random
 from ..topic_extractor import TopicExtractor
 from coderetrx.static import Symbol, Keyword, File, CodeElementTypeVar, Dependency, CodeElement
-from coderetrx.static.codebase import CodeLine
 from pathlib import Path
 from pydantic import Field
 from os import PathLike
-from attrs import define
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)

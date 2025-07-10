@@ -98,7 +98,7 @@ for element in elements:
 
 ```python
 from coderetrx.retrieval import coderetrx_filter
-from coderetrx.retrieval.strategies import CodeRecallSettings
+from coderetrx.retrieval.code_recall import CodeRecallSettings
 
 # Configure advanced settings
 settings = CodeRecallSettings(
