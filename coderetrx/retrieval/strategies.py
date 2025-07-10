@@ -27,7 +27,6 @@ from .smart_codebase import (
 import random
 from .topic_extractor import TopicExtractor
 from coderetrx.static import Symbol, Keyword, File, CodeElement, Dependency
-from coderetrx.static.codebase import CodeLine
 from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -470,7 +469,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     @abstractmethod
     def get_target_types_for_vector(
         self,
-    ) -> List[Literal["symbol_name", "symbol_content", "keyword", "symbol_codeline"]]:
+    ) -> List[Literal["symbol_name", "symbol_content", "keyword"]]:
         """Return the target types for similarity search."""
         pass
 
@@ -635,7 +634,7 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     @abstractmethod
     def get_target_types_for_vector(
         self,
-    ) -> List[Literal["symbol_name", "symbol_content", "keyword", "symbol_codeline"]]:
+    ) -> List[Literal["symbol_name", "symbol_content", "keyword"]]:
         """Return the target types for similarity search."""
         pass
 
@@ -1287,14 +1286,38 @@ class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStr
         return await super().execute(codebase, prompt, subdirs_or_files)
 
 
+class RecalledLineEntry(BaseModel):
+    """Pydantic model representing a recalled line entry with metadata."""
+    line_content: str = Field(description="The content of the recalled line")
+    symbol: Symbol = Field(description="Symbol object containing this line")
+    score: float = Field(description="Vector similarity score for this line")
+
+
+class VectorLineRecallResult(BaseModel):
+    """Pydantic model representing the result of manual vector recall."""
+    line_content: str = Field(description="The content of the recalled line")
+    line_index: int = Field(description="The original line index in the symbol")
+    similarity_score: float = Field(description="The normalized similarity score")
+
+
+@define
+class SymbolStruct:
+    """Structure to represent a symbol and its metadata for intelligent filtering."""
+    vectors: List[Any]       # Embeddings of the symbol lines
+    symbol: Symbol           # The original symbol object
+    lines: List[str]         # Individual lines of the symbol
+    symbol_id: str           # Unique identifier for the symbol
+    file_path: str           # File path for the symbol
+
+
 class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
     """
-    Intelligent filtering strategy that performs line-level vector recall using builtin codeline searcher,
+    Intelligent filtering strategy that performs line-level vector recall within symbols,
     then uses LLM to judge and select the most relevant lines across all symbols.
     """
     
     def __init__(self, 
-                 top_k: int = 1000,
+                 top_k_per_symbol: int = 5,
                  max_queries: int = 20,
                  topic_extractor: Optional[TopicExtractor] = None, 
                  llm_call_mode: LLMCallMode = "traditional"):
@@ -1302,18 +1325,172 @@ class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
         Initialize the intelligent filtering strategy.
         
         Args:
-            top_k: Number of top lines to recall from builtin searcher (default: 1000)
-            max_queries: Maximum number of LLM queries allowed (default: 20)
+            top_k_per_symbol: Number of top lines to recall per symbol (default: 5)
+            max_queries: Maximum number of LLM queries allowed (default: 100)
             topic_extractor: Optional TopicExtractor instance
             llm_call_mode: Mode for LLM calls
         """
         super().__init__(topic_extractor=topic_extractor, llm_call_mode=llm_call_mode)
-        self.top_k = top_k
+        self.top_k_per_symbol = top_k_per_symbol
         self.max_queries = max_queries
     
     def get_strategy_name(self) -> str:
         return "INTELLIGENT_FILTER"
     
+    async def _generate_line_embeddings(self, lines: List[str]) -> List[Any]:
+        """Generate embeddings for individual lines using cached embedder."""
+        from coderetrx.utils.embedding import cached_embedder
+        from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+        
+        filtered_lines = [line.strip() for line in lines if line.strip() and len(line.strip()) > 3]
+        if not filtered_lines:
+            return []
+        
+        @retry(
+            stop=stop_after_attempt(5),
+            wait=wait_exponential(min=30, max=600),
+            retry=retry_if_exception_type(Exception),
+        )
+        async def _embed_lines_with_retry():
+            """Embed lines using cached embedder."""
+            try:
+                # Use cached embedder instead of direct create_documents_embedding
+                embeddings = await cached_embedder.aembed_documents(filtered_lines)
+                return embeddings
+            except Exception as e:
+                logger.warning(f"Line embedding batch failed, will retry: {str(e)}")
+                raise
+        
+        try:
+            embeddings = await _embed_lines_with_retry()
+            logger.debug(f"Successfully generated {len(embeddings)} embeddings for {len(filtered_lines)} lines")
+            return embeddings
+        except Exception as e:
+            logger.error(f"All retry attempts failed for line embeddings: {e}")
+            return []
+    
+    async def _vector_recall_topk(self, func_struct: SymbolStruct, query: str, k: int) -> List[VectorLineRecallResult]:
+        """
+        Perform vector-based top-k recall for lines within a function using in-memory computation.
+        
+        Args:
+            func_struct: Function structure containing vectors and lines
+            query: Query text for similarity search
+            k: Number of top lines to return
+            
+        Returns:
+            List of ManualVectorRecallResult objects
+        """
+        if not func_struct.vectors or not func_struct.lines:
+            return []
+        
+        return await self._manual_vector_recall(func_struct, query, k)
+    
+    async def _manual_vector_recall(self, func_struct: SymbolStruct, query: str, k: int) -> List[VectorLineRecallResult]:
+        """
+        Fallback manual vector recall using numpy operations.
+        """
+        try:
+            from coderetrx.utils.embedding import create_documents_embedding
+            import numpy as np
+            
+            # Generate query embedding using robust utilities
+            query_embedding = create_documents_embedding([query])
+            if not query_embedding:
+                return []
+            
+            query_vec = np.array(query_embedding[0])
+            line_vecs = np.array(func_struct.vectors)
+            
+            # Calculate cosine similarities with proper normalization
+            query_norm = query_vec / np.linalg.norm(query_vec)
+            line_norms = line_vecs / np.linalg.norm(line_vecs, axis=1, keepdims=True)
+            
+            similarities = np.dot(line_norms, query_norm)
+            top_indices = np.argsort(similarities)[-k:][::-1]
+            
+            results = []
+            filtered_lines = [line.strip() for line in func_struct.lines if line.strip() and len(line.strip()) > 3]
+            
+            for idx in top_indices:
+                if idx < len(filtered_lines):
+                    # Find original line index
+                    filtered_line = filtered_lines[idx]
+                    original_idx = -1
+                    for i, original_line in enumerate(func_struct.lines):
+                        if original_line.strip() == filtered_line:
+                            original_idx = i
+                            break
+
+                    if original_idx >= 0:
+                        normalized_score = (similarities[idx] + 1) / 2
+                        results.append(VectorLineRecallResult(
+                            line_content=filtered_line,
+                            line_index=original_idx,
+                            similarity_score=normalized_score
+                        ))
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error in manual vector recall for symbol {func_struct.symbol_id}: {e}")
+            return []
+    
+    async def _prepare_symbol_structures(self, symbols: List[Symbol], subdirs_or_files: List[str]) -> List[SymbolStruct]:
+        """
+        Prepare symbol structures with line-level embeddings.
+        
+        Args:
+            symbols: List of symbols to process
+            subdirs_or_files: List of subdirectories or files to filter by
+            
+        Returns:
+            List of SymbolStruct objects with embeddings
+        """
+        from tqdm import tqdm
+        
+        symbol_structs = []
+        
+        # Progress bar for symbol processing
+        with tqdm(total=len(symbols), desc="Processing symbols for intelligent filtering", unit="symbol") as pbar:
+            for symbol in symbols:
+                try:
+                    # Filter by subdirectories if specified
+                    file_path = str(symbol.file.path)
+                    if subdirs_or_files and not any(file_path.startswith(subdir) for subdir in subdirs_or_files):
+                        pbar.update(1)
+                        continue
+                    
+                    # Get symbol lines
+                    lines = symbol.chunk.lines()
+                    if not lines:
+                        pbar.update(1)
+                        continue
+                    
+                    # Generate embeddings for lines using existing utilities
+                    vectors = await self._generate_line_embeddings(lines)
+                    if not vectors:
+                        pbar.update(1)
+                        continue
+                    
+                    # Create function structure
+                    symbol_struct = SymbolStruct(
+                        vectors=vectors,
+                        symbol=symbol,
+                        lines=lines,
+                        symbol_id=symbol.id or f"{symbol.name}_{symbol.file.path}",
+                        file_path=file_path
+                    )
+                    
+                    symbol_structs.append(symbol_struct)
+                    
+                except Exception as e:
+                    logger.error(f"Error preparing symbol structure for {symbol.name}: {e}")
+                finally:
+                    pbar.update(1)
+        
+        logger.info(f"Prepared {len(symbol_structs)} symbol structures for intelligent filtering")
+        return symbol_structs
     
     async def _llm_recall_judgment(self, line_candidates: List[Tuple[str, str, str]], query: str) -> List[str]:
         """
@@ -1420,9 +1597,9 @@ Call the select_relevant_lines function with your analysis."""
             # Fallback: return first few candidates from this batch
             return [candidate[0] for candidate in line_candidates[:3]]
     
-    async def execute(self, codebase: Codebase, prompt: str, subdirs_or_files: List[str]) -> StrategyExecuteResult:
+    async def execute(self, codebase: Codebase, prompt: str, subdirs_or_files: List[str]) -> Tuple[List[str], List[Any]]:
         """
-        Execute the intelligent filter strategy using builtin codeline searcher.
+        Execute the intelligent filter strategy with optimized batch processing.
         
         Args:
             codebase: The codebase to search in
@@ -1430,10 +1607,10 @@ Call the select_relevant_lines function with your analysis."""
             subdirs_or_files: List of subdirectories or files to process
             
         Returns:
-            StrategyExecuteResult containing file_paths, elements, and llm_results
+            Tuple of (file_paths, llm_results)
         """
         strategy_name = self.get_strategy_name()
-        logger.info(f"Using {strategy_name} strategy with builtin codeline searcher")
+        logger.info(f"Using {strategy_name} strategy")
         
         try:
             # Extract topic for vector search
@@ -1449,47 +1626,52 @@ Call the select_relevant_lines function with your analysis."""
             else:
                 logger.info(f"Using extracted topic '{topic}' for intelligent filtering")
             
-            # Step 1: Use builtin codeline searcher to get line-level results
-            logger.info("Step 1 - Using builtin codeline searcher for line-level vector recall")
+            # Step 1: Get all symbols and prepare structures with embeddings
+            print("Entering Step 1 - Preparing symbol structures")
+            all_symbols = codebase.symbols
+            filtered_symbols = self.filter_elements_by_subdirs(all_symbols, codebase, subdirs_or_files)
+
+            logger.info(f"Processing {len(filtered_symbols)} symbols for intelligent filtering")
             
-            # Use the builtin similarity_search with symbol_codeline target type
-            all_recalled_lines:list[CodeLine] = await codebase.similarity_search(
-                target_types=["symbol_codeline"],
-                query=topic,
-                threshold=0,
-                top_k=self.top_k,
-            )
+            symbol_structs = await self._prepare_symbol_structures(filtered_symbols, subdirs_or_files)
             
-            logger.info(f"Builtin codeline searcher found {len(all_recalled_lines)} line candidates")
+            if not symbol_structs:
+                logger.info("No symbols found for intelligent filtering")
+                return [], []
+            
+            # Step 2: Perform vector-based recall for each symbol and sort by similarity
+            all_recalled_lines: List[RecalledLineEntry] = []
+            print("Entering Step 2 - Vector recall for symbols")
+            for symbol_struct in symbol_structs:
+                recalled_lines = await self._vector_recall_topk(
+                    symbol_struct, topic, self.top_k_per_symbol
+                )
+                
+                if recalled_lines:
+                    # Store line candidates with metadata
+                    for line_content, line_idx, score in recalled_lines:
+                        all_recalled_lines.append(RecalledLineEntry(
+                            line_content=line_content,
+                            symbol=symbol_struct.symbol,
+                            score=score
+                        ))
+            
+            logger.info(f"Collected {len(all_recalled_lines)} line candidates from vector recall")
             
             if not all_recalled_lines:
-                logger.info("No lines recalled from builtin codeline searcher")
-                return StrategyExecuteResult(
-                    file_paths=[],
-                    elements=[],
-                    llm_results=[]
-                )
+                logger.info("No lines recalled from vector search")
+                return [], []
             
-            # Filter by subdirectories if specified
-            if subdirs_or_files:
-                filtered_lines = []
-                for code_line in all_recalled_lines:
-                    file_path = str(code_line.symbol.file.path)
-                    if any(file_path.startswith(subdir) for subdir in subdirs_or_files):
-                        filtered_lines.append(code_line)
-                all_recalled_lines = filtered_lines
-                logger.info(f"Filtered to {len(all_recalled_lines)} lines from specified subdirectories")
-            
-            # Sort by vector similarity score (descending) - CodeLine objects should have score attribute
+            # Sort by vector similarity score (descending)
             all_recalled_lines.sort(key=lambda x: x.score, reverse=True)
             logger.info("Sorted line candidates by vector similarity score")
             
-            # Step 2: LLM processing with dynamic batch evaluation
-            logger.info("Step 2 - LLM processing with dynamic batch evaluation")
+            # Step 3: Optimized LLM processing with dynamic batch evaluation
+            print("Entering Step 3 - Dynamic batch processing")
             selected_file_paths = set()
             recalled_symbols = [] 
             recalled_symbol_ids = set()
-            batch_size = 30  # Smaller batch size for better LLM processing
+            batch_size = 120
             
             # Process candidates in dynamic batches
             current_index = 0
@@ -1501,7 +1683,7 @@ Call the select_relevant_lines function with your analysis."""
             with tqdm(total=self.max_queries, desc="LLM batch queries", unit="query") as pbar:
                 while current_index < len(all_recalled_lines) and query_count < self.max_queries:
                     # Collect next batch of valid candidates
-                    batch_candidates = []
+                    batch_candidates:list[RecalledLineEntry] = []
                     
                     while len(batch_candidates) < batch_size and current_index < len(all_recalled_lines):
                         entry = all_recalled_lines[current_index]
@@ -1535,7 +1717,6 @@ Call the select_relevant_lines function with your analysis."""
                     # Mark selected symbols as recalled
                     for selected_line in selected_lines:
                         for entry in batch_candidates:
-                            symbol_id = entry.symbol.id or f"{entry.symbol.name}_{entry.symbol.file.path}"
                             file_path = str(entry.symbol.file.path)
                             if entry.line_content == selected_line and symbol_id not in recalled_symbol_ids:
                                 recalled_symbols.append(entry.symbol)
@@ -1547,6 +1728,7 @@ Call the select_relevant_lines function with your analysis."""
                     logger.info(f"Processed batch {batch_count}: Selected {len(selected_lines)} symbols from {len(batch_candidates)} candidates")
             
             file_paths = list(selected_file_paths)
+            print(f"Total selected file paths: {len(file_paths)}")
             logger.info(f"Intelligent filtering completed. Selected {len(file_paths)} files from {len(recalled_symbols)} symbols.")
             
             return StrategyExecuteResult(
