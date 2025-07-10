@@ -50,7 +50,7 @@ class SmartCodebaseSettings(BaseSettings):
 
     # Embedding flags
     symbol_name_embedding: bool = Field(
-        default=False,
+        default=True,
         description="Enable symbol name embeddings",
         alias="SYMBOL_NAME_EMBEDDING",
     )
@@ -64,7 +64,7 @@ class SmartCodebaseSettings(BaseSettings):
         default=False, description="Enable keyword embeddings", alias="KEYWORD_EMBEDDING"
     )
     symbol_codeline_embedding: bool = Field(
-        default=False,
+        default=True,
         description="Enable symbol codeline embeddings",
         alias="SYMBOL_CODELINE_EMBEDDING",
     )
