@@ -81,7 +81,7 @@ class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
             all_selected_lines.extend(batch_selected)
 
             if len(line_candidates) > max_batch_size:
-                logger.info(
+                logger.debug(
                     f"Processed batch {i//max_batch_size + 1}: Selected {len(batch_selected)} lines from {len(batch)} candidates"
                 )
 
@@ -153,7 +153,7 @@ Call the select_relevant_lines function with your analysis."""
             selected_indices = function_args.get("selected_indices", [])
             reasoning = function_args.get("reasoning", "")
 
-            logger.info(
+            logger.debug(
                 f"LLM selected {len(selected_indices)} lines from batch of {len(line_candidates)}. Reasoning: {reasoning}"
             )
 
@@ -324,12 +324,12 @@ Call the select_relevant_lines function with your analysis."""
                                 recalled_symbols.append(entry.symbol)
                                 recalled_symbol_ids.add(symbol_id)
                                 selected_file_paths.add(file_path)
-                                logger.info(
-                                    f"Selected symbol {entry.symbol.name} from {file_path} (score: {entry.score:.3f})"
+                                logger.debug(
+                                    f"Selected symbol '{entry.symbol.name}' from {file_path} (score: {entry.score:.3f})"
                                 )
                                 break
 
-                    logger.info(
+                    logger.debug(
                         f"Processed batch {batch_count}: Selected {len(selected_lines)} symbols from {len(batch_candidates)} candidates"
                     )
 

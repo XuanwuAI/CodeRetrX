@@ -60,7 +60,7 @@ cached_embedder = CacheBackedEmbeddings.from_bytes_store(
 async def embed_batch_with_retry(batch):
     """Embed a batch of documents with retry logic."""
     try:
-        logger.info(f"Embedding batch of {len(batch)} documents")
+        logger.debug(f"Embedding batch of {len(batch)} documents")
         return await cached_embedder.aembed_documents(batch)
     except Exception as e:
         logger.warning(f"Embedding batch failed, will retry: {str(e)}, batch is {batch}")
@@ -233,7 +233,7 @@ class SimilaritySearcher:
             f"Performing similarity search in collection '{self.name}' with k={k}"
         )
         if where:
-            logger.info(f"Applying filter: {where}")
+            logger.debug(f"Applying filter: {where}")
             results = await self.langchian_chroma_client.asimilarity_search_with_relevance_scores(
                 query = query, filter=where, k=k, score_threshold=threshold
             )
@@ -261,12 +261,12 @@ class SimilaritySearcher:
         Returns:
             A list of tuples (document, normalized_score).
         """
-        logger.info(
+        logger.debug(
             f"Performing vector similarity search in collection '{self.name}' with k={k}"
         )
         try: 
             if where:
-                logger.info(f"Applying filter: {where}")
+                logger.debug(f"Applying filter: {where}")
                 docs = await self.langchian_chroma_client.asimilarity_search_by_vector(
                     embedding=query_vector, filter=where, k=k
                 )
