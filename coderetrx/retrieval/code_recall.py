@@ -26,6 +26,28 @@ from .strategy import (
 from pydantic_settings import BaseSettings, SettingsConfigDict
 logger = logging.getLogger(__name__)
 
+class CodeRecallSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file_encoding="utf-8", env_file=".env", extra="allow"
+    )
+    llm_secondary_recall_model_id: str = Field(
+        default="anthropic/claude-sonnet-4",
+        description="Model ID for secondary recall",
+    )
+    llm_primary_recall_model_id: Optional[str] = Field(
+        default=None,
+        description="Model ID for primary recall. If not provided will use the SmartCodebase default",
+    )
+    llm_selector_strategy_model_id: str = Field(
+        default="anthropic/claude-sonnet-4",
+        description="Model ID for determining the best recall strategy based on the prompt when llm_selector_strategy is enabled",
+    )
+    llm_call_mode: LLMCallMode = Field(
+        default="function_call",
+        description="Mode for LLM calls - 'traditional' or 'function_call'",
+    )
+
+
 async def _determine_strategy_by_llm(
     prompt: str,
     model_id: Optional[str] = None,
@@ -173,27 +195,6 @@ IMPORTANT: Try to select only ONE element type if possible. Only select multiple
         logger.error(f"Error determining strategy by LLM: {e}. Defaulting to SYMBOL recall")
         return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM]
 
-
-class CodeRecallSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file_encoding="utf-8", env_file=".env", extra="allow"
-    )
-    llm_secondary_recall_model_id: str = Field(
-        default="anthropic/claude-sonnet-4",
-        description="Model ID for secondary recall",
-    )
-    llm_primary_recall_model_id: Optional[str] = Field(
-        default=None,
-        description="Model ID for primary recall. If not provided will use the SmartCodebase default",
-    )
-    llm_selector_strategy_model_id: str = Field(
-        default="anthropic/claude-sonnet-4",
-        description="Model ID for determining the best recall strategy based on the prompt when llm_selector_strategy is enabled",
-    )
-    llm_call_mode: LLMCallMode = Field(
-        default="function_call",
-        description="Mode for LLM calls - 'traditional' or 'function_call'",
-    )
 
 
 async def _perform_secondary_recall(
