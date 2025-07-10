@@ -28,7 +28,6 @@ from tree_sitter import Parser as TSParser
 from tree_sitter_language_pack import get_language as get_ts_language
 from tree_sitter_language_pack import get_parser
 import logging
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -312,7 +311,7 @@ class TreeSitterState:
             self.build_node_map(child)
 
 
-FileType = Literal["source", "dependency"]
+type FileType = Literal["source", "dependency"]
 
 
 # MARK: File
@@ -530,10 +529,8 @@ class File:
         lines = self.lines
         if show_line_numbers:
             numbered_lines = [f"{i:4d} | {lines[i]}" for i in range(len(lines))]
-            content = dedent('\n'.join(numbered_lines))
-            return f"```{self.path}\n{content}\n```"
-        content = dedent('\n'.join(lines))
-        return f"```{self.path}\n{content}\n```"
+            return f"```{self.path}\n{dedent('\n'.join(numbered_lines))}\n```"
+        return f"```{self.path}\n{dedent('\n'.join(lines))}\n```"
 
     def to_json(self, include_content: bool = False):
         from .models import FileModel
@@ -710,17 +707,6 @@ class CallGraphEdge:
 
         model = CallGraphEdgeModel.model_validate(data)
         return model.to_edge(codebase)
-
-
-class CodeLine:
-    """Pydantic model representing a code line entry with metadata."""
-    line_content: str = Field(description="The content of the code line")
-    symbol: Symbol = Field(description="Symbol object containing this line")
-    score: float = Field(description="Vector similarity score for this line")
-    def new(
-        cls, line_content: str, symbol: Symbol, score: float = 0.0
-    ) -> "CodeLine":
-        return cls(line_content=line_content, symbol=symbol, score=score)
 
 
 CodeElement = TypeVar(

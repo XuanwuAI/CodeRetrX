@@ -65,15 +65,10 @@ class SmartCodebaseSettings(BaseSettings):
         description="Enable symbol content embeddings",
         alias="SYMBOL_CONTENT_EMBEDDING",
     )
-
     keyword_embedding: bool = Field(
         default=False, description="Enable keyword embeddings", alias="KEYWORD_EMBEDDING"
     )
-    symbol_codeline_embedding: bool = Field(
-        default=False,
-        description="Enable symbol conline embeddings",
-        alias="SYMBOL_CONLINE_EMBEDDING",
-    )
+
 @define
 class CodebaseFactory:
     @classmethod
@@ -179,23 +174,3 @@ class CodebaseFactory:
             logger.info(
                 "Keyword embeddings feature is not enabled (KEYWORD_EMBEDDING not set), keyword searcher not initialized"
             )
-        if settings.symbol_codeline_embedding:
-            for symbol in codebase.symbols:
-                if symbol.chunk:
-                    try:
-                        logger.info(
-                            f"Initializing symbol codeline searcher for symbol {symbol.id}"
-                        )
-                        lines = symbol.chunk.code().split("\n")
-                        codebase.symbol_codeline_searcher[symbol.id] = SimilaritySearcher(
-                            f"{codebase.id}_symbol_codelines_{symbol.id}",
-                            lines,
-                        )
-
-                        logger.info(
-                            f"Symbol codeline searcher for symbol {symbol.id} initialized successfully"
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to initialize symbol codeline searcher for symbol {symbol.id}: {e}"
-                        )
