@@ -4,12 +4,13 @@ from coderetrx.static.codebase import Symbol, Keyword, File, CodeLine
 from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
 from coderetrx.retrieval.smart_codebase import CodeMapFilterResult
 from attrs import define, field
-from coderetrx.utils.embedding import SimilaritySearcher
+from coderetrx.utils.embedding import SimilaritySearcher,embed_batch_with_retry
 import os
 import logging
 from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings
+from tqdm.asyncio import tqdm
 from .prompt import (
     llm_filter_prompt_template,
     llm_mapping_prompt_template,
@@ -577,7 +578,7 @@ class SmartCodebase(SmartCodebaseBase):
                 if self.symbol_name_searcher is None:
                     raise ValueError("Symbol name searcher is not initialized")
                 symbol_by_name = {symbol.name: symbol for symbol in self.symbols}
-                for doc, score in self.symbol_name_searcher.search(query, top_k):
+                for doc, score in await self.symbol_name_searcher.asearch_with_score(query, top_k):
                     if score >= threshold and doc in symbol_by_name:
                         results.append(symbol_by_name[doc])
 
@@ -587,7 +588,7 @@ class SmartCodebase(SmartCodebaseBase):
                 symbol_by_content = {
                     symbol.chunk.code(): symbol for symbol in self.symbols
                 }
-                for doc, score in self.symbol_content_searcher.search(query, top_k):
+                for doc, score in await self.symbol_content_searcher.asearch_with_score(query, top_k):
                     if score >= threshold and doc in symbol_by_content:
                         results.append(symbol_by_content[doc])
 
@@ -595,7 +596,7 @@ class SmartCodebase(SmartCodebaseBase):
                 if self.keyword_searcher is None:
                     raise ValueError("Keyword searcher is not initialized")
                 keyword_map = {keyword.content: keyword for keyword in self.keywords}
-                for doc, score in self.keyword_searcher.search(query, top_k):
+                for doc, score in await self.keyword_searcher.asearch_with_score(query, top_k):
                     if score >= threshold and doc in keyword_map:
                         results.append(keyword_map[doc])
 
@@ -624,21 +625,28 @@ class SmartCodebase(SmartCodebaseBase):
             if threshold is None
             else threshold
         )
+        query_vector = (await embed_batch_with_retry([query]))[0]
 
         results = []
+        search_tasks = []
         for symbol in self.symbols: 
-
+            search_tasks.append(
+                self.symbol_codeline_searcher.asearch_by_vector(query_vector, top_k, {"symbol_id": symbol.id},)
+            )
+        search_task_results = await tqdm.gather(
+            *search_tasks,
+            desc="Searching code lines per symbol",
+            total=len(search_tasks),
+        )
         # Use metadata filtering to search only within the specified symbol
-            for doc, score in self.symbol_codeline_searcher.search(
-                query,  k=top_k, where={"symbol_id": symbol.id},
-            ):
-                if score >= threshold:
-                    results.append(
-                        CodeLine.new(
-                        line_content=doc,
-                        symbol=symbol,
-                        score=score
-                    )
+        for idx, search_task_result in enumerate(search_task_results):
+            for doc in search_task_result:
+                results.append(
+                    CodeLine.new(
+                    line_content=doc,
+                    symbol=self.symbols[idx],
+                    score=0
                 )
+            )
 
         return results

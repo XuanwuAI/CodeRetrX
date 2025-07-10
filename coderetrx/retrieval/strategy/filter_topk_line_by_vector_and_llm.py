@@ -34,7 +34,7 @@ class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
 
     def __init__(
         self,
-        top_k: int = 1000,
+        top_k_by_symbol: int = 5,
         max_queries: int = 20,
         topic_extractor: Optional[TopicExtractor] = None,
         llm_call_mode: LLMCallMode = "traditional",
@@ -43,13 +43,13 @@ class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
         Initialize the intelligent filtering strategy.
 
         Args:
-            top_k: Number of top lines to recall from builtin searcher (default: 1000)
+            top_k: Number of top lines to recall for each symbol from builtin searcher (default: 5)
             max_queries: Maximum number of LLM queries allowed (default: 20)
             topic_extractor: Optional TopicExtractor instance
             llm_call_mode: Mode for LLM calls
         """
         super().__init__(topic_extractor=topic_extractor, llm_call_mode=llm_call_mode)
-        self.top_k = top_k
+        self.top_k = top_k_by_symbol
         self.max_queries = max_queries
 
     def get_strategy_name(self) -> str:
