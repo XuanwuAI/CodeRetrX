@@ -122,6 +122,19 @@ class SimilaritySearcher:
         self.name = name
         self.use_cache = use_cache
         self.metadatas = metadatas
+        if "symbol_names" in name:
+            content_type = "symbol names"
+        elif "symbol_contents" in name:
+            content_type = "symbol contents"
+        elif "symbol_codelines" in name:
+            content_type = "code lines"
+        elif "keywords" in name:
+            content_type = "keywords"
+        elif "symbol_codelines" in name:
+            content_type = "symbol code lines"
+        else:
+            content_type = "documents"
+
 
         # Check or create Chroma collection
 
@@ -132,29 +145,17 @@ class SimilaritySearcher:
                     f"Collection '{name}' exists but has {collection.count()} documents instead of {len(texts)}. Recreating collection."
                 )
                 use_cache = False
-            else:
-                # Determine content type from collection name for better cache message
-                if "symbol_names" in name:
-                    content_type = "symbol names"
-                elif "symbol_contents" in name:
-                    content_type = "symbol contents"
-                elif "symbol_codelines" in name:
-                    content_type = "code lines"
-                elif "keywords" in name:
-                    content_type = "keywords"
-                else:
-                    content_type = "documents"
-                
-                logger.info(f"Using cached {content_type} from ChromaDB collection '{name}' ({collection.count()} items)")
-
-            if not use_cache:
                 chromadb_client.delete_collection(name)
                 collection = chromadb_client.create_collection(name, metadata={"hnsw:space": "cosine"})
+            else:
+                logger.info(f"Using cached {content_type} from ChromaDB collection '{name}' ({collection.count()} items)")
+
         except Exception as e:
             logger.info(f"Creating new ChromaDB collection: '{name}'")
             collection = chromadb_client.create_collection(
                 name, metadata={"hnsw:space": "cosine"}
             )
+            use_cache = False
 
         self.collection = collection
 
@@ -164,17 +165,6 @@ class SimilaritySearcher:
                 f"Adding {len(texts)} documents to ChromaDB collection '{name}'"
             )
             batch_size = 1000
-            # Determine content type from collection name for better progress description
-            if "symbol_names" in name:
-                content_type = "symbol names"
-            elif "symbol_contents" in name:
-                content_type = "symbol contents"
-            elif "symbol_codelines" in name:
-                content_type = "code lines"
-            elif "keywords" in name:
-                content_type = "keywords"
-            else:
-                content_type = "documents"
             
             for idx in tqdm(range(0, len(texts), batch_size), desc=f"Adding {content_type} to ChromaDB"):
                 text_batch = texts[idx : idx + batch_size]
@@ -225,7 +215,7 @@ class SimilaritySearcher:
                 ids=[str(i) for i in range(len(texts))],
             )
 
-    def search(self, query: str, k: int = 10):
+    def search(self, query: str,  k: int = 10, where: Optional[dict]=None):
         """
         Search for the most similar documents to the query.
 
@@ -262,7 +252,13 @@ class SimilaritySearcher:
             f"Performing similarity search in collection '{self.name}' with k={k}"
         )
         query_embedding = create_documents_embedding([query])[0]
-        results = self.collection.query(query_embeddings=[query_embedding], n_results=k)
+        if where:
+            logger.info(f"Applying filter: {where}")
+            results = self.collection.query(
+                query_embeddings=[query_embedding], where=where, n_results=k
+            )
+        else:
+            results = self.collection.query(query_embeddings=[query_embedding], n_results=k)
 
         documents = results["documents"][0]  # type: ignore
         distances = results["distances"][0]  # type: ignore
@@ -277,55 +273,5 @@ class SimilaritySearcher:
         result = list(zip(documents, normalized_scores))
         logger.info(
             f"Found {len(result)} matching documents in collection '{self.name}'"
-        )
-        return result
-
-    def search_with_filter(self, query: str, where: dict, k: int = 10):
-        """
-        Search for the most similar documents to the query with metadata filtering.
-
-        Args:
-            query: Query string.
-            where: Metadata filter criteria.
-            k: Number of top results to return.
-
-        Returns:
-            A list of tuples (document, normalized_score).
-        """
-
-        def normalize_score(raw_score, metric="cosine", max_distance=1.0):
-            """
-            Normalize raw similarity or distance score to [0, 1].
-            """
-            if metric == "cosine":
-                return (raw_score + 1) / 2
-            elif metric == "euclidean":
-                return max(0, 1 - (raw_score / max_distance))
-            else:
-                raise ValueError(f"Unsupported metric: {metric}")
-
-        logger.info(
-            f"Performing filtered similarity search in collection '{self.name}' with k={k}, filter={where}"
-        )
-        query_embedding = create_documents_embedding([query])[0]
-        results = self.collection.query(
-            query_embeddings=[query_embedding], 
-            where=where,
-            n_results=k
-        )
-
-        documents = results["documents"][0]  # type: ignore
-        distances = results["distances"][0]  # type: ignore
-        assert documents is not None
-        assert distances is not None
-
-        # Normalize distances or scores to [0, 1]
-        normalized_scores = [
-            normalize_score(-distance, metric="cosine") for distance in distances
-        ]
-
-        result = list(zip(documents, normalized_scores))
-        logger.info(
-            f"Found {len(result)} matching documents in filtered collection '{self.name}'"
         )
         return result

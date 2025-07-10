@@ -13,6 +13,7 @@ from .codebase import (
     DependencyModel,
     CallGraphEdgeModel,
     CodeElement,
+    CodeElementTypeVar,
 )
 
 from .ripgrep import (
@@ -38,11 +39,12 @@ __all__ = [
     "KeywordModel",
     "DependencyModel",
     "CallGraphEdgeModel",
-    "CodeElement",
+    "CodeElementTypeVar",
     # Ripgrep exports
     "ripgrep_glob",
     "ripgrep_search",
     "ripgrep_search_symbols",
     "ripgrep_raw",
     "GrepMatchResult",
+    "CodeElement"
 ]
