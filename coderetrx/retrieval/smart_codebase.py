@@ -65,5 +65,16 @@ class SmartCodebase(Codebase, ABC):
         query: str,
         threshold: Optional[float] = None,
         top_k: int = 100,
-    ) -> List[Symbol | Keyword | CodeLine]:
+    ) -> List[Symbol | Keyword ]:
+        pass
+    @abstractmethod
+    async def similarity_search_lines_per_symbol(
+        self,
+        query: str,
+        threshold: Optional[float] = None,
+        top_k: int = 10,
+    ) -> List[CodeLine]:
+        """
+        Search for similar lines within a specific symbol using metadata filtering.
+        """
         pass

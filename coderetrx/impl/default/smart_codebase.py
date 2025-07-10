@@ -599,36 +599,13 @@ class SmartCodebase(SmartCodebaseBase):
                     if score >= threshold and doc in keyword_map:
                         results.append(keyword_map[doc])
 
-            elif search_type == "symbol_codeline":
-                if self.symbol_codeline_searcher is None:
-                    raise ValueError("Symbol codeline searcher is not initialized")
-                symbol_by_id = {symbol.id: symbol for symbol in self.symbols}
-                
-                # Search all lines with no filtering (get all matching lines across symbols)
-                for doc, score in self.symbol_codeline_searcher.search(query, top_k):
-                    if score >= threshold:
-                        # Since we don't have metadata in the basic search, we need to find which symbol this line belongs to
-                        # This is a fallback approach - we'll need to enhance this with metadata search
-                        for symbol in self.symbols:
-                            if symbol.chunk and doc in symbol.chunk.code():
-                                results.append(
-                                    CodeLine.new(
-                                        line_content=doc,
-                                        symbol=symbol,
-                                        score=score
-                                    )
-                                )
-                                break
-                
-
         return results
 
-    def search_symbol_lines(self, symbol_id: str, query: str, threshold: Optional[float] = None, top_k: int = 10) -> List[Any]:
+    async def similarity_search_lines_per_symbol(self, query: str,  threshold: Optional[float] = None,  top_k: int = 10) -> List[Any]:
         """
         Search for similar lines within a specific symbol using metadata filtering.
 
         Args:
-            symbol_id: The ID of the symbol to search within
             query: The search query
             threshold: Similarity threshold, defaults to value from environment variable
             top_k: Maximum number of results to return
@@ -648,20 +625,16 @@ class SmartCodebase(SmartCodebaseBase):
             else threshold
         )
 
-        symbol_by_id = {symbol.id: symbol for symbol in self.symbols}
-        if symbol_id not in symbol_by_id:
-            return []
-
-        symbol = symbol_by_id[symbol_id]
         results = []
+        for symbol in self.symbols: 
 
         # Use metadata filtering to search only within the specified symbol
-        for doc, score in self.symbol_codeline_searcher.search_with_filter(
-            query, where={"symbol_id": symbol_id}, k=top_k
-        ):
-            if score >= threshold:
-                results.append(
-                    CodeLine.new(
+            for doc, score in self.symbol_codeline_searcher.search(
+                query,  k=top_k, where={"symbol_id": symbol.id},
+            ):
+                if score >= threshold:
+                    results.append(
+                        CodeLine.new(
                         line_content=doc,
                         symbol=symbol,
                         score=score

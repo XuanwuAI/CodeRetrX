@@ -1,0 +1,83 @@
+"""
+Strategy for adaptive filtering of symbols using vector similarity search followed by LLM refinement.
+"""
+
+from typing import List, Union, Optional, override, Literal, Any
+from .base import AdaptiveFilterByVectorAndLLMStrategy, FilterByVectorAndLLMStrategy, StrategyExecuteResult
+from ..smart_codebase import SmartCodebase as Codebase, LLMMapFilterTargetType, SimilaritySearchTargetType
+from coderetrx.static import Keyword, Symbol, File
+
+class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStrategy):
+    """Strategy to filter symbols using adaptive vector similarity search followed by LLM refinement."""
+
+    name: str = "ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM"
+
+    @override
+    def get_strategy_name(self) -> str:
+        return self.name
+
+    @override
+    def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
+        return ["symbol_name"]
+
+    @override
+    def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
+        return "symbol_name"
+
+    @override
+    def get_collection_size(self, codebase: Codebase) -> int:
+        return len(codebase.symbols)
+
+    @override
+    def filter_elements(
+        self,
+        elements: List[Any],
+        subdirs_or_files: List[str] = [],
+        codebase: Optional[Codebase] = None,
+    ) -> List[Union[Keyword, Symbol, File]]:
+        symbol_elements: List[Union[Keyword, Symbol, File]] = []
+        for element in elements:
+            if isinstance(element, Symbol):
+                # If subdirs_or_files is provided and codebase is available, filter by subdirs
+                if subdirs_or_files and codebase:
+                    # Get the relative path from the codebase directory
+                    rpath = str(element.file.path)
+                    if any(rpath.startswith(subdir) for subdir in subdirs_or_files):
+                        symbol_elements.append(element)
+                else:
+                    symbol_elements.append(element)
+        return symbol_elements
+
+    @override
+    def collect_file_paths(
+        self,
+        filtered_elements: List[Any],
+        codebase: Codebase,
+        subdirs_or_files: List[str],
+    ) -> List[str]:
+        file_paths = []
+        for symbol in filtered_elements:
+            if isinstance(symbol, Symbol):
+                file_path = str(symbol.file.path)
+                if file_path.startswith(tuple(subdirs_or_files)):
+                    file_paths.append(file_path)
+        return file_paths
+
+    @override
+    async def execute(
+        self,
+        codebase: Codebase,
+        prompt: str,
+        subdirs_or_files: List[str],
+    ) -> StrategyExecuteResult:
+        prompt = f"""
+        requirement: A code chunk with this name is highly likely to meet the following criteria:
+        <content_criteria>
+        {prompt}
+        </content_criteria>
+        <note>
+        The objective of this requirement is to preliminarily identify code chunks that are likely to meet specific content criteria based on their names. 
+        Code chunks with matching names will proceed to deeper analysis in the content filter (content_criteria) at a later stage (not in this run). 
+        </note>
+        """
+        return await super().execute(codebase, prompt, subdirs_or_files)

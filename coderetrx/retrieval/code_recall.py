@@ -7,6 +7,9 @@ from typing import (
     Optional,
 )
 import logging
+
+from pydantic import Field
+
 from .smart_codebase import (
     LLMMapFilterTargetType,
     SmartCodebase as Codebase,
@@ -14,15 +17,183 @@ from .smart_codebase import (
 )
 from .topic_extractor import TopicExtractor
 from coderetrx.static import Symbol, Keyword, File
-from .strategies import (
+from .strategy import (
     RecallStrategy,
-    CodeRecallSettings,
-    _determine_strategy_by_llm,
-    StrategyFactory,
     StrategyExecuteResult,
+    StrategyFactory
 )
 
+from pydantic_settings import BaseSettings, SettingsConfigDict
 logger = logging.getLogger(__name__)
+
+async def _determine_strategy_by_llm(
+    prompt: str,
+    model_id: Optional[str] = None,
+) -> List[RecallStrategy]:
+    """
+    Use LLM to determine the best recall strategies based on the prompt.
+    
+    Args:
+        prompt: The user's prompt/query
+        model_id: The model ID to use for strategy determination
+        
+    Returns:
+        List of selected RecallStrategy
+    """
+    from coderetrx.utils.llm import call_llm_with_function_call
+    
+    # Define the function for strategy determination
+    function_definition = {
+        "name": "determine_search_strategy",
+        "description": "Determine the best code search strategies based on the user query",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "element_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["FILENAME", "SYMBOL", "LINE", "DEPENDENCY"]
+                    },
+                    "description": "The types of code elements to search for (can select one or multiple)",
+                    "minItems": 1,
+                    "maxItems": 4
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Explanation for why these element types were chosen"
+                }
+            },
+            "required": ["element_types", "reason"]
+        }
+    }
+    
+    system_prompt = """Analyze this code search prompt and determine the most effective search method:
+
+Consider what type of code element would best match the search criteria. PREFER TO SELECT ONLY ONE TYPE unless you are genuinely uncertain about which single approach would work best.
+
+FILENAME: Use when the search criteria can be identified primarily by file characteristics:
+- Specific file extensions or patterns
+- File naming conventions
+- Configuration files
+- Documentation files
+- Files in specific directories
+- Files with particular path patterns
+- etc.
+
+SYMBOL: Use when the search criteria involve specific named code constructs:
+- Function names or method names
+- Class names or interface names
+- Module names or dependency names
+- When you know the exact name of what you're looking for
+- Shallow search based on identifiers
+- etc.
+
+LINE: Use when the search criteria require understanding file content and behavior:
+- Complex patterns or logic flows
+- Code that performs specific operations
+- Algorithm implementations or patterns
+- Business logic analysis
+- Error handling patterns
+- Content-based search within files
+- When function/class names alone are not sufficient
+- Deep content analysis
+- Line-level vector recall and LLM judgment
+- etc.
+
+DEPENDENCY: Use when the search criteria focus on external libraries, packages, or modules:
+- Finding code that uses specific libraries or frameworks
+- Package imports and usage patterns
+- Third-party dependency analysis
+- Module relationships and dependencies
+- Library version compatibility
+- Framework-specific code patterns
+- API usage from external packages
+- Import statement analysis
+- Dependencies listed in package managers
+- etc.
+
+SELECTION GUIDELINES:
+- Try to identify the SINGLE MOST APPROPRIATE type first
+- Only select multiple types if the search criteria genuinely spans multiple categories and you cannot determine which single approach would be most effective
+- When in doubt between two types, consider which one would capture the most relevant results for the specific query
+"""
+
+    user_prompt = f"""Analyze the following code search query and determine what types of code elements to search for:
+
+<query>
+{prompt}
+</query>
+
+Call the determine_search_strategy function with your analysis. 
+IMPORTANT: Try to select only ONE element type if possible. Only select multiple types if you genuinely cannot determine which single approach would be most effective."""
+
+    try:
+        # Use the same model list pattern as other function calls in the codebase
+        settings = CodeRecallSettings()
+        effective_model_id = model_id or settings.llm_selector_strategy_model_id
+        model_ids = [effective_model_id, "anthropic/claude-3.7-sonnet"]
+        
+        function_args = await call_llm_with_function_call(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            function_definition=function_definition,
+            model_ids=model_ids,
+        )
+        
+        element_types = function_args.get("element_types", [])
+        reason = function_args.get("reason", "")
+        
+        # Ensure all element types are uppercase
+        element_types = [et.upper() for et in element_types if isinstance(et, str)]
+        
+        logger.info(f"LLM determined element types: {element_types}. Reason: {reason}")
+        
+        # Map the response to RecallStrategy enum list
+        strategies = []
+        for element_type in element_types:
+            if element_type == "FILENAME":
+                strategies.append(RecallStrategy.FILTER_FILENAME_BY_LLM)
+            elif element_type == "LINE":
+                strategies.append(RecallStrategy.FILTER_TOPK_LINE_BY_VECTOR_AND_LLM)
+            elif element_type == "SYMBOL":
+                strategies.append(RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM)
+            elif element_type == "DEPENDENCY":
+                strategies.append(RecallStrategy.FILTER_DEPENDENCY_BY_LLM)
+            else:
+                logger.warning(f"LLM returned invalid element type: {element_type}. Skipping.")
+        
+        if not strategies:
+            logger.warning(f"No valid strategies determined. Defaulting to SYMBOL recall")
+            return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM]
+        
+        return strategies
+            
+    except Exception as e:
+        logger.error(f"Error determining strategy by LLM: {e}. Defaulting to SYMBOL recall")
+        return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM]
+
+
+class CodeRecallSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file_encoding="utf-8", env_file=".env", extra="allow"
+    )
+    llm_secondary_recall_model_id: str = Field(
+        default="anthropic/claude-sonnet-4",
+        description="Model ID for secondary recall",
+    )
+    llm_primary_recall_model_id: Optional[str] = Field(
+        default=None,
+        description="Model ID for primary recall. If not provided will use the SmartCodebase default",
+    )
+    llm_selector_strategy_model_id: str = Field(
+        default="anthropic/claude-sonnet-4",
+        description="Model ID for determining the best recall strategy based on the prompt when llm_selector_strategy is enabled",
+    )
+    llm_call_mode: LLMCallMode = Field(
+        default="function_call",
+        description="Mode for LLM calls - 'traditional' or 'function_call'",
+    )
 
 
 async def _perform_secondary_recall(
