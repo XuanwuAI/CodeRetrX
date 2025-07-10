@@ -65,7 +65,7 @@ async def embed_batch_with_retry(batch):
         raise  # Re-raise to trigger retry
 
 
-def create_documents_embedding(docs: List[str], batch_size=100, max_concurrency=15):
+def create_documents_embedding(docs: List[str], batch_size=100, max_concurrency=5):
     """Create embeddings for a list of documents with batching and concurrency."""
     # Prepare batches
     kwargs_list = [
@@ -106,7 +106,6 @@ class SimilaritySearcher:
         texts: List[str],
         embeddings: Optional[List[List[float]]] = None,
         use_cache: bool = True,
-        metadatas: Optional[List[dict]] = None,
     ) -> None:
         """
         Initialize the SimilaritySearcher.
@@ -116,12 +115,10 @@ class SimilaritySearcher:
             texts: List of texts to be indexed.
             embeddings: Optional precomputed embeddings corresponding to the texts.
             use_cache: Whether to use cached collection if available.
-            metadatas: Optional metadata list corresponding to each text.
         """
         self.texts = texts
         self.name = name
         self.use_cache = use_cache
-        self.metadatas = metadatas
 
         # Check or create Chroma collection
 
@@ -133,24 +130,14 @@ class SimilaritySearcher:
                 )
                 use_cache = False
             else:
-                # Determine content type from collection name for better cache message
-                if "symbol_names" in name:
-                    content_type = "symbol names"
-                elif "symbol_contents" in name:
-                    content_type = "symbol contents"
-                elif "symbol_codelines" in name:
-                    content_type = "code lines"
-                elif "keywords" in name:
-                    content_type = "keywords"
-                else:
-                    content_type = "documents"
-                
-                logger.info(f"Using cached {content_type} from ChromaDB collection '{name}' ({collection.count()} items)")
+                logger.info(
+                    f"Using existing ChromaDB collection '{name}' with {collection.count()} documents"
+                )
 
             if not use_cache:
                 chromadb_client.delete_collection(name)
-                collection = chromadb_client.create_collection(name, metadata={"hnsw:space": "cosine"})
-        except Exception as e:
+                collection = chromadb_client.get_collection(name)
+        except:
             logger.info(f"Creating new ChromaDB collection: '{name}'")
             collection = chromadb_client.create_collection(
                 name, metadata={"hnsw:space": "cosine"}
@@ -164,53 +151,30 @@ class SimilaritySearcher:
                 f"Adding {len(texts)} documents to ChromaDB collection '{name}'"
             )
             batch_size = 1000
-            # Determine content type from collection name for better progress description
-            if "symbol_names" in name:
-                content_type = "symbol names"
-            elif "symbol_contents" in name:
-                content_type = "symbol contents"
-            elif "symbol_codelines" in name:
-                content_type = "code lines"
-            elif "keywords" in name:
-                content_type = "keywords"
-            else:
-                content_type = "documents"
-            
-            for idx in tqdm(range(0, len(texts), batch_size), desc=f"Adding {content_type} to ChromaDB"):
+            for idx in tqdm(range(0, len(texts), batch_size), desc="Adding documents to ChromaDB"):
                 text_batch = texts[idx : idx + batch_size]
-                metadata_batch = metadatas[idx : idx + batch_size] if metadatas else None
                 if embeddings:
                     embedding_batch = embeddings[idx : idx + batch_size]
-                    self._add_texts_with_embeddings(text_batch, embedding_batch, metadata_batch)
+                    self._add_texts_with_embeddings(text_batch, embedding_batch)
                 else:
-                    add_kwargs = {
-                        "documents": text_batch,
-                        "embeddings": create_documents_embedding(text_batch),
-                        "ids": [str(idx + i) for i in range(len(text_batch))],
-                    }
-                    if metadata_batch:
-                        add_kwargs["metadatas"] = metadata_batch
-                    self.collection.add(**add_kwargs)
+                    self.collection.add(
+                        documents=text_batch,
+                        embeddings=create_documents_embedding(text_batch),
+                        ids=[str(idx + i) for i in range(len(text_batch))],
+                    )
 
     def _add_texts_with_embeddings(
-        self, texts: List[str], embeddings: List[List[float]], metadatas: Optional[List[dict]] = None
+        self, texts: List[str], embeddings: List[List[float]]
     ):
         """Add texts with precomputed embeddings to the collection."""
         if len(texts) != len(embeddings):
             raise ValueError("Number of texts must match number of embeddings")
-        
-        if metadatas and len(texts) != len(metadatas):
-            raise ValueError("Number of texts must match number of metadatas")
 
-        add_kwargs = {
-            "documents": texts,
-            "embeddings": embeddings,
-            "ids": [str(i) for i in range(len(texts))],
-        }
-        if metadatas:
-            add_kwargs["metadatas"] = metadatas
-        
-        self.collection.add(**add_kwargs)
+        self.collection.add(
+            documents=texts,
+            embeddings=embeddings,  # type: ignore
+            ids=[str(i) for i in range(len(texts))],
+        )
 
     def add_texts(
         self, texts: List[str], embeddings: Optional[List[List[float]]] = None
@@ -277,55 +241,5 @@ class SimilaritySearcher:
         result = list(zip(documents, normalized_scores))
         logger.info(
             f"Found {len(result)} matching documents in collection '{self.name}'"
-        )
-        return result
-
-    def search_with_filter(self, query: str, where: dict, k: int = 10):
-        """
-        Search for the most similar documents to the query with metadata filtering.
-
-        Args:
-            query: Query string.
-            where: Metadata filter criteria.
-            k: Number of top results to return.
-
-        Returns:
-            A list of tuples (document, normalized_score).
-        """
-
-        def normalize_score(raw_score, metric="cosine", max_distance=1.0):
-            """
-            Normalize raw similarity or distance score to [0, 1].
-            """
-            if metric == "cosine":
-                return (raw_score + 1) / 2
-            elif metric == "euclidean":
-                return max(0, 1 - (raw_score / max_distance))
-            else:
-                raise ValueError(f"Unsupported metric: {metric}")
-
-        logger.info(
-            f"Performing filtered similarity search in collection '{self.name}' with k={k}, filter={where}"
-        )
-        query_embedding = create_documents_embedding([query])[0]
-        results = self.collection.query(
-            query_embeddings=[query_embedding], 
-            where=where,
-            n_results=k
-        )
-
-        documents = results["documents"][0]  # type: ignore
-        distances = results["distances"][0]  # type: ignore
-        assert documents is not None
-        assert distances is not None
-
-        # Normalize distances or scores to [0, 1]
-        normalized_scores = [
-            normalize_score(-distance, metric="cosine") for distance in distances
-        ]
-
-        result = list(zip(documents, normalized_scores))
-        logger.info(
-            f"Found {len(result)} matching documents in filtered collection '{self.name}'"
         )
         return result

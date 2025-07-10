@@ -71,8 +71,8 @@ class SmartCodebaseSettings(BaseSettings):
     )
     symbol_codeline_embedding: bool = Field(
         default=False,
-        description="Enable symbol codeline embeddings",
-        alias="SYMBOL_CODELINE_EMBEDDING",
+        description="Enable symbol conline embeddings",
+        alias="SYMBOL_CONLINE_EMBEDDING",
     )
 @define
 class CodebaseFactory:
@@ -180,38 +180,22 @@ class CodebaseFactory:
                 "Keyword embeddings feature is not enabled (KEYWORD_EMBEDDING not set), keyword searcher not initialized"
             )
         if settings.symbol_codeline_embedding:
-            # Collect all lines from all symbols with metadata
-            all_lines = []
-            all_metadatas = []
-            
             for symbol in codebase.symbols:
                 if symbol.chunk:
                     try:
                         logger.info(
-                            f"Collecting lines for symbol {symbol.id}"
+                            f"Initializing symbol codeline searcher for symbol {symbol.id}"
                         )
                         lines = symbol.chunk.code().split("\n")
-                        for line in lines:
-                            all_lines.append(line)
-                            all_metadatas.append({"symbol_id": symbol.id})
-                        
+                        codebase.symbol_codeline_searcher[symbol.id] = SimilaritySearcher(
+                            f"{codebase.id}_symbol_codelines_{symbol.id}",
+                            lines,
+                        )
+
                         logger.info(
-                            f"Collected {len(lines)} lines for symbol {symbol.id}"
+                            f"Symbol codeline searcher for symbol {symbol.id} initialized successfully"
                         )
                     except Exception as e:
                         logger.error(
-                            f"Failed to collect lines for symbol {symbol.id}: {e}"
+                            f"Failed to initialize symbol codeline searcher for symbol {symbol.id}: {e}"
                         )
-            
-            # Create single collection for all lines with metadata
-            if all_lines:
-                try:
-                    logger.info(f"Creating unified codeline searcher with {len(all_lines)} total lines")
-                    codebase.symbol_codeline_searcher = SimilaritySearcher(
-                        f"{codebase.id}_symbol_codelines",
-                        all_lines,
-                        metadatas=all_metadatas
-                    )
-                    logger.info("Unified symbol codeline searcher initialized successfully")
-                except Exception as e:
-                    logger.error(f"Failed to initialize unified symbol codeline searcher: {e}")

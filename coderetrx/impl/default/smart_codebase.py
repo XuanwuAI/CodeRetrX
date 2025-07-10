@@ -2,7 +2,6 @@ from typing import Optional, List, Tuple, Any, Union, Literal, TYPE_CHECKING
 from coderetrx.static import Codebase, Dependency
 from coderetrx.static.codebase import Symbol, Keyword, File, CodeLine
 from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
-from coderetrx.retrieval.smart_codebase import CodeMapFilterResult
 from attrs import define, field
 from coderetrx.utils.embedding import SimilaritySearcher
 import os
@@ -18,6 +17,7 @@ from .prompt import (
     filter_and_mapping_function_call_user_prompt_template,
     get_filter_function_definition,
     get_mapping_function_definition,
+    CodeMapFilterResult,
 )
 from tqdm.asyncio import tqdm
 import asyncio
@@ -52,8 +52,9 @@ class SmartCodebase(SmartCodebaseBase):
     symbol_name_searcher: Optional["SimilaritySearcher"] = field(default=None)
     symbol_content_searcher: Optional["SimilaritySearcher"] = field(default=None)
     keyword_searcher: Optional["SimilaritySearcher"] = field(default=None)
-    # unified codeline searcher for all symbols with metadata filtering
-    symbol_codeline_searcher: Optional["SimilaritySearcher"] = field(default=None)
+    # each symbol will has a codeline searcher, which is a similarity searcher for the symbol's code line
+    # symbol_id -> SimilaritySearcher
+    symbol_codeline_searcher: Optional[dict[str, "SimilaritySearcher"]] = field(default_factory=dict)
     settings: "SmartCodebaseSettings" = field(factory=get_smart_codebase_settings)
 
     def _get_filtered_elements(
@@ -602,70 +603,18 @@ class SmartCodebase(SmartCodebaseBase):
             elif search_type == "symbol_codeline":
                 if self.symbol_codeline_searcher is None:
                     raise ValueError("Symbol codeline searcher is not initialized")
-                symbol_by_id = {symbol.id: symbol for symbol in self.symbols}
-                
-                # Search all lines with no filtering (get all matching lines across symbols)
-                for doc, score in self.symbol_codeline_searcher.search(query, top_k):
-                    if score >= threshold:
-                        # Since we don't have metadata in the basic search, we need to find which symbol this line belongs to
-                        # This is a fallback approach - we'll need to enhance this with metadata search
-                        for symbol in self.symbols:
-                            if symbol.chunk and doc in symbol.chunk.code():
-                                results.append(
-                                    CodeLine.new(
-                                        line_content=doc,
-                                        symbol=symbol,
-                                        score=score
-                                    )
+                symbol_by_id = {symbol.id: symbol for symbol in self.symbols} 
+                for symbol_id, searcher in self.symbol_codeline_searcher.items():
+                        # Search for matching lines in this symbol
+                    for doc, score in searcher.search(query, top_k):
+                        if score >= threshold:
+                            results.append(
+                                CodeLine.new(
+                                    symbol=symbol_by_id[symbol_id],
+                                    content=doc,
+                                    score=score
                                 )
-                                break
+                            )
                 
-
-        return results
-
-    def search_symbol_lines(self, symbol_id: str, query: str, threshold: Optional[float] = None, top_k: int = 10) -> List[Any]:
-        """
-        Search for similar lines within a specific symbol using metadata filtering.
-
-        Args:
-            symbol_id: The ID of the symbol to search within
-            query: The search query
-            threshold: Similarity threshold, defaults to value from environment variable
-            top_k: Maximum number of results to return
-
-        Returns:
-            List of CodeLine objects that match the search criteria within the specified symbol
-
-        Raises:
-            ValueError: If symbol codeline searcher is not initialized
-        """
-        if self.symbol_codeline_searcher is None:
-            raise ValueError("Symbol codeline searcher is not initialized")
-
-        threshold = (
-            self.settings.similarity_search_threshold
-            if threshold is None
-            else threshold
-        )
-
-        symbol_by_id = {symbol.id: symbol for symbol in self.symbols}
-        if symbol_id not in symbol_by_id:
-            return []
-
-        symbol = symbol_by_id[symbol_id]
-        results = []
-
-        # Use metadata filtering to search only within the specified symbol
-        for doc, score in self.symbol_codeline_searcher.search_with_filter(
-            query, where={"symbol_id": symbol_id}, k=top_k
-        ):
-            if score >= threshold:
-                results.append(
-                    CodeLine.new(
-                        line_content=doc,
-                        symbol=symbol,
-                        score=score
-                    )
-                )
 
         return results

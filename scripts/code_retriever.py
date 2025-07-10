@@ -26,7 +26,7 @@ import argparse
 import sys
 import time
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 class CodeRetriever:
@@ -68,7 +68,6 @@ class CodeRetriever:
         os.environ["KEYWORD_EMBEDDING"] = "true"
         os.environ["SYMBOL_NAME_EMBEDDING"] = "true"
         os.environ["SYMBOL_CONTENT_EMBEDDING"] = "true"
-        os.environ["SYMBOL_CODELINE_EMBEDDING"] = "true"
         
         cache_root = get_cache_dir() 
         chroma_dir = cache_root / "chroma"
@@ -185,9 +184,6 @@ class CodeRetriever:
                 initial_cost = 0.0
                 initial_input_tokens = 0
                 initial_output_tokens = 0
-            
-            result = []
-            llm_output = []
             
             try:
                 # Create settings with appropriate llm_call_mode
@@ -352,79 +348,24 @@ class CodeRetriever:
         if not Path(output_file).is_absolute():
             output_file = code_report_dir / output_file
         
-        def make_serializable(obj, seen=None):
+        def make_serializable(obj):
             """Convert objects to JSON-serializable format"""
-            if seen is None:
-                seen = set()
-            
-            # Handle None values
-            if obj is None:
-                return None
-            
-            # Handle primitive types first
-            if isinstance(obj, (str, int, float, bool)):
-                return obj
-            
-            # Prevent circular references
-            obj_id = id(obj)
-            if obj_id in seen:
-                return f"<circular reference to {type(obj).__name__}>"
-            
-            # Handle CodeMapFilterResult specifically
-            if hasattr(obj, '__class__') and obj.__class__.__name__ == 'CodeMapFilterResult':
-                # Directly return dictionary without recursion to avoid circular reference
-                result_value = obj.result
-                # Handle result value carefully
-                if isinstance(result_value, (str, int, float, bool, type(None))):
-                    serialized_result = result_value
-                else:
-                    serialized_result = str(result_value)
-                
-                return {
-                    'index': obj.index,
-                    'reason': str(obj.reason),
-                    'result': serialized_result
-                }
-            
-            seen.add(obj_id)
-            
-            try:
-                # Handle other Pydantic models
-                if hasattr(obj, 'model_dump'):
-                    try:
-                        return obj.model_dump()
-                    except Exception:
-                        # Fallback to dict conversion
-                        return {k: make_serializable(v, seen) for k, v in obj.__dict__.items()}
-                
-                # Handle objects with to_json method
-                if hasattr(obj, 'to_json'):
-                    try:
-                        return obj.to_json()
-                    except Exception:
-                        # Fallback to dict conversion
-                        return {k: make_serializable(v, seen) for k, v in obj.__dict__.items()}
-                
-                # Handle lists and tuples
-                if isinstance(obj, (list, tuple)):
-                    return [make_serializable(item, seen) for item in obj]
-                
-                # Handle dictionaries
-                if isinstance(obj, dict):
-                    return {k: make_serializable(v, seen) for k, v in obj.items()}
-                
-                # Handle objects with __dict__
-                if hasattr(obj, '__dict__'):
-                    return {k: make_serializable(v, seen) for k, v in obj.__dict__.items()}
-                
-                # Final fallback - try JSON serialization
+            if hasattr(obj, 'to_json'):
+                return obj.to_json()
+            elif hasattr(obj, 'model_dump'):
+                return obj.model_dump()
+            elif hasattr(obj, '__dict__'):
+                return {k: make_serializable(v) for k, v in obj.__dict__.items()}
+            elif isinstance(obj, (list, tuple)):
+                return [make_serializable(item) for item in obj]
+            elif isinstance(obj, dict):
+                return {k: make_serializable(v) for k, v in obj.items()}
+            else:
                 try:
                     json.dumps(obj)
                     return obj
                 except (TypeError, ValueError):
                     return str(obj)
-            finally:
-                seen.discard(obj_id)
         
         serializable_codes = make_serializable(codes)
         
