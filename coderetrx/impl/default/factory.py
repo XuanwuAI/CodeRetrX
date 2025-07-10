@@ -129,7 +129,7 @@ class CodebaseFactory:
                         lines = symbol.chunk.code().split("\n")
                         lines= [line.strip() for line in lines if line.strip()]  # Remove empty lines
                         lines = [line for line in lines if len(line) > 2]  # Remove lines that are too short
-                        lines = list(set(line))  # Remove duplicates
+                        lines = list(set(lines))  # Remove duplicates
                         for line in lines:
                             all_lines.append(line)
                             all_metadatas.append({"symbol_id": symbol.id})
