@@ -390,6 +390,7 @@ async def _multi_strategy_code_recall(
 Note: This is the primary filtering stage - we prefer to include potentially relevant items rather than miss them. A more precise filtering will be applied in the secondary stage."""
         logger.info("Using relaxed prompt for primary recall (secondary recall enabled)")
     
+    additional_code_elements = []
     if use_coarse_recall_returned_elements and mode != "precise":
         subdirs_or_files = []
         additional_code_elements = strategy_result.elements 
