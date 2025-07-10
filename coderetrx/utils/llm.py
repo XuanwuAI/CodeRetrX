@@ -335,7 +335,7 @@ async def call_llm_with_function_call(
     model_id = model_ids[attempt - 1] if attempt <= len(model_ids) else "unknown"
     
     try:
-        logger.info(f"Function call attempt {attempt}/{len(model_ids)}: Using model '{model_id}'")
+        logger.debug(f"Function call attempt {attempt}/{len(model_ids)}: Using model '{model_id}'")
         
         # Get configuration
         base_url = settings.openai_base_url
