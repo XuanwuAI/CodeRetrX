@@ -7,7 +7,8 @@ from coderetrx.retrieval.code_recall import multi_strategy_code_filter, multi_st
 import asyncio
 import unittest
 from typing import Literal
-from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
+from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
+from coderetrx.utils.path import get_data_dir
 import logging
 
 load_dotenv()

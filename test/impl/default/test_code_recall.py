@@ -11,7 +11,8 @@ import unittest
 from typing import Literal
 from unittest.mock import patch, MagicMock
 from coderetrx.utils.embedding import create_documents_embedding
-from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
+from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
+from coderetrx.utils.path import get_data_dir
 import logging
 
 logger = logging.getLogger(__name__)

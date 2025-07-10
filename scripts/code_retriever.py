@@ -14,7 +14,8 @@ from pathlib import Path
 from coderetrx.impl.default import CodebaseFactory, TopicExtractor
 from coderetrx.retrieval import coderetrx_filter, llm_traversal_filter
 from coderetrx.retrieval.strategies import CodeRecallSettings
-from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
+from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
+from coderetrx.utils.path import get_cache_dir, get_data_dir
 from coderetrx.utils.llm import llm_settings
 from coderetrx.utils.cost_tracking import calc_llm_costs, calc_input_tokens, calc_output_tokens
 import logging
@@ -69,7 +70,7 @@ class CodeRetriever:
         os.environ["SYMBOL_CONTENT_EMBEDDING"] = "true"
         os.environ["SYMBOL_CODELINE_EMBEDDING"] = "true"
         
-        cache_root = Path(__file__).parent.parent / ".cache"
+        cache_root = get_cache_dir() 
         chroma_dir = cache_root / "chroma"
         chroma_dir.mkdir(parents=True, exist_ok=True)
         embedding.chromadb_client = chromadb.PersistentClient(path=str(chroma_dir))

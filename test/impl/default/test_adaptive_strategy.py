@@ -13,7 +13,8 @@ import time
 from pathlib import Path
 from coderetrx.impl.default import CodebaseFactory, TopicExtractor
 from coderetrx.retrieval.code_recall import multi_strategy_code_filter, RecallStrategy
-from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id, get_data_dir
+from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
+from coderetrx.utils.path import get_cache_dir, get_data_dir 
 import logging
 import chromadb
 from coderetrx.utils import embedding
@@ -43,7 +44,7 @@ def setup_embedding_environment():
 
 def setup_persistent_chromadb():
     """Setup persistent ChromaDB for the entire test session"""
-    cache_root = Path(__file__).parent.parent.parent.parent / ".cache"
+    cache_root = get_cache_dir() 
     chroma_dir = cache_root / "chroma"
     chroma_dir.mkdir(parents=True, exist_ok=True)
     

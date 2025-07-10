@@ -1,3 +1,4 @@
+from coderetrx.utils.path import get_cache_dir
 from ._extras import require_extra
 
 require_extra("langchain", "builtin-impl")
@@ -28,7 +29,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-cache_path = Path(__file__).parent.parent.parent / ".cache"
+cache_path = get_cache_dir() 
 embedder_cache_store = LocalFileStore(cache_path / "embeddings")
 
 chromadb_client = chromadb.PersistentClient(path=str(cache_path / "chroma"))

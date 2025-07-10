@@ -1,3 +1,4 @@
+from coderetrx.utils.path import get_cache_dir
 from ._extras import require_extra
 
 require_extra("langchain", "builtin-impl")
@@ -396,7 +397,8 @@ async def call_llm_with_function_call(
             raise
 
 if not llm_settings.disable_llm_cache:
-    llm_cache_dir = Path(__file__).parent.parent.parent / ".cache" / "llm"
+    cache_dir = get_cache_dir()
+    llm_cache_dir = cache_dir / "llm"
     llm_cache_dir.mkdir(parents=True, exist_ok=True)
     set_llm_cache(SQLiteCache(database_path=str(llm_cache_dir / ".langchain.db")))
 else:

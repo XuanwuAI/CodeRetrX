@@ -42,5 +42,3 @@ def get_repo_id(repo_url: str) -> str:
     repo_id = repo_id.replace(".git", "")
     return repo_id
 
-def get_data_dir():
-    return Path(__file__).parent.parent.parent / ".data"
