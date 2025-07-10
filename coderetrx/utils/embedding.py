@@ -271,7 +271,7 @@ class SimilaritySearcher:
                     embedding=query_vector, filter=where, k=k
                 )
             else:
-                docs = await self.langchian_chroma_client.asimilarity_search_by_vector(embedding=query_vector, k=k, score_threshold=threshold)
+                docs = await self.langchian_chroma_client.asimilarity_search_by_vector(embedding=query_vector, k=k)
         except Exception as e:
             logger.error(f"Error during similarity search: {repr(e)}")
             raise
