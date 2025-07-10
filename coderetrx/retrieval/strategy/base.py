@@ -559,7 +559,7 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         prompt: str,
         query_embedding_text: str,
         subdirs_or_files: List[str],
-    ) -> Tuple[List[str], List[Any]]:
+    ) -> Tuple[List[str],List[CodeElement] ,List[Any]]:
         """
         Adaptive retrieval algorithm with reduced LLM calls and smarter early exit.
 
@@ -586,6 +586,7 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         last_success_ratio = 0.5
 
         vector_cache = {}
+        accumulated_elements = []
 
         while (
             running_limit <= total_available_chunks and iterations < self.max_iterations
@@ -620,6 +621,7 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
             new_filtered_elements = self.filter_elements(
                 new_elements, subdirs_or_files, codebase
             )
+            accumulated_elements.extend(new_filtered_elements)
 
             accumulated_file_paths.update(
                 self.collect_file_paths(
@@ -693,7 +695,7 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                         total_available_chunks,
                     )
         print("accumulated_file_paths size: ", len(accumulated_file_paths))
-        return list(accumulated_file_paths), []
+        return list(accumulated_file_paths),deduplicate_elements(accumulated_elements), []
 
     async def execute(
         self,
@@ -724,13 +726,13 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                 )
 
             # Perform adaptive retrieval (includes both vector search and LLM filtering)
-            file_paths, llm_results = await self.adaptive_retrieval(
+            file_paths, elements,llm_results = await self.adaptive_retrieval(
                 codebase, prompt, topic, subdirs_or_files
             )
 
             return StrategyExecuteResult(
                 file_paths=file_paths,
-                elements=[],  # Adaptive strategies don't return elements directly
+                elements=elements,  
                 llm_results=llm_results,
             )
         except Exception as e:
