@@ -712,13 +712,11 @@ class CallGraphEdge:
         return model.to_edge(codebase)
 
 
-class CodeLine(BaseModel):
+class CodeLine:
     """Pydantic model representing a code line entry with metadata."""
     line_content: str = Field(description="The content of the code line")
     symbol: Symbol = Field(description="Symbol object containing this line")
     score: float = Field(description="Vector similarity score for this line")
-    
-    @classmethod
     def new(
         cls, line_content: str, symbol: Symbol, score: float = 0.0
     ) -> "CodeLine":

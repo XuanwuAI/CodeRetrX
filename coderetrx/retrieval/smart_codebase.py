@@ -3,8 +3,6 @@ from coderetrx.static import Codebase, Keyword, Symbol, File
 from typing import Literal, List, Tuple, Any, Union, Optional
 from pydantic import BaseModel
 
-from coderetrx.static.codebase.codebase import CodeLine
-
 LLMMapFilterTargetType = Literal[
     "file_name",
     "file_content",
@@ -65,5 +63,5 @@ class SmartCodebase(Codebase, ABC):
         query: str,
         threshold: Optional[float] = None,
         top_k: int = 100,
-    ) -> List[Symbol | Keyword | CodeLine]:
+    ) -> List[Symbol | Keyword]:
         pass
