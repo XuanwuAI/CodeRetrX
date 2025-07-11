@@ -123,7 +123,7 @@ class CodebaseFactory:
             for symbol in codebase.symbols:
                 if symbol.chunk:
                     try:
-                        logger.info(
+                        logger.debug(
                             f"Collecting lines for symbol {symbol.id}"
                         )
                         lines = symbol.chunk.code().split("\n")
@@ -134,7 +134,7 @@ class CodebaseFactory:
                             all_lines.append(line)
                             all_metadatas.append({"symbol_id": symbol.id})
                         
-                        logger.info(
+                        logger.debug(
                             f"Collected {len(lines)} lines for symbol {symbol.id}"
                         )
                     except Exception as e:

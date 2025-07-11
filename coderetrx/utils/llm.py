@@ -124,6 +124,10 @@ def load_langchain_prompt_template(
 # from your_module import get_langchain_model, load_langchain_prompt_template, TolerantJsonParser
 
 logger = logging.getLogger(__name__)
+
+# Configure httpx logging to warning level to suppress INFO messages
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 T = TypeVar("T", bound=BaseModel)
 
 
@@ -247,7 +251,7 @@ async def call_llm_with_fallback(
             raise ValueError(f"Output failed validation: {e}")
 
     model_id = model_ids[attempt - 1]
-    logger.info(
+    logger.debug(
         f"LLM call attempt {attempt}/{len(model_ids)}: Using model '{model_id}'"
     )
 
@@ -269,14 +273,14 @@ async def call_llm_with_fallback(
             # Get the type inside the List
             item_model = get_args(response_model)[0]
             validated_result = _validate_list_output(llm_result, item_model)
-            logger.info(
+            logger.debug(
                 f"Successfully processed LLM request with model '{model_id}', returned {len(validated_result)} validated items"
             )
         else:
             # Validate as a single item
             assert issubclass(response_model, BaseModel)
             validated_result = _validate_single_output(llm_result, response_model)
-            logger.info(
+            logger.debug(
                 f"Successfully processed LLM request with model '{model_id}', returned a validated item"
             )
 
@@ -331,7 +335,7 @@ async def call_llm_with_function_call(
     model_id = model_ids[attempt - 1] if attempt <= len(model_ids) else "unknown"
     
     try:
-        logger.info(f"Function call attempt {attempt}/{len(model_ids)}: Using model '{model_id}'")
+        logger.debug(f"Function call attempt {attempt}/{len(model_ids)}: Using model '{model_id}'")
         
         # Get configuration
         base_url = settings.openai_base_url
@@ -371,7 +375,7 @@ async def call_llm_with_function_call(
             message = response.choices[0].message
             if message.tool_calls and len(message.tool_calls) > 0:
                 function_args = json.loads(message.tool_calls[0].function.arguments)
-                logger.info(f"Successfully received function call response with model '{model_id}'")
+                logger.debug(f"Successfully received function call response with model '{model_id}'")
                 return function_args
             else:
                 raise ValueError("No function call in response")

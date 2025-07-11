@@ -34,7 +34,7 @@ class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
 
     def __init__(
         self,
-        top_k: int = 1000,
+        top_k_by_symbol: int = 5,
         max_queries: int = 20,
         topic_extractor: Optional[TopicExtractor] = None,
         llm_call_mode: LLMCallMode = "traditional",
@@ -43,13 +43,13 @@ class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
         Initialize the intelligent filtering strategy.
 
         Args:
-            top_k: Number of top lines to recall from builtin searcher (default: 1000)
+            top_k: Number of top lines to recall for each symbol from builtin searcher (default: 5)
             max_queries: Maximum number of LLM queries allowed (default: 20)
             topic_extractor: Optional TopicExtractor instance
             llm_call_mode: Mode for LLM calls
         """
         super().__init__(topic_extractor=topic_extractor, llm_call_mode=llm_call_mode)
-        self.top_k = top_k
+        self.top_k = top_k_by_symbol
         self.max_queries = max_queries
 
     def get_strategy_name(self) -> str:
@@ -81,7 +81,7 @@ class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
             all_selected_lines.extend(batch_selected)
 
             if len(line_candidates) > max_batch_size:
-                logger.info(
+                logger.debug(
                     f"Processed batch {i//max_batch_size + 1}: Selected {len(batch_selected)} lines from {len(batch)} candidates"
                 )
 
@@ -153,7 +153,7 @@ Call the select_relevant_lines function with your analysis."""
             selected_indices = function_args.get("selected_indices", [])
             reasoning = function_args.get("reasoning", "")
 
-            logger.info(
+            logger.debug(
                 f"LLM selected {len(selected_indices)} lines from batch of {len(line_candidates)}. Reasoning: {reasoning}"
             )
 
@@ -324,12 +324,12 @@ Call the select_relevant_lines function with your analysis."""
                                 recalled_symbols.append(entry.symbol)
                                 recalled_symbol_ids.add(symbol_id)
                                 selected_file_paths.add(file_path)
-                                logger.info(
-                                    f"Selected symbol {entry.symbol.name} from {file_path} (score: {entry.score:.3f})"
+                                logger.debug(
+                                    f"Selected symbol '{entry.symbol.name}' from {file_path} (score: {entry.score:.3f})"
                                 )
                                 break
 
-                    logger.info(
+                    logger.debug(
                         f"Processed batch {batch_count}: Selected {len(selected_lines)} symbols from {len(batch_candidates)} candidates"
                     )
 
