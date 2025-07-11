@@ -67,7 +67,7 @@ async def embed_batch_with_retry(batch):
         raise  # Re-raise to trigger retry
 
 
-def create_documents_embedding(docs: List[str], batch_size=100, max_concurrency=15):
+def create_documents_embedding(docs: List[str], batch_size=100, max_concurrency=5):
     """Create embeddings for a list of documents with batching and concurrency."""
     # Prepare batches
     kwargs_list = [
@@ -89,7 +89,7 @@ def create_documents_embedding(docs: List[str], batch_size=100, max_concurrency=
             for batch_embeddings in embeddings
             for embedding in batch_embeddings
         ]
-        logger.info(
+        logger.debug(
             f"Successfully created embeddings for {len(docs)} documents with {max_concurrency} concurrent workers"
         )
         return result
