@@ -392,13 +392,13 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
     
     additional_code_elements = []
     if use_coarse_recall_returned_elements and mode != "precise":
-        subdirs_or_files = []
+        extended_subdirs_or_files = []
         additional_code_elements = strategy_result.elements 
     elements, llm_results = await llm_method(
         prompt=primary_prompt,
         target_type=granularity,
         subdirs_or_files=extended_subdirs_or_files,
-        additional_code_elements = additional_code_elements,
+        additional_code_elements=additional_code_elements,
         llm_call_mode=settings.llm_call_mode,
         model_id=settings.llm_primary_recall_model_id,
     )

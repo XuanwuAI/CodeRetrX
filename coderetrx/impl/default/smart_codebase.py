@@ -446,7 +446,6 @@ class SmartCodebase(SmartCodebaseBase):
         max_batch_size = self.settings.llm_mapfilter_max_batch_size
 
         for element in elements:
-            content_length = 0
             if isinstance(element, Symbol):
                 content_length = len(element.chunk.code())
             elif isinstance(element, File):
