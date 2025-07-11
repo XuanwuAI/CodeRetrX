@@ -1,13 +1,7 @@
 from typing import Literal
-
 from dotenv import load_dotenv
-
 from coderetrx.retrieval import LLMCallMode
-
 load_dotenv()
-
-import os
-
 import asyncio
 import json
 from pathlib import Path
@@ -15,12 +9,10 @@ from coderetrx.impl.default import CodebaseFactory, TopicExtractor
 from coderetrx.retrieval import coderetrx_filter, llm_traversal_filter
 from coderetrx.retrieval.code_recall import CodeRecallSettings
 from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
-from coderetrx.utils.path import get_cache_dir, get_data_dir
+from coderetrx.utils.path import get_data_dir
 from coderetrx.utils.llm import llm_settings
 from coderetrx.utils.cost_tracking import calc_llm_costs, calc_input_tokens, calc_output_tokens
 import logging
-import chromadb
-from coderetrx.utils import embedding
 import datetime
 import argparse
 import sys
@@ -30,71 +22,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class CodeRetriever:
-    def __init__(self, repo_url: str, mode: Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"] = "line", use_function_call: bool = False):
-        """
-        Initialize the code finder with a repository URL
-        
-        Args:
-            repo_url: The repository URL to analyze
-            mode: Analysis mode - "filename", "symbol", "line", "dependency", "auto", "precise", "custom"
-                - filename: Uses filename filtering only
-                - symbol: Uses adaptive symbol vector filtering
-                - line: Uses intelligent line-level vector recall and LLM judgment
-                - dependency: Uses dependency analysis to find related code
-                - auto: Uses LLM to determine the best strategy based on the prompt
-                - precise: Uses full LLM processing (slowest but comprehensive)
-            use_function_call: Whether to use function call mode (default: False)
-        """
+    def __init__(self, repo_url: str, mode: Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"] = "line", use_function_call: bool = True):
         self.repo_url = repo_url
         self.repo_path = get_data_dir() / "repos" / get_repo_id(repo_url)
         self.topic_extractor = TopicExtractor()
         self.mode: Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"] = self._validate_mode(mode)
         self.use_function_call = use_function_call
-        self.setup_environment()
 
     def _validate_mode(self, mode: Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"]) -> Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"]:
-        """Validate and return the mode parameter"""
         valid_modes = ["filename", "symbol", "line", "dependency", "auto", "precise", "custom"]
         if mode not in valid_modes:
             logger.warning(f"Invalid mode '{mode}'. Valid modes are: {valid_modes}. Defaulting to 'line'.")
             return "line"
         return mode
-
-    def setup_environment(self):
-        """Setup the necessary environment for code finding"""
-        if os.environ.get("DISABLE_LLM_CACHE", "").lower() == "true":
-            del os.environ["DISABLE_LLM_CACHE"]
-        
-        os.environ["KEYWORD_EMBEDDING"] = "true"
-        os.environ["SYMBOL_NAME_EMBEDDING"] = "true"
-        os.environ["SYMBOL_CONTENT_EMBEDDING"] = "true"
-        os.environ["SYMBOL_CODELINE_EMBEDDING"] = "true"
-        
-        cache_root = get_cache_dir() 
-        chroma_dir = cache_root / "chroma"
-        chroma_dir.mkdir(parents=True, exist_ok=True)
-        embedding.chromadb_client = chromadb.PersistentClient(path=str(chroma_dir))
-        
-        llm_cache_dir = cache_root / "llm"
-        llm_cache_dir.mkdir(parents=True, exist_ok=True)
-
-    def _get_mode_description(self) -> str:
-        """Get description for the current mode"""
-        descriptions = {
-            "filename": "Uses filename filtering only (fastest, least accurate)",
-            "symbol": "Uses adaptive symbol vector filtering (balanced speed/accuracy)",
-            "line": "Uses intelligent filtering with line-level vector recall and LLM judgment (most accurate)",
-            "dependency": "Uses dependency analysis to find related code (dependent on libraries)",
-            "auto": "Uses LLM to determine the best strategy based on the prompt",
-            "precise": "Uses full LLM processing (most accurate but slowest)",
-            "custom": "Uses custom strategies"
-        }
-        return descriptions.get(self.mode, f"Unknown mode: {self.mode}")
-
-    def _get_key_extraction_mode(self) -> str:
-        """Get the key extraction mode from environment variable"""
-        use_sentence_extraction = os.environ.get("KEYWORD_SENTENCE_EXTRACTION", "false").lower() == "true"
-        return "sentence" if use_sentence_extraction else "word"
 
     def generate_prompts(self, limit: int = 10) -> list[str]:
         all_prompts = []
@@ -136,10 +76,10 @@ class CodeRetriever:
         """Find potential codes in the codebase using the specified mode"""
         start_time = time.time()
         timing_info = {
-            "total_duration": 0,
-            "preparation_duration": 0,
+            "total_duration": 0.0,
+            "preparation_duration": 0.0,
             "prompt_durations": [],
-            "average_prompt_duration": 0
+            "average_prompt_duration": 0.0
         }
         cost_info = {
             "total_cost": 0.0,
@@ -156,35 +96,31 @@ class CodeRetriever:
         
         code_prompts = self.generate_prompts(limit)
         all_codes = []
-        
+
         # Determine function call mode based on the use_function_call parameter
         llm_call_mode: LLMCallMode = "function_call" if self.use_function_call else "traditional"
-        
+
         print(f"\nUsing mode: {self.mode}")
-        print(f"Mode description: {self._get_mode_description()}")
-        print(f"Function call mode: {llm_call_mode}")
-        print(f"Key extraction mode: {self._get_key_extraction_mode()}")
         print(f"Preparation time: {timing_info['preparation_duration']:.2f} seconds")
         
         for prompt in code_prompts:
             print(f"\n{'='*80}")
             print(f"Searching for codes with prompt: {prompt}")
-            print(f"Mode: {self.mode}")
             print(f"{'='*80}")
-            logger.info(f"Searching for codes with prompt: {prompt} (mode: {self.mode})")
+            logger.debug(f"Searching for codes with prompt: {prompt} (mode: {self.mode})")
             
             prompt_start_time = time.time()
             
             # Track cost before this prompt
             log_path = llm_settings.get_json_log_path()
-            if log_path.exists():
-                initial_cost = await calc_llm_costs(log_path)
-                initial_input_tokens = calc_input_tokens(log_path)
-                initial_output_tokens = calc_output_tokens(log_path)
-            else:
-                initial_cost = 0.0
-                initial_input_tokens = 0
-                initial_output_tokens = 0
+            # Ensure log file exists by creating initial entry
+            if not log_path.exists():
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                log_path.touch()
+                
+            initial_cost = await calc_llm_costs(log_path)
+            initial_input_tokens = calc_input_tokens(log_path)
+            initial_output_tokens = calc_output_tokens(log_path)
             
             result = []
             llm_output = []
@@ -342,7 +278,6 @@ class CodeRetriever:
         return all_codes, timing_info, cost_info
 
     async def save_results(self, codes: list[dict], timing_info: dict, cost_info: dict, output_file: str = "code_report.json"):
-        """Save the code finding results to a JSON file"""
         # Create code_reports/{repo_name} directory if it doesn't exist
         repo_id = get_repo_id(self.repo_url)
         code_report_dir = Path("code_reports") / repo_id
@@ -353,7 +288,6 @@ class CodeRetriever:
             output_file = code_report_dir / output_file
         
         def make_serializable(obj, seen=None):
-            """Convert objects to JSON-serializable format"""
             if seen is None:
                 seen = set()
             
@@ -464,10 +398,6 @@ Available modes:
   auto       - Uses LLM to determine the best strategy based on the prompt
   precise    - Uses full LLM processing (most accurate but slowest)
   custom     - Uses custom strategies
-
-Function call modes:
-  traditional     - Traditional mode (default)
-  function_calling - Use function call mode (enabled with --use_function_call)
         """
     )
     
@@ -487,12 +417,6 @@ Function call modes:
     )
     
     parser.add_argument(
-        "--output", "-o",
-        type=str,
-        help="Output file name (default: code_report_{mode}.json)"
-    )
-    
-    parser.add_argument(
         "--subdirs", "-s",
         nargs="+",
         default=["/"],
@@ -505,24 +429,6 @@ Function call modes:
         default=10,
         help="Number of prompts to test (default: 10)"
     )
-    
-    parser.add_argument(
-        "--use_function_call", "-f",
-        action="store_true",
-        help="Use function call mode instead of traditional mode (default: False)"
-    )
-    
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose logging"
-    )
-
-    parser.add_argument(
-        "--test", "-t",
-        action="store_true",
-        help="Clear cache to run tests precisely (default: False)"
-    )
 
     parser.add_argument(
         "--sec",
@@ -533,62 +439,25 @@ Function call modes:
     return parser.parse_args()
 
 async def main():
-    """Main function with command line argument support"""
     args = parse_arguments()
-
-    if args.test:
-        # Clear cache for testing
-        cache_root = Path(__file__).parent.parent / ".cache"
-        chroma_dir = cache_root / "chroma"
-        if chroma_dir.exists():
-            import shutil
-            shutil.rmtree(chroma_dir)
-            print(f"Cleared ChromaDB cache at {chroma_dir}")
-
-        llm_cache_dir = cache_root / "llm"
-        if llm_cache_dir.exists():
-            import shutil
-            shutil.rmtree(llm_cache_dir)
-            print(f"Cleared LLM cache at {llm_cache_dir}")
-
-    if args.verbose:
-        logging.basicConfig(level=logging.INFO, force=True)
-        logger.setLevel(logging.INFO)
     
     print(f"code Finder - Repository Analysis")
     print(f"Repository: {args.repo}")
     print(f"Mode: {args.mode}")
-    print(f"Function Call: {args.use_function_call}")
-    
-    # Create a temporary code_finder instance to get key extraction mode
-    temp_code_finder = CodeRetriever(args.repo, mode=args.mode, use_function_call=args.use_function_call)
-    key_extraction_mode = temp_code_finder._get_key_extraction_mode()
-    print(f"Key Extraction: {key_extraction_mode}")
-    
     print(f"Subdirectories: {args.subdirs}")
-    if args.output:
-        print(f"Output file: {args.output}")
-    
     print("-" * 60)
     
     try:
         # Run the code finder
-        code_finder = CodeRetriever(args.repo, mode=args.mode, use_function_call=args.use_function_call)
+        code_finder = CodeRetriever(args.repo, mode=args.mode)
         
         codes, timing_info, cost_info = await code_finder.find_codes(subdirs=args.subdirs, enable_secondary_recall=args.sec, limit=args.limit)
-        
-        # Set default output file if not specified
-        if not args.output:
-            key_extraction_mode = code_finder._get_key_extraction_mode()
-            
-            # Determine secondary recall suffix based on --sec flag
-            secondary_recall_suffix = "_sec" if args.sec else "_pri"
-            
-            default_filename = f"code_report_{args.limit}_{args.mode}_{key_extraction_mode}_{args.use_function_call}{secondary_recall_suffix}.json"
-            output_file = default_filename
-        else:
-            output_file = args.output
-            
+
+        # Determine secondary recall suffix based on --sec flag
+        secondary_recall_suffix = "sec" if args.sec else "pri"
+
+        output_file = f"code_report_{args.limit}_{args.mode}_{secondary_recall_suffix}.json"
+
         await code_finder.save_results(codes, timing_info, cost_info, output_file)
         
         print(f"\n" + "="*60)
@@ -619,9 +488,6 @@ async def main():
         sys.exit(1)
     except Exception as e:
         print(f"\nError during analysis: {e}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
         sys.exit(1)
 
 if __name__ == "__main__":
