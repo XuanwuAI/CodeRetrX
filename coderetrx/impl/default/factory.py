@@ -127,7 +127,7 @@ class CodebaseFactory:
                             f"Collecting lines for symbol {symbol.id}"
                         )
                         lines = symbol.chunk.code().split("\n")
-                        lines= [line.strip() for line in lines if line.strip()]  # Remove empty lines
+                        lines = [line.strip() for line in lines if line.strip()]  # Remove empty lines
                         lines = [line for line in lines if len(line) > 2]  # Remove lines that are too short
                         lines = list(set(lines))  # Remove duplicates
                         for line in lines:

@@ -161,7 +161,7 @@ class SimilaritySearcher:
             )
             use_cache = False
 
-        self.langchian_chroma_client = Chroma(
+        self.langchain_chroma_client = Chroma(
             client=chromadb_client,
             collection_name=name,
             embedding_function=cached_embedder,
@@ -189,7 +189,7 @@ class SimilaritySearcher:
                     }
                     if metadata_batch:
                         add_kwargs["metadatas"] = metadata_batch
-                    self.langchian_chroma_client.add_texts(**add_kwargs)
+                    self.langchain_chroma_client.add_texts(**add_kwargs)
 
     def _add_texts_with_embeddings(
         self, texts: List[str], embeddings: List[List[float]], metadatas: Optional[List[dict]] = None
@@ -209,7 +209,7 @@ class SimilaritySearcher:
         if metadatas:
             add_kwargs["metadatas"] = metadatas
         
-        self.langchian_chroma_client.add_texts(**add_kwargs)
+        self.langchain_chroma_client.add_texts(**add_kwargs)
     @retry(
     stop=stop_after_attempt(5),  # Retry up to 5 times
     wait=wait_exponential(
@@ -234,11 +234,11 @@ class SimilaritySearcher:
         )
         if where:
             logger.debug(f"Applying filter: {where}")
-            results = await self.langchian_chroma_client.asimilarity_search_with_relevance_scores(
+            results = await self.langchain_chroma_client.asimilarity_search_with_relevance_scores(
                 query = query, filter=where, k=k, score_threshold=threshold
             )
         else:
-            results = await self.langchian_chroma_client.asimilarity_search_with_relevance_scores(query=query, k=k, score_threshold=threshold)
+            results = await self.langchain_chroma_client.asimilarity_search_with_relevance_scores(query=query, k=k, score_threshold=threshold)
         results = list(map(lambda x: (x[0].page_content, x[1]), results))
         return results
     @retry(
@@ -267,11 +267,11 @@ class SimilaritySearcher:
         try: 
             if where:
                 logger.debug(f"Applying filter: {where}")
-                docs = await self.langchian_chroma_client.asimilarity_search_by_vector(
+                docs = await self.langchain_chroma_client.asimilarity_search_by_vector(
                     embedding=query_vector, filter=where, k=k
                 )
             else:
-                docs = await self.langchian_chroma_client.asimilarity_search_by_vector(embedding=query_vector, k=k)
+                docs = await self.langchain_chroma_client.asimilarity_search_by_vector(embedding=query_vector, k=k)
         except Exception as e:
             logger.error(f"Error during similarity search: {repr(e)}")
             raise

@@ -436,6 +436,12 @@ Available modes:
         help="Enable secondary recall (default: False)"
     )
 
+    parser.add_argument(
+        "--use-function-call", "-f",
+        action="store_true",
+        help="Use function call (default: False, uses traditional LLM calls)"
+    )
+
     return parser.parse_args()
 
 async def main():
@@ -449,7 +455,7 @@ async def main():
     
     try:
         # Run the code finder
-        code_finder = CodeRetriever(args.repo, mode=args.mode)
+        code_finder = CodeRetriever(args.repo, mode=args.mode, use_function_call=args.use_function_call)
         
         codes, timing_info, cost_info = await code_finder.find_codes(subdirs=args.subdirs, enable_secondary_recall=args.sec, limit=args.limit)
 
@@ -460,11 +466,11 @@ async def main():
 
         await code_finder.save_results(codes, timing_info, cost_info, output_file)
         
-        print(f"\n" + "="*60)
+        print(f"\n" + "=" * 60)
         print(f"code analysis completed!")
         print(f"Found {len(codes)} different types of potential issues")
         print(f"Results saved to {output_file}")
-        print(f"="*60)
+        print(f"=" * 60)
         
         # Display summary
         if codes:
