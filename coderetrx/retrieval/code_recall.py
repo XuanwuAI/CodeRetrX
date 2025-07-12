@@ -430,7 +430,11 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
     ]:
         extended_subdirs_or_files = []
         additional_code_elements = strategy_result.elements
-    if not extend_coarse_recall_element_to_file and coarse_recall_strategy == "symbol_content":
+    if (
+        not extend_coarse_recall_element_to_file
+        and coarse_recall_strategy == "symbol_content"
+        and target_type in ["symbol_content", "function_content", "class_content"]
+    ):
         elements = strategy_result.elements
         llm_results = strategy_result.llm_results
     else:
