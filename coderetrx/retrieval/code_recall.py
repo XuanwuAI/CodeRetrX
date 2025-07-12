@@ -265,7 +265,7 @@ async def _multi_strategy_code_recall(
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
-    use_coarse_recall_returned_elements = True,
+    use_coarse_recall_returned_elements = False,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     """
     Process code elements based on the specified prompt and mode.
@@ -456,7 +456,7 @@ async def coderetrx_mapping(
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
-    use_coarse_recall_returned_elements: bool = True,
+    use_coarse_recall_returned_elements: bool = False,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     return await _multi_strategy_code_recall(
         codebase,
@@ -505,7 +505,7 @@ async def coderetrx_filter(
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
-    use_coarse_recall_returned_elements: bool = True,
+    use_coarse_recall_returned_elements: bool = False,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     return await _multi_strategy_code_recall(
         codebase,
