@@ -49,18 +49,18 @@ logger = logging.getLogger(__name__)
 class RecallStrategy(Enum):
     FILTER_FILENAME_BY_LLM = "filter_filename_by_llm"
     FILTER_KEYWORD_BY_VECTOR = "filter_keywords_by_vector"
-    FILTER_SYMBOL_BY_VECTOR = "filter_symbol_by_vector"
-    FILTER_SYMBOL_BY_LLM = "filter_symbol_by_llm"
+    FILTER_SYMBOL_CONTENT_BY_VECTOR = "filter_symbol_by_vector"
+    FILTER_SYMBOL_NAME_BY_LLM = "filter_symbol_by_llm"
     FILTER_DEPENDENCY_BY_LLM = "filter_dependency_by_llm"
     FILTER_KEYWORD_BY_VECTOR_AND_LLM = "filter_keyword_by_vector_and_llm"
-    FILTER_SYMBOL_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
+    FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
     ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = (
         "adaptive_filter_keyword_by_vector_and_llm"
     )
-    ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM = (
+    ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM = (
         "adaptive_filter_symbol_by_vector_and_llm"
     )
-    FILTER_TOPK_LINE_BY_VECTOR_AND_LLM = "intelligent_filter"
+    FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM = "intelligent_filter"
 
 
 class StrategyExecuteResult(BaseModel):
@@ -179,7 +179,7 @@ class RecallStrategyExecutor(ABC):
 
     @abstractmethod
     async def execute(
-        self, codebase: Any, prompt: str, subdirs_or_files: List[str]
+        self, codebase: Any, prompt: str, subdirs_or_files: List[str], target_type: str = "symbol_content"
     ) -> StrategyExecuteResult:
         """
         Execute the recall strategy.
@@ -188,6 +188,7 @@ class RecallStrategyExecutor(ABC):
             codebase: The codebase to search in
             prompt: The prompt for filtering or mapping
             subdirs_or_files: List of subdirectories or files to process
+            target_type: The target_type level for retrieval (default: "symbol_content")
 
         Returns:
             StrategyExecuteResult containing file_paths, elements, and llm_results
@@ -216,10 +217,10 @@ class FilterByLLMStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar], A
         pass
 
     async def execute(
-        self, codebase: Codebase, prompt: str, subdirs_or_files: List[str]
+        self, codebase: Codebase, prompt: str, subdirs_or_files: List[str], target_type: str = "symbol_content"
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
-        logger.info(f"Using {strategy_name} strategy")
+        logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
         try:
             elements, llm_results = await codebase.llm_filter(
                 prompt,
@@ -271,9 +272,10 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar]
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
+        target_type: str = "symbol_content",
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
-        logger.info(f"Using {strategy_name} strategy")
+        logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (
@@ -355,6 +357,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     def filter_elements(
         self,
         elements: List[Any],
+        target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
         codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:
@@ -386,9 +389,10 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
+        target_type: str = "symbol_content",
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
-        logger.info(f"Using {strategy_name} strategy")
+        logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (
@@ -527,6 +531,7 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     def filter_elements(
         self,
         elements: List[Any],
+        target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
         codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:
@@ -702,9 +707,10 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
+        target_type: str = "symbol_content",
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
-        logger.info(f"Using {strategy_name} strategy")
+        logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (

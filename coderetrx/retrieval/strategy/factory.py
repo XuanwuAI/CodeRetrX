@@ -11,27 +11,27 @@ from coderetrx.retrieval.strategy.filter_filename_by_llm import (
 from coderetrx.retrieval.strategy.filter_keyword_by_vector import (
     FilterKeywordByVectorStrategy,
 )
-from coderetrx.retrieval.strategy.filter_symbol_by_vector import (
-    FilterSymbolByVectorStrategy,
+from coderetrx.retrieval.strategy.filter_symbol_content_by_vector import (
+    FilterSymbolContentByVectorStrategy,
 )
-from coderetrx.retrieval.strategy.filter_symbol_by_llm import FilterSymbolByLLMStrategy
+from coderetrx.retrieval.strategy.filter_symbol_name_by_llm import FilterSymbolNameByLLMStrategy
 from coderetrx.retrieval.strategy.filter_dependency_by_llm import (
     FilterDependencyByLLMStrategy,
 )
 from coderetrx.retrieval.strategy.filter_keyword_by_vector_and_llm import (
     FilterKeywordByVectorAndLLMStrategy,
 )
-from coderetrx.retrieval.strategy.filter_symbol_by_vector_and_llm import (
-    FilterSymbolByVectorAndLLMStrategy,
+from coderetrx.retrieval.strategy.filter_symbol_content_by_vector_and_llm import (
+    FilterSymbolContentByVectorAndLLMStrategy,
 )
-from coderetrx.retrieval.strategy.adaptive_filter_symbol_by_vector_and_llm import (
-    AdaptiveFilterSymbolByVectorAndLLMStrategy,
+from coderetrx.retrieval.strategy.adaptive_filter_symbol_content_by_vector_and_llm import (
+    AdaptiveFilterSymbolContentByVectorAndLLMStrategy,
 )
 from coderetrx.retrieval.strategy.adaptive_filter_keyword_by_vector_and_llm import (
     AdaptiveFilterKeywordByVectorAndLLMStrategy,
 )
-from coderetrx.retrieval.strategy.filter_topk_line_by_vector_and_llm import (
-    FilterTopkLineByVectorAndLLMStrategy,
+from coderetrx.retrieval.strategy.filter_line_per_symbol_by_vector_and_llm import (
+    FilterLinePerSymbolByVectorAndLLMStrategy,
 )
 
 
@@ -51,14 +51,14 @@ class StrategyFactory:
         strategy_map = {
             RecallStrategy.FILTER_FILENAME_BY_LLM: FilterFilenameByLLMStrategy,
             RecallStrategy.FILTER_KEYWORD_BY_VECTOR: FilterKeywordByVectorStrategy,
-            RecallStrategy.FILTER_SYMBOL_BY_VECTOR: FilterSymbolByVectorStrategy,
-            RecallStrategy.FILTER_SYMBOL_BY_LLM: FilterSymbolByLLMStrategy,
+            RecallStrategy.FILTER_SYMBOL_CONTENT_BY_VECTOR: FilterSymbolContentByVectorStrategy,
+            RecallStrategy.FILTER_SYMBOL_NAME_BY_LLM: FilterSymbolNameByLLMStrategy,
             RecallStrategy.FILTER_DEPENDENCY_BY_LLM: FilterDependencyByLLMStrategy,
             RecallStrategy.FILTER_KEYWORD_BY_VECTOR_AND_LLM: FilterKeywordByVectorAndLLMStrategy,
-            RecallStrategy.FILTER_SYMBOL_BY_VECTOR_AND_LLM: FilterSymbolByVectorAndLLMStrategy,
+            RecallStrategy.FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM: FilterSymbolContentByVectorAndLLMStrategy,
             RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM: AdaptiveFilterKeywordByVectorAndLLMStrategy,
-            RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM: AdaptiveFilterSymbolByVectorAndLLMStrategy,
-            RecallStrategy.FILTER_TOPK_LINE_BY_VECTOR_AND_LLM: FilterTopkLineByVectorAndLLMStrategy,
+            RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM: AdaptiveFilterSymbolContentByVectorAndLLMStrategy,
+            RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM: FilterLinePerSymbolByVectorAndLLMStrategy,
         }
 
         if strategy not in strategy_map:

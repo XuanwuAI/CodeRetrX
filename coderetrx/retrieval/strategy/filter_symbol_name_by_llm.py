@@ -8,10 +8,10 @@ from ..smart_codebase import SmartCodebase as Codebase, LLMMapFilterTargetType
 from coderetrx.static import Symbol
 
 
-class FilterSymbolByLLMStrategy(FilterByLLMStrategy[Symbol]):
+class FilterSymbolNameByLLMStrategy(FilterByLLMStrategy[Symbol]):
     """Strategy to filter symbols using LLM."""
 
-    name: str = "FILTER_SYMBOL_BY_LLM"
+    name: str = "FILTER_SYMBOL_NAME_BY_LLM"
 
     @override
     def get_strategy_name(self) -> str:

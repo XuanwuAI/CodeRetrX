@@ -1,4 +1,5 @@
 from attrs import define
+from collections import defaultdict
 from pathlib import Path
 from pydantic import Field
 
@@ -119,7 +120,10 @@ class CodebaseFactory:
             # Collect all lines from all symbols with metadata
             all_lines = []
             all_metadatas = []
-            
+            parent_of_symbol = {symbol.id: symbol.chunk.parent.id for symbol in codebase.symbols if symbol.chunk.parent}
+            childs_of_symbol = defaultdict(list)
+            for child, parent in parent_of_symbol.items():
+                childs_of_symbol[parent].append(child)
             for symbol in codebase.symbols:
                 if symbol.chunk:
                     try:
@@ -132,7 +136,10 @@ class CodebaseFactory:
                         lines = list(set(lines))  # Remove duplicates
                         for line in lines:
                             all_lines.append(line)
-                            all_metadatas.append({"symbol_id": symbol.id})
+                            all_metadatas.append({"symbol_id": symbol.id,
+                                                  "parent_id": parent_of_symbol.get(symbol.id, None),
+                                                  "child_ids": childs_of_symbol.get(symbol.id, []),
+                                                  "file_path": str(symbol.file.path)})
                         
                         logger.debug(
                             f"Collected {len(lines)} lines for symbol {symbol.id}"
@@ -146,7 +153,7 @@ class CodebaseFactory:
             if all_lines:
                 try:
                     logger.info(f"Creating unified codeline searcher with {len(all_lines)} total lines")
-                    codebase.symbol_codeline_searcher = SimilaritySearcher(
+                    codebase.codeline_searcher = SimilaritySearcher(
                         f"{codebase.id}_symbol_codelines",
                         all_lines,
                         metadatas=all_metadatas

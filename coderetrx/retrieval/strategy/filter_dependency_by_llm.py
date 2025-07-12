@@ -34,7 +34,7 @@ class FilterDependencyByLLMStrategy(FilterByLLMStrategy[Dependency]):
 
     @override
     async def execute(
-        self, codebase: Codebase, prompt: str, subdirs_or_files: List[str]
+        self, codebase: Codebase, prompt: str, subdirs_or_files: List[str], target_type: str = "symbol_content"
     ) -> StrategyExecuteResult:
         enhanced_prompt = f"""
         A dependency that matches the following criteria is highly likely to be relevant:
@@ -47,4 +47,4 @@ class FilterDependencyByLLMStrategy(FilterByLLMStrategy[Dependency]):
         Focus on dependency names, package names, module names, and library names that are relevant to the criteria.
         </note>
         """
-        return await super().execute(codebase, enhanced_prompt, subdirs_or_files)
+        return await super().execute(codebase, enhanced_prompt, subdirs_or_files, target_type)
