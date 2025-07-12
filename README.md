@@ -69,9 +69,10 @@ CodeRetrX provides a powerful programmatic interface through the `coderetrx_filt
 
 The core API combines multiple search strategies with two-stage filtering to balance recall and precision:
 
-#### Using coderetrx_filter (Fast & Efficient)
+The coderetrx_filter implmented stragties designed by us. It offers a cost-effective semantic recall approach for large-scale repositories, achieving approximately 80% recall with only about 20% of the resource consumption in practical tests(line_per_symbol strategy) — the larger the repository, the greater the savings.
 
-The `coderetrx_filter` function provides fast, efficient code retrieval with configurable search strategies:
+#### Using coderetrx_filter with symbol_name strategy 
+
 
 ```python
 from coderetrx.retrieval import coderetrx_filter
@@ -85,7 +86,7 @@ elements, llm_results = await coderetrx_filter(
     codebase=codebase,
     prompt="your_filter_prompt",
     subdirs_or_files=["src/"],
-    granularity="symbol_content",
+    target_type="symbol_content",
     coarse_recall_strategy="symbol_name"
 )
 
@@ -94,9 +95,7 @@ for element in elements:
     print(f"Found: {element.name} in {element.file.path}")
 ```
 
-**Using coderetrx_filter:**
-
-The coderetrx_filter implmented stragties designed by us. It offers a cost-effective semantic recall approach for large-scale repositories, achieving approximately 80% recall with only about 20% of the resource consumption in practical tests — the larger the repository, the greater the savings.
+**Using coderetrx_filter with line_per_symbol strategy**
 
 ```python
 from coderetrx.retrieval import coderetrx_filter
@@ -113,7 +112,7 @@ elements, llm_results = await coderetrx_filter(
     codebase=codebase,
     prompt="your_filter_prompt", 
     subdirs_or_files=["src/", "lib/"],
-    granularity="symbol_content",
+    target_type="symbol_content",
     coarse_recall_strategy="line_per_symbol",
     settings=settings,
     enable_secondary_recall=True
@@ -131,7 +130,7 @@ elements, llm_results = await llm_traversal_filter(
     codebase=codebase,
     prompt="your_filter_prompt",
     subdirs_or_files=["src/", "lib/"],
-    granularity="symbol_content",
+    target——type="symbol_content",
     settings=settings
 )
 ```
@@ -145,7 +144,7 @@ elements, llm_results = await llm_traversal_filter(
 
 #### Granularity Options
 
-Granularity defines the retrieval target, determining the type of code object to be recalled and returned. For example, if the granularity is set to class_content, the result will include the full content of the relevant classes. Below are the available granularity options:
+Granularity defines the retrieval target, determining the type of code object to be recalled and returned. For example, if the target_type is set to class_content, the result will include the full content of the relevant classes. Below are the available target_type options:
 
 - **`symbol_content`**: Symbol code content (functions, classes, dependencies)
 - **`class_content`**: Class code content  
