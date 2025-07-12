@@ -680,7 +680,7 @@ class SmartCodebase(SmartCodebaseBase):
         )
         query_vector = (await embed_batch_with_retry([query]))[0]
 
-        if scope == "symbo":
+        if scope == "symbol":
             symbols = self.symbols
         if scope == "top_level_symbol":
             # search only on top-level symbols (those without a parent chunk)
