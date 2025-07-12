@@ -16,10 +16,10 @@ from ..smart_codebase import (
 from coderetrx.static import Keyword, Symbol, File
 
 
-class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStrategy):
+class AdaptiveFilterSymbolContentByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStrategy):
     """Strategy to filter symbols using adaptive vector similarity search followed by LLM refinement."""
 
-    name: str = "ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM"
+    name: str = "ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM"
 
     @override
     def get_strategy_name(self) -> str:
@@ -27,11 +27,11 @@ class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStr
 
     @override
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
-        return ["symbol_name"]
+        return ["symbol_content"]
 
     @override
     def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
-        return "symbol_name"
+        return "symbol_content"
 
     @override
     def get_collection_size(self, codebase: Codebase) -> int:
@@ -41,21 +41,33 @@ class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStr
     def filter_elements(
         self,
         elements: List[Any],
+        target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
         codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:
-        symbol_elements: List[Union[Keyword, Symbol, File]] = []
+        filtered_symbols: List[Union[Keyword, Symbol, File]] = []
         for element in elements:
-            if isinstance(element, Symbol):
+            if not isinstance(element, Symbol):
+                continue
                 # If subdirs_or_files is provided and codebase is available, filter by subdirs
-                if subdirs_or_files and codebase:
-                    # Get the relative path from the codebase directory
-                    rpath = str(element.file.path)
-                    if any(rpath.startswith(subdir) for subdir in subdirs_or_files):
-                        symbol_elements.append(element)
-                else:
-                    symbol_elements.append(element)
-        return symbol_elements
+            if subdirs_or_files and codebase:
+                # Get the relative path from the codebase directory
+                rpath = str(element.file.path)
+                if any(rpath.startswith(subdir) for subdir in subdirs_or_files):
+                    filtered_symbols.append(element)
+            else:
+                filtered_symbols.append(element)
+        if target_type == "class_content":
+            # If the target type is class_content, filter symbols that are classes
+            filtered_symbols = [
+                elem for elem in filtered_symbols if elem.type == "class"
+            ]
+        elif target_type == "function_content":
+            # If the target type is function_content, filter symbols that are functions
+            filtered_symbols = [
+                elem for elem in filtered_symbols if elem.type == "function"
+            ]
+        return filtered_symbols
 
     @override
     def collect_file_paths(

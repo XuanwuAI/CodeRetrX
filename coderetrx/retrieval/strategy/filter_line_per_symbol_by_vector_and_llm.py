@@ -31,6 +31,7 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
     """
 
     llm_call_mode: LLMCallMode
+    name = "FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM"
 
     def __init__(
         self,

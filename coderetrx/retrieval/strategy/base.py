@@ -49,15 +49,15 @@ logger = logging.getLogger(__name__)
 class RecallStrategy(Enum):
     FILTER_FILENAME_BY_LLM = "filter_filename_by_llm"
     FILTER_KEYWORD_BY_VECTOR = "filter_keywords_by_vector"
-    FILTER_SYMBOL_BY_VECTOR = "filter_symbol_by_vector"
-    FILTER_SYMBOL_BY_LLM = "filter_symbol_by_llm"
+    FILTER_SYMBOL_CONTENT_BY_VECTOR = "filter_symbol_by_vector"
+    FILTER_SYMBOL_NAME_BY_LLM = "filter_symbol_by_llm"
     FILTER_DEPENDENCY_BY_LLM = "filter_dependency_by_llm"
     FILTER_KEYWORD_BY_VECTOR_AND_LLM = "filter_keyword_by_vector_and_llm"
-    FILTER_SYMBOL_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
+    FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
     ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = (
         "adaptive_filter_keyword_by_vector_and_llm"
     )
-    ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM = (
+    ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM = (
         "adaptive_filter_symbol_by_vector_and_llm"
     )
     FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM = "intelligent_filter"
@@ -357,6 +357,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     def filter_elements(
         self,
         elements: List[Any],
+        target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
         codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:
@@ -530,6 +531,7 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     def filter_elements(
         self,
         elements: List[Any],
+        target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
         codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:

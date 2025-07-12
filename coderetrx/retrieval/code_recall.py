@@ -49,6 +49,7 @@ class CodeRecallSettings(BaseSettings):
 CoarseRecallStrategyType = Literal[
     "file_name",
     "symbol_name",
+    "symbol_content",
     "line_per_symbol",
     "dependency",
     "auto",
@@ -187,7 +188,7 @@ IMPORTANT: Try to select only ONE element type if possible. Only select multiple
             elif element_type == "LINE_PER_SYMBOL":
                 strategies.append(RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM)
             elif element_type == "SYMBOL_NAME":
-                strategies.append(RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM)
+                strategies.append(RecallStrategy.FILTER_SYMBOL_NAME_BY_LLM)
             elif element_type == "DEPENDENCY":
                 strategies.append(RecallStrategy.FILTER_DEPENDENCY_BY_LLM)
             else:
@@ -195,13 +196,13 @@ IMPORTANT: Try to select only ONE element type if possible. Only select multiple
         
         if not strategies:
             logger.warning(f"No valid strategies determined. Defaulting to SYMBOL recall")
-            return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM]
+            return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM]
         
         return strategies
             
     except Exception as e:
         logger.error(f"Error determining strategy by LLM: {e}. Defaulting to SYMBOL recall")
-        return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM]
+        return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM]
 
 
 
@@ -312,9 +313,11 @@ async def _multi_strategy_code_recall(
     if coarse_recall_strategy == "file_name":
         strategies_to_run = [RecallStrategy.FILTER_FILENAME_BY_LLM]
     elif coarse_recall_strategy == "symbol_name":
-        strategies_to_run = [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM]
+        strategies_to_run = [RecallStrategy.FILTER_SYMBOL_NAME_BY_LLM]
     elif coarse_recall_strategy == "line_per_symbol":
         strategies_to_run = [RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM]
+    elif coarse_recall_strategy == "symbol_content":
+        strategies_to_run = [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM]
     elif coarse_recall_strategy == "dependency":
         strategies_to_run = [RecallStrategy.FILTER_DEPENDENCY_BY_LLM]
     elif coarse_recall_strategy == "auto":

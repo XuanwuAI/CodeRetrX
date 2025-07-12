@@ -8,10 +8,10 @@ from ..smart_codebase import SmartCodebase as Codebase, SimilaritySearchTargetTy
 from coderetrx.static import Symbol
 
 
-class FilterSymbolByVectorStrategy(FilterByVectorStrategy[Symbol]):
+class FilterSymbolContentByVectorStrategy(FilterByVectorStrategy[Symbol]):
     """Strategy to filter symbols using vector similarity search."""
 
-    name: str = "FILTER_SYMBOL_BY_VECTOR"
+    name: str = "FILTER_SYMBOL_CONTENT_BY_VECTOR"
 
     @override
     def get_strategy_name(self) -> str:
@@ -19,7 +19,7 @@ class FilterSymbolByVectorStrategy(FilterByVectorStrategy[Symbol]):
 
     @override
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
-        return ["symbol_name"]
+        return ["symbol_content"]
 
     @override
     def get_collection_size(self, codebase: Codebase) -> int:

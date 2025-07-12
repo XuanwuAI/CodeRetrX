@@ -19,17 +19,17 @@ from .base import (
 from .factory import StrategyFactory
 
 from .filter_filename_by_llm import FilterFilenameByLLMStrategy
-from .filter_symbol_by_llm import FilterSymbolByLLMStrategy
+from .filter_symbol_name_by_llm import FilterSymbolNameByLLMStrategy
 from .filter_dependency_by_llm import FilterDependencyByLLMStrategy
 from .filter_keyword_by_vector import FilterKeywordByVectorStrategy
-from .filter_symbol_by_vector import FilterSymbolByVectorStrategy
+from .filter_symbol_content_by_vector import FilterSymbolContentByVectorStrategy
 from .filter_keyword_by_vector_and_llm import FilterKeywordByVectorAndLLMStrategy
-from .filter_symbol_by_vector_and_llm import FilterSymbolByVectorAndLLMStrategy
+from .filter_symbol_content_by_vector_and_llm import FilterSymbolContentByVectorAndLLMStrategy
 from .adaptive_filter_keyword_by_vector_and_llm import (
     AdaptiveFilterKeywordByVectorAndLLMStrategy,
 )
-from .adaptive_filter_symbol_by_vector_and_llm import (
-    AdaptiveFilterSymbolByVectorAndLLMStrategy,
+from .adaptive_filter_symbol_content_by_vector_and_llm import (
+    AdaptiveFilterSymbolContentByVectorAndLLMStrategy,
 )
 from .filter_line_per_symbol_by_vector_and_llm import FilterLinePerSymbolByVectorAndLLMStrategy
 
@@ -45,14 +45,14 @@ __all__ = [
     "AdaptiveFilterByVectorAndLLMStrategy",
     # Concrete Strategy Implementations
     "FilterFilenameByLLMStrategy",
-    "FilterSymbolByLLMStrategy",
+    "FilterSymbolNameByLLMStrategy",
     "FilterDependencyByLLMStrategy",
     "FilterKeywordByVectorStrategy",
-    "FilterSymbolByVectorStrategy",
+    "FilterSymbolContentByVectorStrategy",
     "FilterKeywordByVectorAndLLMStrategy",
-    "FilterSymbolByVectorAndLLMStrategy",
+    "FilterSymbolContentByVectorAndLLMStrategy",
     "AdaptiveFilterKeywordByVectorAndLLMStrategy",
-    "AdaptiveFilterSymbolByVectorAndLLMStrategy",
+    "AdaptiveFilterSymbolContentByVectorAndLLMStrategy",
     "FilterLinePerSymbolByVectorAndLLMStrategy",
     # Factory and Utilities
     "StrategyFactory",
