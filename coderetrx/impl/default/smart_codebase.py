@@ -82,6 +82,7 @@ class SmartCodebase(SmartCodebaseBase):
             path = path.lstrip("/")
             if path == "." or path == "./":
                 path = ""
+        return path
 
     def _get_filtered_elements(
         self,
