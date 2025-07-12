@@ -189,13 +189,7 @@ for result in llm_results:
 Get help with available commands:
 
 ```bash
-uv run -m scripts.code_retriever --help
-```
-
-Use the auto strategy
-
-```bash
-uv run -m scripts.code_retriever -f --mode auto
+uv run -m scripts.example
 ```
 
 Analyze and compare results from different strategies:
