@@ -39,6 +39,7 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
     def filter_elements(
         self,
         elements: List[Any],
+        target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
         codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:

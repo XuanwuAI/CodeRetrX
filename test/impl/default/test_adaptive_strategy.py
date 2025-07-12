@@ -113,7 +113,7 @@ class TestAdaptiveVsPreciseMode(unittest.TestCase):
                 prompt=prompt,
                 target_type="symbol_content",
                 mode=mode,
-                custom_strategies=[RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM],
+                custom_strategies=[RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM],
                 topic_extractor=self.topic_extractor,
             )
         return await multi_strategy_code_filter(
