@@ -21,7 +21,7 @@ class FilterSymbolByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
 
     @override
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
-        return ["symbol_name", "symbol_content"]
+        return ["symbol_name"]
 
     @override
     def get_target_type_for_llm(self) -> LLMMapFilterTargetType:

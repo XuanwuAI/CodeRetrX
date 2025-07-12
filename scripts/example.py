@@ -27,13 +27,13 @@ async def main():
     # Initialize code recall settings
     settings = CodeRecallSettings()
     
-    # Set the granularity and coarse recall strategy
+    # Set the target_type and coarse recall strategy
     result, llm_output = await coderetrx_filter(
         codebase=codebase,
         subdirs_or_files=["/"],
         prompt="The code snippet contains a function call that dynamically executes code or system commands. Examples include Python's `eval()`, `exec()`, or functions like `os.system()`, `subprocess.run()` (especially with `shell=True`), `subprocess.call()` (with `shell=True`), or `popen()`. The critical feature is that the string representing the code or command to be executed is not a hardcoded literal; instead, it's derived from a variable, function argument, string concatenation/formatting, or an external source such as user input, network request, or LLM output.",
-        granularity="symbol_content",
-        coarse_recall_strategy="line",
+        target_type="symbol_content",
+        coarse_recall_strategy="line_per_symbol",
         topic_extractor=topic_extractor,
         settings=settings
     )
@@ -43,8 +43,8 @@ async def main():
         codebase=codebase,
         subdirs_or_files=["/"],
         prompt="The code snippet contains a function call that dynamically executes code or system commands. Examples include Python's `eval()`, `exec()`, or functions like `os.system()`, `subprocess.run()` (especially with `shell=True`), `subprocess.call()` (with `shell=True`), or `popen()`. The critical feature is that the string representing the code or command to be executed is not a hardcoded literal; instead, it's derived from a variable, function argument, string concatenation/formatting, or an external source such as user input, network request, or LLM output.",
-        granularity="symbol_content",
-        coarse_recall_strategy="line",
+        target_type="symbol_content",
+        coarse_recall_strategy="line_per_symbol",
         topic_extractor=topic_extractor,
         settings=settings
     )

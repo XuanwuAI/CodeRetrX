@@ -76,6 +76,7 @@ class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMSt
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
+        target_type: str = "symbol_content",
     ) -> StrategyExecuteResult:
         prompt = f"""
         A code chunk containing the specified keywords is highly likely to meet the following criteria:
@@ -87,4 +88,4 @@ class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMSt
         Files with matching keywords will proceed to deeper analysis in the content filter (content_criteria) at a later stage (not in this run). 
         </note>
         """
-        return await super().execute(codebase, prompt, subdirs_or_files)
+        return await super().execute(codebase, prompt, subdirs_or_files, target_type)

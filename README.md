@@ -86,7 +86,7 @@ elements, llm_results = await coderetrx_filter(
     prompt="your_filter_prompt",
     subdirs_or_files=["src/"],
     granularity="symbol_content",
-    coarse_recall_strategy="symbol"
+    coarse_recall_strategy="symbol_name"
 )
 
 # Process results
@@ -106,13 +106,13 @@ settings = CodeRecallSettings(
     llm_secondary_recall_model_id="openai/gpt-4.1-mini"
 )
 
-# Cost-efficient and complete search with line mode and secondary recall
+# Cost-efficient and complete search with line_per_symbol mode and secondary recall
 elements, llm_results = await coderetrx_filter(
     codebase=codebase,
     prompt="your_filter_prompt", 
     subdirs_or_files=["src/", "lib/"],
     granularity="symbol_content",
-    coarse_recall_strategy="line",
+    coarse_recall_strategy="line_per_symbol",
     settings=settings,
     enable_secondary_recall=True
 )
@@ -138,7 +138,7 @@ elements, llm_results = await llm_traversal_filter(
 
 #### Search Strategies
 
-**coderetrx_filter** supports `filename`, `symbol`, `line`, and `auto` strategies for different speed/accuracy tradeoffs. **llm_traversal_filter** uses full LLM processing for maximum accuracy.
+**coderetrx_filter** supports `file_name`, `symbol_name`, `line_per_symbol`, and `auto` strategies for different speed/accuracy tradeoffs. **llm_traversal_filter** uses full LLM processing for maximum accuracy.
 
 [See detailed strategy comparison](#-coarse-recall-strategies)
 
@@ -206,21 +206,21 @@ In the coarse recall stage, multiple strategies are used to efficiently retrieve
 
 ### Available Strategies 
 
-- **`filename`**: The fastest filtering strategy, ideal for coarse recall by directly determining relevance based on filenames. This approach is highly effective for cases where the query can be matched through filenames alone, such as "retrieve all configuration files." Its simplicity makes it extremely efficient for structural queries and file discovery.
+- **`file_name`**: The fastest filtering strategy, ideal for coarse recall by directly determining relevance based on filenames. This approach is highly effective for cases where the query can be matched through filenames alone, such as "retrieve all configuration files." Its simplicity makes it extremely efficient for structural queries and file discovery.
 
-- **`symbol`**: A balanced filtering approach that focuses on symbol names (e.g., function or class names) during coarse recall. This method excels in cases like "retrieve functions implementing cryptographic algorithms," where relevance can be inferred directly from the symbol name. It balances recall and precision for targeted queries at the symbol level.
+- **`symbol_name`**: A balanced filtering approach that focuses on symbol names (e.g., function or class names) during coarse recall. This method excels in cases like "retrieve functions implementing cryptographic algorithms," where relevance can be inferred directly from the symbol name. It balances recall and precision for targeted queries at the symbol level.
 
-- **`line`**: A high-accuracy filtering strategy that leverages line-level vector search combined with LLM analysis. It identifies relevance by focusing on the most relevant code lines (`top-k`) within a function body. This method is particularly effective for complex cases where understanding the function’s implementation is necessary, such as "retrieve code implementing authentication logic." While powerful, it’s also versatile enough to handle most queries effectively. Our benchmarking shows that the algorithm achieves over 80% recall with approximately 20% of the computational cost, making it both precise and efficient.
+- **`line_per_symbol`**: A high-accuracy filtering strategy that leverages line-level vector search combined with LLM analysis. It identifies relevance by focusing on the most relevant code lines (`top-k`) within a function body. This method is particularly effective for complex cases where understanding the function’s implementation is necessary, such as "retrieve code implementing authentication logic." While powerful, it’s also versatile enough to handle most queries effectively. Our benchmarking shows that the algorithm achieves over 80% recall with approximately 20% of the computational cost, making it both precise and efficient.
 
-- **`auto`**: Automatically selects the optimal filtering strategy based on query complexity, routing requests to the most appropriate method. For the majority of cases, `line` is a well-balanced and reliable choice, but `filename` or `symbol` can also be explicitly used for scenarios where they excel.
+- **`auto`**: Automatically selects the optimal filtering strategy based on query complexity, routing requests to the most appropriate method. For the majority of cases, `line_per_symbol` is a well-balanced and reliable choice, but `file_name` or `symbol_name` can also be explicitly used for scenarios where they excel.
 
 ### Performance Characteristics
 
-- **Speed**: `filename` > `symbol` > `auto` > `line` > `precise`
-- **Accuracy**: `precise` > `line` > `auto` > `symbol` > `filename`
-- **Cost**: `filename` < `line` < `auto` < `symbol` < `precise`
+- **Speed**: `file_name` > `symbol_name` > `auto` > `line_per_symbol` > `precise`
+- **Accuracy**: `precise` > `line_per_symbol` > `auto` > `symbol_name` > `file_name`
+- **Cost**: `file_name` < `line_per_symbol` < `auto` < `symbol_name` < `precise`
 
-Use `filename` for structural queries, `symbol` for API search, `line` for specific code related analysis, `auto` for general purpose, and `precise` for ground truth.
+Use `file_name` for structural queries, `symbol_name` for API search, `line_per_symbol` for specific code related analysis, `auto` for general purpose, and `precise` for ground truth.
 
 ## 🧪 Experiments
 

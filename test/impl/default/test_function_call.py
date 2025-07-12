@@ -57,7 +57,7 @@ class TestLLMCodeFilterTool(unittest.TestCase):
                 codebase=self.codebase,
                 subdirs_or_files=[self.test_dir],
                 prompt=self.test_prompt,
-                granularity="symbol_content",
+                target_type="symbol_content",
                 mode=mode,
                 topic_extractor=self.topic_extractor,
                 llm_call_mode="function_call"
@@ -67,7 +67,7 @@ class TestLLMCodeFilterTool(unittest.TestCase):
             codebase=self.codebase,
             subdirs_or_files=[self.test_dir],
             prompt=self.test_prompt,
-            granularity="symbol_content",
+            target_type="symbol_content",
             mode=mode,
             topic_extractor=self.topic_extractor,
             llm_call_mode="traditional"

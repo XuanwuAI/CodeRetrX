@@ -111,7 +111,7 @@ class TestAdaptiveVsPreciseMode(unittest.TestCase):
                 codebase=self.codebase,
                 subdirs_or_files=[self.test_dir],
                 prompt=prompt,
-                granularity="symbol_content",
+                target_type="symbol_content",
                 mode=mode,
                 custom_strategies=[RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM],
                 topic_extractor=self.topic_extractor,
@@ -120,7 +120,7 @@ class TestAdaptiveVsPreciseMode(unittest.TestCase):
             codebase=self.codebase,
             subdirs_or_files=[self.test_dir],
             prompt=prompt,
-            granularity="symbol_content",
+            target_type="symbol_content",
             mode=mode,
         )
     

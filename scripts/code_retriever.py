@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from coderetrx.impl.default import CodebaseFactory, TopicExtractor
 from coderetrx.retrieval import coderetrx_filter, llm_traversal_filter
-from coderetrx.retrieval.code_recall import CodeRecallSettings
+from coderetrx.retrieval.code_recall import CodeRecallSettings, CoarseRecallStrategyType
 from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
 from coderetrx.utils.path import get_data_dir
 from coderetrx.utils.llm import llm_settings
@@ -22,19 +22,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class CodeRetriever:
-    def __init__(self, repo_url: str, mode: Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"] = "line", use_function_call: bool = True):
+    def __init__(self, repo_url: str, coarse_recall_strategy: CoarseRecallStrategyType = "line_per_symbol", use_function_call: bool = True):
         self.repo_url = repo_url
         self.repo_path = get_data_dir() / "repos" / get_repo_id(repo_url)
         self.topic_extractor = TopicExtractor()
-        self.mode: Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"] = self._validate_mode(mode)
+        self.coarse_recall_strategy: CoarseRecallStrategyType = coarse_recall_strategy 
+        if not isinstance(coarse_recall_strategy, CoarseRecallStrategyType):
+            raise ValueError(f"Invalid coarse_recall_strategy '{coarse_recall_strategy}'. Must be one of: {CoarseRecallStrategyType.__args__}")
         self.use_function_call = use_function_call
-
-    def _validate_mode(self, mode: Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"]) -> Literal["filename", "symbol", "line", "dependency", "auto", "precise", "custom"]:
-        valid_modes = ["filename", "symbol", "line", "dependency", "auto", "precise", "custom"]
-        if mode not in valid_modes:
-            logger.warning(f"Invalid mode '{mode}'. Valid modes are: {valid_modes}. Defaulting to 'line'.")
-            return "line"
-        return mode
 
     def generate_prompts(self, limit: int = 10) -> list[str]:
         all_prompts = []
@@ -73,7 +68,7 @@ class CodeRetriever:
         return codebase
 
     async def find_codes(self, subdirs: list[str] = ["/"], enable_secondary_recall: bool = False, limit: int = 10) -> tuple[list[dict], dict, dict]:
-        """Find potential codes in the codebase using the specified mode"""
+        """Find potential codes in the codebase using the specified coarse_recall_strategy"""
         start_time = time.time()
         timing_info = {
             "total_duration": 0.0,
@@ -97,17 +92,17 @@ class CodeRetriever:
         code_prompts = self.generate_prompts(limit)
         all_codes = []
 
-        # Determine function call mode based on the use_function_call parameter
-        llm_call_mode: LLMCallMode = "function_call" if self.use_function_call else "traditional"
+        # Determine function call coarse_recall_strategy based on the use_function_call parameter
+        llm_call_coarse_recall_strategy: LLMCallMode = "function_call" if self.use_function_call else "traditional"
 
-        print(f"\nUsing mode: {self.mode}")
+        print(f"\nUsing coarse_recall_strategy: {self.coarse_recall_strategy}")
         print(f"Preparation time: {timing_info['preparation_duration']:.2f} seconds")
         
         for prompt in code_prompts:
             print(f"\n{'='*80}")
             print(f"Searching for codes with prompt: {prompt}")
             print(f"{'='*80}")
-            logger.debug(f"Searching for codes with prompt: {prompt} (mode: {self.mode})")
+            logger.debug(f"Searching for codes with prompt: {prompt} (coarse_recall_strategy: {self.coarse_recall_strategy})")
             
             prompt_start_time = time.time()
             
@@ -126,27 +121,27 @@ class CodeRetriever:
             llm_output = []
             
             try:
-                # Create settings with appropriate llm_call_mode
-                settings = CodeRecallSettings(llm_call_mode=llm_call_mode)
+                # Create settings with appropriate llm_call_coarse_recall_strategy
+                settings = CodeRecallSettings(llm_call_coarse_recall_strategy=llm_call_coarse_recall_strategy)
                 
-                if self.mode == "precise":
+                if self.coarse_recall_strategy == "precise":
                     result, llm_output = await llm_traversal_filter(
                         codebase=codebase,
                         subdirs_or_files=subdirs,
                         prompt=prompt,
-                        granularity="symbol_content",
+                        target_type="symbol_content",
                         topic_extractor=self.topic_extractor,
                         settings=settings,
                         enable_secondary_recall=enable_secondary_recall
                     )
                 else:
-                    # Use optimized modes: filename, symbol, line, auto, custom
+                    # Use optimized coarse_recall_strategies: file_name, symbol, line_per_symbol, auto, custom
                     result, llm_output = await coderetrx_filter(
                         codebase=codebase,
                         subdirs_or_files=subdirs,
                         prompt=prompt,
-                        granularity="symbol_content",
-                        coarse_recall_strategy=self.mode,
+                        target_type="symbol_content",
+                        coarse_recall_strategy=self.coarse_recall_strategy,
                         topic_extractor=self.topic_extractor,
                         settings=settings,
                         enable_secondary_recall=enable_secondary_recall
@@ -323,10 +318,10 @@ class CodeRetriever:
             seen.add(obj_id)
             
             try:
-                # Handle other Pydantic models
-                if hasattr(obj, 'model_dump'):
+                # Handle other Pydantic coarse_recall_strategyls
+                if hasattr(obj, 'coarse_recall_strategyl_dump'):
                     try:
-                        return obj.model_dump()
+                        return obj.coarse_recall_strategyl_dump()
                     except Exception:
                         # Fallback to dict conversion
                         return {k: make_serializable(v, seen) for k, v in obj.__dict__.items()}
@@ -370,8 +365,8 @@ class CodeRetriever:
         report = {
             "repository": self.repo_url,
             "timestamp": str(datetime.datetime.now()),
-            "mode": self.mode,
-            "function_call_mode": self.use_function_call,
+            "coarse_recall_strategy": self.coarse_recall_strategy,
+            "function_call_coarse_recall_strategy": self.use_function_call,
             "llm_cost": cost,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
@@ -385,19 +380,19 @@ class CodeRetriever:
         logger.info(f"code report saved to {output_file}")
 
 def parse_arguments():
-    """Parse command line arguments"""
+    """Parse command line_per_symbol arguments"""
     parser = argparse.ArgumentParser(
         description="code Finder - Analyze code repositories for potential codes",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Available modes:
-  filename   - Uses filename filtering only (fastest, least accurate)
-  symbol     - Uses adaptive symbol vector filtering (balanced speed/accuracy) 
-  line       - Uses intelligent filtering with line-level vector recall and LLM judgment [DEFAULT]
-  dependency - Uses dependency analysis to find related code
-  auto       - Uses LLM to determine the best strategy based on the prompt
-  precise    - Uses full LLM processing (most accurate but slowest)
-  custom     - Uses custom strategies
+Available coarse_recall_strategies:
+  file_name   - Uses file_name filtering only (fastest, least accurate)
+  symbol_name      - Uses adaptive symbol name vector filtering (balanced speed/accuracy) 
+  line_per_symbol - Uses filtering with line_per_symbol-level vector recall and LLM judgment [DEFAULT]
+  dependency  - Uses dependency analysis to find related code
+  auto        - Uses LLM to determine the best strategy based on the prompt
+  precise     - Uses full LLM processing (most accurate but slowest)
+  custom      - Uses custom strategies
         """
     )
     
@@ -409,11 +404,11 @@ Available modes:
     )
     
     parser.add_argument(
-        "--mode", "-m",
+        "--coarse_recall_strategy", "-m",
         type=str,
-        choices=["filename", "symbol", "line", "dependency", "auto", "precise", "custom"],
-        default="line",
-        help="Analysis mode (default: line)"
+        choices=["file_name", "symbol_name", "line_per_symbol", "dependency", "auto", "precise", "custom"],
+        default="line_per_symbol",
+        help="Analysis coarse_recall_strategy (default: line_per_symbol)"
     )
     
     parser.add_argument(
@@ -449,20 +444,20 @@ async def main():
     
     print(f"code Finder - Repository Analysis")
     print(f"Repository: {args.repo}")
-    print(f"Mode: {args.mode}")
+    print(f"Mode: {args.coarse_recall_strategy}")
     print(f"Subdirectories: {args.subdirs}")
     print("-" * 60)
     
     try:
         # Run the code finder
-        code_finder = CodeRetriever(args.repo, mode=args.mode, use_function_call=args.use_function_call)
+        code_finder = CodeRetriever(args.repo, coarse_recall_strategy=args.coarse_recall_strategy, use_function_call=args.use_function_call)
         
         codes, timing_info, cost_info = await code_finder.find_codes(subdirs=args.subdirs, enable_secondary_recall=args.sec, limit=args.limit)
 
         # Determine secondary recall suffix based on --sec flag
         secondary_recall_suffix = "sec" if args.sec else "pri"
 
-        output_file = f"code_report_{args.limit}_{args.mode}_{secondary_recall_suffix}.json"
+        output_file = f"code_report_{args.limit}_{args.coarse_recall_strategy}_{secondary_recall_suffix}.json"
 
         await code_finder.save_results(codes, timing_info, cost_info, output_file)
         

@@ -31,7 +31,7 @@ from .adaptive_filter_keyword_by_vector_and_llm import (
 from .adaptive_filter_symbol_by_vector_and_llm import (
     AdaptiveFilterSymbolByVectorAndLLMStrategy,
 )
-from .filter_topk_line_by_vector_and_llm import FilterTopkLineByVectorAndLLMStrategy
+from .filter_line_per_symbol_by_vector_and_llm import FilterLinePerSymbolByVectorAndLLMStrategy
 
 __all__ = [
     # Enums and Models
@@ -53,7 +53,7 @@ __all__ = [
     "FilterSymbolByVectorAndLLMStrategy",
     "AdaptiveFilterKeywordByVectorAndLLMStrategy",
     "AdaptiveFilterSymbolByVectorAndLLMStrategy",
-    "FilterTopkLineByVectorAndLLMStrategy",
+    "FilterLinePerSymbolByVectorAndLLMStrategy",
     # Factory and Utilities
     "StrategyFactory",
     "deduplicate_elements",
