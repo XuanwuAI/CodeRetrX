@@ -155,6 +155,8 @@ Target type defines the retrieval target, determining the type of code object to
 - **`function_content`**:  Matches function whose code content satisfies the query.  
 - **`dependency_name`**: Matches dependency names (e.g., imported libraries or modules) that satisfy the query.
 
+Note: The coderetrx_filter only supports the xxx_content series of target_type, while the llm_traversal_filter supports all target_type options.
+
 #### Settings Configuration
 
 The `CodeRecallSettings` class allows fine-tuning of the search behavior:
@@ -190,7 +192,7 @@ for result in llm_results:
 
 ### Quick Start
 
-Get help with available commands:
+A simple usage example:
 
 ```bash
 uv run -m scripts.example
