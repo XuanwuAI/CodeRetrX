@@ -94,7 +94,9 @@ for element in elements:
     print(f"Found: {element.name} in {element.file.path}")
 ```
 
-**Advanced Configuration with coderetrx_filter:**
+**Using coderetrx_filter:**
+
+The coderetrx_filter implmented stragties designed by us. It offers a cost-effective semantic recall approach for large-scale repositories, achieving approximately 80% recall with only about 20% of the resource consumption in practical tests — the larger the repository, the greater the savings.
 
 ```python
 from coderetrx.retrieval import coderetrx_filter
@@ -119,8 +121,7 @@ elements, llm_results = await coderetrx_filter(
 ```
 
 #### Using llm_traversal_filter (Ground Truth & Maximum Accuracy)
-
-The `llm_traversal_filter` function provides the most comprehensive and accurate analysis, ideal for establishing ground truth:
+The llm_traversal_filter function provides the most comprehensive and accurate analysis, ideal for establishing ground truth. For small-scale repositories, this strategy can also be a good choise.
 
 ```python
 from coderetrx.retrieval import llm_traversal_filter
