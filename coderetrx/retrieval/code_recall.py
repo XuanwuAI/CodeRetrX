@@ -13,18 +13,17 @@ from pydantic import Field
 from .smart_codebase import (
     LLMMapFilterTargetType,
     SmartCodebase as Codebase,
-    CodeMapFilterResult, LLMCallMode,
+    CodeMapFilterResult,
+    LLMCallMode,
 )
 from .topic_extractor import TopicExtractor
 from coderetrx.static import Symbol, Keyword, File
-from .strategy import (
-    RecallStrategy,
-    StrategyExecuteResult,
-    StrategyFactory
-)
+from .strategy import RecallStrategy, StrategyExecuteResult, StrategyFactory
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 logger = logging.getLogger(__name__)
+
 
 class CodeRecallSettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -46,6 +45,8 @@ class CodeRecallSettings(BaseSettings):
         default="function_call",
         description="Mode for LLM calls - 'traditional' or 'function_call'",
     )
+
+
 CoarseRecallStrategyType = Literal[
     "file_name",
     "symbol_name",
@@ -63,16 +64,16 @@ async def _determine_strategy_by_llm(
 ) -> List[RecallStrategy]:
     """
     Use LLM to determine the best recall strategies based on the prompt.
-    
+
     Args:
         prompt: The user's prompt/query
         model_id: The model ID to use for strategy determination
-        
+
     Returns:
         List of selected RecallStrategy
     """
     from coderetrx.utils.llm import call_llm_with_function_call
-    
+
     # Define the function for strategy determination
     function_definition = {
         "name": "determine_search_strategy",
@@ -84,21 +85,26 @@ async def _determine_strategy_by_llm(
                     "type": "array",
                     "items": {
                         "type": "string",
-                        "enum": ["FILE_NAME", "SYMBOL_NAME", "LINE_PER_SYMBOL", "DEPENDENCY"]
+                        "enum": [
+                            "FILE_NAME",
+                            "SYMBOL_NAME",
+                            "LINE_PER_SYMBOL",
+                            "DEPENDENCY",
+                        ],
                     },
                     "description": "The types of code elements to search for (can select one or multiple)",
                     "minItems": 1,
-                    "maxItems": 4
+                    "maxItems": 4,
                 },
                 "reason": {
                     "type": "string",
-                    "description": "Explanation for why these element types were chosen"
-                }
+                    "description": "Explanation for why these element types were chosen",
+                },
             },
-            "required": ["element_types", "reason"]
-        }
+            "required": ["element_types", "reason"],
+        },
     }
-    
+
     system_prompt = """Analyze this code search prompt and determine the most effective search method:
 
 Consider what type of code element would best match the search criteria. PREFER TO SELECT ONLY ONE TYPE unless you are genuinely uncertain about which single approach would work best.
@@ -164,46 +170,53 @@ IMPORTANT: Try to select only ONE element type if possible. Only select multiple
         settings = CodeRecallSettings()
         effective_model_id = model_id or settings.llm_selector_strategy_model_id
         model_ids = [effective_model_id, "anthropic/claude-3.7-sonnet"]
-        
+
         function_args = await call_llm_with_function_call(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             function_definition=function_definition,
             model_ids=model_ids,
         )
-        
+
         element_types = function_args.get("element_types", [])
         reason = function_args.get("reason", "")
-        
+
         # Ensure all element types are uppercase
         element_types = [et.upper() for et in element_types if isinstance(et, str)]
-        
+
         logger.info(f"LLM determined element types: {element_types}. Reason: {reason}")
-        
+
         # Map the response to RecallStrategy enum list
         strategies = []
         for element_type in element_types:
             if element_type == "FILE_NAME":
                 strategies.append(RecallStrategy.FILTER_FILENAME_BY_LLM)
             elif element_type == "LINE_PER_SYMBOL":
-                strategies.append(RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM)
+                strategies.append(
+                    RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM
+                )
             elif element_type == "SYMBOL_NAME":
                 strategies.append(RecallStrategy.FILTER_SYMBOL_NAME_BY_LLM)
             elif element_type == "DEPENDENCY":
                 strategies.append(RecallStrategy.FILTER_DEPENDENCY_BY_LLM)
             else:
-                logger.warning(f"LLM returned invalid element type: {element_type}. Skipping.")
-        
-        if not strategies:
-            logger.warning(f"No valid strategies determined. Defaulting to SYMBOL recall")
-            return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM]
-        
-        return strategies
-            
-    except Exception as e:
-        logger.error(f"Error determining strategy by LLM: {e}. Defaulting to SYMBOL recall")
-        return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM]
+                logger.warning(
+                    f"LLM returned invalid element type: {element_type}. Skipping."
+                )
 
+        if not strategies:
+            logger.warning(
+                f"No valid strategies determined. Defaulting to SYMBOL recall"
+            )
+            return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM]
+
+        return strategies
+
+    except Exception as e:
+        logger.error(
+            f"Error determining strategy by LLM: {e}. Defaulting to SYMBOL recall"
+        )
+        return [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM]
 
 
 async def _perform_secondary_recall(
@@ -218,7 +231,7 @@ async def _perform_secondary_recall(
 ) -> Tuple[List[Any], List[Any]]:
     """
     Perform secondary recall using a more powerful model for refined filtering.
-    
+
     Args:
         codebase: The codebase instance
         prompt: Original prompt
@@ -228,24 +241,23 @@ async def _perform_secondary_recall(
         llm_method: LLM method to use (filter or map)
         llm_call_mode: LLM call mode
         model_id: Stronger model ID to use for secondary recall
-        
+
     Returns:
         Tuple of (refined_elements, refined_llm_results)
     """
     if not elements:
         logger.info("No elements to perform secondary recall on")
         return elements, llm_results
-    
+
     logger.info(f"Starting secondary recall on {len(elements)} elements")
-    
+
     # Use a more powerful model for secondary recall
     secondary_model_id = model_id or "anthropic/claude-4-sonnet"
-    
+
     try:
-        
-        
+
         logger.info(f"Performing secondary recall on {len(elements)} code elements")
-        
+
         secondary_elements, secondary_llm_results = await llm_method(
             prompt=prompt,
             target_type=target_type,
@@ -253,11 +265,13 @@ async def _perform_secondary_recall(
             llm_call_mode=llm_call_mode,
             model_id=secondary_model_id,
         )
-        
-        logger.info(f"Secondary recall refined results from {len(elements)} to {len(secondary_elements)} elements")
-        
+
+        logger.info(
+            f"Secondary recall refined results from {len(elements)} to {len(secondary_elements)} elements"
+        )
+
         return secondary_elements, secondary_llm_results
-        
+
     except Exception as e:
         logger.error(f"Secondary recall failed: {e}")
         return elements, llm_results
@@ -274,7 +288,7 @@ async def _multi_strategy_code_recall(
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
-    extend_coarse_recall_element_to_file = True,
+    extend_coarse_recall_element_to_file=True,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     """
     Process code elements based on the specified prompt and mode.
@@ -317,7 +331,9 @@ async def _multi_strategy_code_recall(
     elif coarse_recall_strategy == "line_per_symbol":
         strategies_to_run = [RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM]
     elif coarse_recall_strategy == "symbol_content":
-        strategies_to_run = [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM]
+        strategies_to_run = [
+            RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM
+        ]
     elif coarse_recall_strategy == "dependency":
         strategies_to_run = [RecallStrategy.FILTER_DEPENDENCY_BY_LLM]
     elif coarse_recall_strategy == "auto":
@@ -351,12 +367,16 @@ async def _multi_strategy_code_recall(
             )
             strategies_to_run = [RecallStrategy.FILTER_FILENAME_BY_LLM]
         else:
-            logger.warning(f"Unknown mode: {coarse_recall_strategy}. Defaulting to fast mode.")
+            logger.warning(
+                f"Unknown mode: {coarse_recall_strategy}. Defaulting to fast mode."
+            )
             strategies_to_run = [RecallStrategy.FILTER_FILENAME_BY_LLM]
 
     # Execute each strategy in sequence
     if coarse_recall_strategy != "precise":
-        strategy_factory = StrategyFactory(topic_extractor=topic_extractor, llm_call_mode=settings.llm_call_mode)
+        strategy_factory = StrategyFactory(
+            topic_extractor=topic_extractor, llm_call_mode=settings.llm_call_mode
+        )
         for strategy in strategies_to_run:
             try:
                 strategy_executor = strategy_factory.create_strategy(strategy)
@@ -390,7 +410,7 @@ async def _multi_strategy_code_recall(
 
     # Check if the llm_method supports mode parameter (for SmartCodebase methods)
     logger.debug(f"Function call mode: {settings.llm_call_mode}")
-    
+
     # Use relaxed prompt for primary recall if secondary recall is enabled
     primary_prompt = prompt
     if enable_secondary_recall:
@@ -399,20 +419,29 @@ async def _multi_strategy_code_recall(
 {prompt}
 
 Note: This is the primary filtering stage - we prefer to include potentially relevant items rather than miss them. A more precise filtering will be applied in the secondary stage."""
-        logger.info("Using relaxed prompt for primary recall (secondary recall enabled)")
-    
+        logger.info(
+            "Using relaxed prompt for primary recall (secondary recall enabled)"
+        )
+
     additional_code_elements = []
-    if not extend_coarse_recall_element_to_file and coarse_recall_strategy in ["line_per_symbol", "symbol_name"]:
+    if not extend_coarse_recall_element_to_file and coarse_recall_strategy in [
+        "line_per_symbol",
+        "symbol_name",
+    ]:
         extended_subdirs_or_files = []
-        additional_code_elements = strategy_result.elements 
-    elements, llm_results = await llm_method(
-        prompt=primary_prompt,
-        target_type=target_type,
-        subdirs_or_files=extended_subdirs_or_files,
-        additional_code_elements=additional_code_elements,
-        llm_call_mode=settings.llm_call_mode,
-        model_id=settings.llm_primary_recall_model_id,
-    )
+        additional_code_elements = strategy_result.elements
+    if not extend_coarse_recall_element_to_file and coarse_recall_strategy == "symbol_content":
+        elements = strategy_result.elements
+        llm_results = strategy_result.llm_results
+    else:
+        elements, llm_results = await llm_method(
+            prompt=primary_prompt,
+            target_type=target_type,
+            subdirs_or_files=extended_subdirs_or_files,
+            additional_code_elements=additional_code_elements,
+            llm_call_mode=settings.llm_call_mode,
+            model_id=settings.llm_primary_recall_model_id,
+        )
 
     # Secondary recall: further filter results if enabled and results exist
     if enable_secondary_recall:
@@ -430,7 +459,7 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
     else:
         final_elements = elements
         final_llm_results = llm_results
-    
+
     return final_elements, final_llm_results
 
 
@@ -454,15 +483,18 @@ async def llm_traversal_mapping(
         custom_strategies,
         topic_extractor,
         settings,
-        enable_secondary_recall
+        enable_secondary_recall,
     )
+
 
 async def coderetrx_mapping(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
-    target_type: Literal["symbol_content", "file_content", "function_content", "class_content"],
-    coarse_recall_strategy: CoarseRecallStrategyType, 
+    target_type: Literal[
+        "symbol_content", "file_content", "function_content", "class_content"
+    ],
+    coarse_recall_strategy: CoarseRecallStrategyType,
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
@@ -485,8 +517,9 @@ async def coderetrx_mapping(
         topic_extractor,
         settings,
         enable_secondary_recall,
-        extend_coarse_recall_element_to_file
+        extend_coarse_recall_element_to_file,
     )
+
 
 async def llm_traversal_filter(
     codebase: Codebase,
@@ -508,14 +541,17 @@ async def llm_traversal_filter(
         custom_strategies,
         topic_extractor,
         settings,
-        enable_secondary_recall
+        enable_secondary_recall,
     )
+
 
 async def coderetrx_filter(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
-    target_type: Literal["symbol_content", "file_content", "function_content", "class_content"],
+    target_type: Literal[
+        "symbol_content", "file_content", "function_content", "class_content"
+    ],
     coarse_recall_strategy: CoarseRecallStrategyType,
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
@@ -538,5 +574,5 @@ async def coderetrx_filter(
         topic_extractor,
         settings,
         enable_secondary_recall,
-        extend_coarse_recall_element_to_file
+        extend_coarse_recall_element_to_file,
     )
