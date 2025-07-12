@@ -67,12 +67,11 @@ The refined filter targets precision by removing the false positives introduced 
 
 CodeRetrX provides a powerful programmatic interface through the `coderetrx_filter` and `llm_traversal_filter` API, which enables flexible code analysis and retrieval across different search strategies and filtering modes.
 
-The core API combines multiple search strategies with two-stage filtering to balance recall and precision:
+The coderetrx_filter implements stragties designed by us. It offers a cost-effective semantic recall approach for large-scale repositories, achieving approximately 80% recall with only about 20% of the resource consumption in practical tests(line_per_symbol strategy) — the larger the repository, the greater the savings.
 
-The coderetrx_filter implmented stragties designed by us. It offers a cost-effective semantic recall approach for large-scale repositories, achieving approximately 80% recall with only about 20% of the resource consumption in practical tests(line_per_symbol strategy) — the larger the repository, the greater the savings.
+The llm_traversal_filter provides the most comprehensive and accurate analysis, ideal for establishing ground truth. For small-scale repositories, this strategy can also be a good choise.
 
 #### Using coderetrx_filter with symbol_name strategy 
-
 
 ```python
 from coderetrx.retrieval import coderetrx_filter
@@ -120,7 +119,6 @@ elements, llm_results = await coderetrx_filter(
 ```
 
 #### Using llm_traversal_filter (Ground Truth & Maximum Accuracy)
-The llm_traversal_filter function provides the most comprehensive and accurate analysis, ideal for establishing ground truth. For small-scale repositories, this strategy can also be a good choise.
 
 ```python
 from coderetrx.retrieval import llm_traversal_filter
@@ -130,26 +128,32 @@ elements, llm_results = await llm_traversal_filter(
     codebase=codebase,
     prompt="your_filter_prompt",
     subdirs_or_files=["src/", "lib/"],
-    target——type="symbol_content",
+    target_type="symbol_content",
     settings=settings
 )
 ```
 
 
-#### Search Strategies
+#### Coarse Recall Strategy 
 
 **coderetrx_filter** supports `file_name`, `symbol_name`, `line_per_symbol`, and `auto` strategies for different speed/accuracy tradeoffs. **llm_traversal_filter** uses full LLM processing for maximum accuracy.
 
 [See detailed strategy comparison](#-coarse-recall-strategies)
 
-#### Granularity Options
+#### Target type Options
 
-Granularity defines the retrieval target, determining the type of code object to be recalled and returned. For example, if the target_type is set to class_content, the result will include the full content of the relevant classes. Below are the available target_type options:
+Target type defines the retrieval target, determining the type of code object to be recalled and returned. For example, if the target_type is set to class_content, the result will include the relevant classes whose content match the query. Below are the available target_type options:
 
-- **`symbol_content`**: Symbol code content (functions, classes, dependencies)
-- **`class_content`**: Class code content  
-- **`function_content`**: Function code content  
-- **`dependency_name`**: Dependency names  
+
+- **`file_name`**: Matches files whose name satisfies the query.  
+- **`file_content`**: Matches files whose content satisfies the query.  
+- **`symbol_name`**: Matches symbols (e.g., functions, classes) whose name satisfies the query.  
+- **`symbol_content`**: Matches symbols  (e.g., functions, classes)  whose code content satisfies the query.
+- **`class_name`**: Matches class names that satisfy the query.  
+- **`class_content`**:  Matches class  whose code content satisfies the query. 
+- **`function_name`**: Matches function names that satisfy the query.  
+- **`function_content`**:  Matches function whose code content satisfies the query.  
+- **`dependency_name`**: Matches dependency names (e.g., imported libraries or modules) that satisfy the query.
 
 #### Settings Configuration
 
