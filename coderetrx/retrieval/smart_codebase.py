@@ -6,8 +6,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from coderetrx.static.codebase.codebase import CodeLine
 
+
 class SmartCodebaseSettings(BaseSettings):
     """Configuration settings for SmartCodebase with environment variable support."""
+
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8", env_file=".env", extra="allow"
     )
@@ -61,13 +63,16 @@ class SmartCodebaseSettings(BaseSettings):
     )
 
     keyword_embedding: bool = Field(
-        default=False, description="Enable keyword embeddings", alias="KEYWORD_EMBEDDING"
+        default=False,
+        description="Enable keyword embeddings",
+        alias="KEYWORD_EMBEDDING",
     )
     symbol_codeline_embedding: bool = Field(
         default=True,
         description="Enable symbol codeline embeddings",
         alias="SYMBOL_CODELINE_EMBEDDING",
     )
+
 
 LLMMapFilterTargetType = Literal[
     "file_name",
@@ -85,6 +90,7 @@ LLMMapFilterTargetType = Literal[
 ]
 SimilaritySearchTargetType = Literal["symbol_name", "symbol_content", "keyword"]
 LLMCallMode = Literal["traditional", "function_call"]
+
 
 class CodeMapFilterResult(BaseModel):
     index: int
@@ -129,7 +135,7 @@ class SmartCodebase(Codebase, ABC):
         query: str,
         threshold: Optional[float] = None,
         top_k: int = 100,
-    ) -> List[Symbol | Keyword ]:
+    ) -> List[Symbol | Keyword]:
         pass
 
     @abstractmethod
@@ -138,6 +144,8 @@ class SmartCodebase(Codebase, ABC):
         query: str,
         threshold: Optional[float] = None,
         top_k: int = 10,
+        scope: Literal["top_level_symbol", "symbol", "class", "function"] = "symbol",
+        subdirs_or_files: List[str] = ["/"],
     ) -> List[CodeLine]:
         """
         Search for similar lines within a specific symbol using metadata filtering.

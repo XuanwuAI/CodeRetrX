@@ -30,8 +30,8 @@ from coderetrx.retrieval.strategy.adaptive_filter_symbol_by_vector_and_llm impor
 from coderetrx.retrieval.strategy.adaptive_filter_keyword_by_vector_and_llm import (
     AdaptiveFilterKeywordByVectorAndLLMStrategy,
 )
-from coderetrx.retrieval.strategy.filter_topk_line_by_vector_and_llm import (
-    FilterTopkLineByVectorAndLLMStrategy,
+from coderetrx.retrieval.strategy.filter_line_per_symbol_by_vector_and_llm import (
+    FilterLinePerSymbolByVectorAndLLMStrategy,
 )
 
 
@@ -58,7 +58,7 @@ class StrategyFactory:
             RecallStrategy.FILTER_SYMBOL_BY_VECTOR_AND_LLM: FilterSymbolByVectorAndLLMStrategy,
             RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM: AdaptiveFilterKeywordByVectorAndLLMStrategy,
             RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM: AdaptiveFilterSymbolByVectorAndLLMStrategy,
-            RecallStrategy.FILTER_TOPK_LINE_BY_VECTOR_AND_LLM: FilterTopkLineByVectorAndLLMStrategy,
+            RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM: FilterLinePerSymbolByVectorAndLLMStrategy,
         }
 
         if strategy not in strategy_map:

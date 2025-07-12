@@ -24,7 +24,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
+class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
     """
     Intelligent filtering strategy that performs line-level vector recall using builtin codeline searcher,
     then uses LLM to judge and select the most relevant lines across all symbols.
@@ -40,7 +40,7 @@ class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
         llm_call_mode: LLMCallMode = "traditional",
     ):
         """
-        Initialize the intelligent filtering strategy.
+        Initialize the filtering strategy.
 
         Args:
             top_k: Number of top lines to recall for each symbol from builtin searcher (default: 5)
@@ -171,21 +171,28 @@ Call the select_relevant_lines function with your analysis."""
             return [candidate[0] for candidate in line_candidates[:3]]
 
     async def execute(
-        self, codebase: Codebase, prompt: str, subdirs_or_files: List[str]
+        self,
+        codebase: Codebase,
+        prompt: str,
+        subdirs_or_files: List[str],
+        target_type: str = "symbol_content",
     ) -> StrategyExecuteResult:
         """
-        Execute the intelligent filter strategy using builtin codeline searcher.
+        Execute the filter strategy using builtin codeline searcher.
 
         Args:
             codebase: The codebase to search in
             prompt: The prompt for filtering
             subdirs_or_files: List of subdirectories or files to process
+            target_type: The target_type level for retrieval (default: "symbol_content")
 
         Returns:
             StrategyExecuteResult containing file_paths, elements, and llm_results
         """
         strategy_name = self.get_strategy_name()
-        logger.info(f"Using {strategy_name} strategy with builtin codeline searcher")
+        logger.info(
+            f"Using {strategy_name} strategy with builtin codeline searcher and target_type: {target_type}"
+        )
 
         try:
             # Extract topic for vector search
@@ -202,21 +209,29 @@ Call the select_relevant_lines function with your analysis."""
                 topic = prompt
             else:
                 logger.info(
-                    f"Using extracted topic '{topic}' for intelligent filtering"
+                    f"Using extracted topic '{topic}' for filtering"
                 )
 
             # Step 1: Use builtin codeline searcher to get line-level results
             logger.info(
                 "Step 1 - Using builtin codeline searcher for line-level vector recall"
             )
+            target_type_to_scope = {
+                "symbol_content": "symbol",
+                "file_content": "top_level_symbol",
+                "function_content": "function",
+                "class_content": "class",
+            }
 
             # Use the builtin similarity_search with symbol_codeline target type
-            all_recalled_lines: list[
-                CodeLine
-            ] = await codebase.similarity_search_lines_per_symbol(
-                query=topic,
-                threshold=0,
-                top_k=self.top_k,
+            all_recalled_lines: list[CodeLine] = (
+                await codebase.similarity_search_lines_per_symbol(
+                    query=topic,
+                    threshold=0,
+                    top_k=self.top_k,
+                    scope=target_type_to_scope.get(target_type, "symbol"),
+                    subdirs_or_files=subdirs_or_files,
+                )
             )
 
             logger.info(

@@ -78,6 +78,7 @@ class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStr
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
+        target_type: str = "symbol_content",
     ) -> StrategyExecuteResult:
         prompt = f"""
         requirement: A code chunk with this name is highly likely to meet the following criteria:
@@ -89,4 +90,4 @@ class AdaptiveFilterSymbolByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMStr
         Code chunks with matching names will proceed to deeper analysis in the content filter (content_criteria) at a later stage (not in this run). 
         </note>
         """
-        return await super().execute(codebase, prompt, subdirs_or_files)
+        return await super().execute(codebase, prompt, subdirs_or_files, target_type)

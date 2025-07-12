@@ -46,6 +46,14 @@ class CodeRecallSettings(BaseSettings):
         default="function_call",
         description="Mode for LLM calls - 'traditional' or 'function_call'",
     )
+CoarseRecallStrategyType = Literal[
+    "file_name",
+    "symbol_name",
+    "line_per_symbol",
+    "dependency",
+    "auto",
+    "custom",
+]
 
 
 async def _determine_strategy_by_llm(
@@ -75,7 +83,7 @@ async def _determine_strategy_by_llm(
                     "type": "array",
                     "items": {
                         "type": "string",
-                        "enum": ["FILENAME", "SYMBOL", "LINE", "DEPENDENCY"]
+                        "enum": ["FILE_NAME", "SYMBOL_NAME", "LINE_PER_SYMBOL", "DEPENDENCY"]
                     },
                     "description": "The types of code elements to search for (can select one or multiple)",
                     "minItems": 1,
@@ -94,7 +102,7 @@ async def _determine_strategy_by_llm(
 
 Consider what type of code element would best match the search criteria. PREFER TO SELECT ONLY ONE TYPE unless you are genuinely uncertain about which single approach would work best.
 
-FILENAME: Use when the search criteria can be identified primarily by file characteristics:
+FILE_NAME: Use when the search criteria can be identified primarily by file characteristics:
 - Specific file extensions or patterns
 - File naming conventions
 - Configuration files
@@ -103,7 +111,7 @@ FILENAME: Use when the search criteria can be identified primarily by file chara
 - Files with particular path patterns
 - etc.
 
-SYMBOL: Use when the search criteria involve specific named code constructs:
+SYMBOL_NAME: Use when the search criteria involve specific named code constructs:
 - Function names or method names
 - Class names or interface names
 - Module names or dependency names
@@ -111,7 +119,7 @@ SYMBOL: Use when the search criteria involve specific named code constructs:
 - Shallow search based on identifiers
 - etc.
 
-LINE: Use when the search criteria require understanding file content and behavior:
+LINE_PER_SYMBOL: Use when the search criteria require understanding file content and behavior:
 - Complex patterns or logic flows
 - Code that performs specific operations
 - Algorithm implementations or patterns
@@ -174,11 +182,11 @@ IMPORTANT: Try to select only ONE element type if possible. Only select multiple
         # Map the response to RecallStrategy enum list
         strategies = []
         for element_type in element_types:
-            if element_type == "FILENAME":
+            if element_type == "FILE_NAME":
                 strategies.append(RecallStrategy.FILTER_FILENAME_BY_LLM)
-            elif element_type == "LINE":
-                strategies.append(RecallStrategy.FILTER_TOPK_LINE_BY_VECTOR_AND_LLM)
-            elif element_type == "SYMBOL":
+            elif element_type == "LINE_PER_SYMBOL":
+                strategies.append(RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM)
+            elif element_type == "SYMBOL_NAME":
                 strategies.append(RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM)
             elif element_type == "DEPENDENCY":
                 strategies.append(RecallStrategy.FILTER_DEPENDENCY_BY_LLM)
@@ -202,7 +210,7 @@ async def _perform_secondary_recall(
     prompt: str,
     elements: List[Any],
     llm_results: List[Any],
-    granularity: LLMMapFilterTargetType,
+    target_type: LLMMapFilterTargetType,
     llm_method: Callable,
     llm_call_mode: LLMCallMode = "traditional",
     model_id: Optional[str] = None,
@@ -215,7 +223,7 @@ async def _perform_secondary_recall(
         prompt: Original prompt
         elements: Initial filtered elements
         llm_results: Initial LLM results
-        granularity: Target type for filtering
+        target_type: Target type for filtering
         llm_method: LLM method to use (filter or map)
         llm_call_mode: LLM call mode
         model_id: Stronger model ID to use for secondary recall
@@ -239,7 +247,7 @@ async def _perform_secondary_recall(
         
         secondary_elements, secondary_llm_results = await llm_method(
             prompt=prompt,
-            target_type=granularity,
+            target_type=target_type,
             additional_code_elements=elements,
             llm_call_mode=llm_call_mode,
             model_id=secondary_model_id,
@@ -258,14 +266,14 @@ async def _multi_strategy_code_recall(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
-    granularity: LLMMapFilterTargetType,
-    mode: str,
+    target_type: LLMMapFilterTargetType,
+    coarse_recall_strategy: str,
     llm_method: Callable,
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
-    use_coarse_recall_returned_elements = False,
+    extend_coarse_recall_element_to_file = True,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
     """
     Process code elements based on the specified prompt and mode.
@@ -273,11 +281,11 @@ async def _multi_strategy_code_recall(
     Args:
         prompt: The prompt for filtering or mapping
         subdirs_or_files: List of subdirectories or files to process
-        granularity: The granularity level for code analysis
+        target_type: The target_type level for code analysis
         mode: The search mode to use:
-            - "filename": Uses FILTER_FILENAME_BY_LLM only
-            - "symbol": Uses ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM strategy
-            - "line": Uses INTELLIGENT_FILTER strategy with line-level vector recall
+            - "file_name": Uses FILTER_FILENAME_BY_LLM only
+            - "symbol_name": Uses ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM strategy
+            - "line_per_symbol": Uses INTELLIGENT_FILTER strategy with line-level vector recall
             - "dependency": Uses FILTER_DEPENDENCY_BY_LLM strategy
             - "auto": Uses LLM to determine best strategy based on prompt (chooses from filename, symbol, line)
             - "precise": Uses full LLM filtering/mapping (default behavior)
@@ -301,15 +309,15 @@ async def _multi_strategy_code_recall(
     all_llm_results = []
     # Determine which strategies to run based on the mode
     strategies_to_run: List[RecallStrategy] = []
-    if mode == "filename":
+    if coarse_recall_strategy == "file_name":
         strategies_to_run = [RecallStrategy.FILTER_FILENAME_BY_LLM]
-    elif mode == "symbol":
+    elif coarse_recall_strategy == "symbol_name":
         strategies_to_run = [RecallStrategy.ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM]
-    elif mode == "line":
-        strategies_to_run = [RecallStrategy.FILTER_TOPK_LINE_BY_VECTOR_AND_LLM]
-    elif mode == "dependency":
+    elif coarse_recall_strategy == "line_per_symbol":
+        strategies_to_run = [RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM]
+    elif coarse_recall_strategy == "dependency":
         strategies_to_run = [RecallStrategy.FILTER_DEPENDENCY_BY_LLM]
-    elif mode == "auto":
+    elif coarse_recall_strategy == "auto":
         strategies = await _determine_strategy_by_llm(
             prompt=prompt,
             model_id=settings.llm_selector_strategy_model_id,
@@ -317,9 +325,9 @@ async def _multi_strategy_code_recall(
         strategy_names = [strategy.value for strategy in strategies]
         print(f"LLM smart strategies selected: {strategy_names}")
         strategies_to_run = strategies
-    elif mode == "keyword":
+    elif coarse_recall_strategy == "keyword":
         strategies_to_run = [RecallStrategy.ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM]
-    elif mode == "precise":
+    elif coarse_recall_strategy == "precise":
         # Precise mode: Use full LLM filtering/mapping (default behavior)
         logger.info(f"Using precise mode with full LLM processing")
         # In precise mode, we process all symbols directly
@@ -331,26 +339,26 @@ async def _multi_strategy_code_recall(
                 if str(symbol.file.path).startswith(subdir):
                     extended_subdirs_or_files.add(str(symbol.file.path))
                     break
-    elif mode == "custom" and custom_strategies:
+    elif coarse_recall_strategy == "custom" and custom_strategies:
         strategies_to_run = custom_strategies
     else:
-        if mode == "custom" and not custom_strategies:
+        if coarse_recall_strategy == "custom" and not custom_strategies:
             logger.warning(
                 "Custom mode specified but no custom strategies provided. Defaulting to fast mode."
             )
             strategies_to_run = [RecallStrategy.FILTER_FILENAME_BY_LLM]
         else:
-            logger.warning(f"Unknown mode: {mode}. Defaulting to fast mode.")
+            logger.warning(f"Unknown mode: {coarse_recall_strategy}. Defaulting to fast mode.")
             strategies_to_run = [RecallStrategy.FILTER_FILENAME_BY_LLM]
 
     # Execute each strategy in sequence
-    if mode != "precise":
+    if coarse_recall_strategy != "precise":
         strategy_factory = StrategyFactory(topic_extractor=topic_extractor, llm_call_mode=settings.llm_call_mode)
         for strategy in strategies_to_run:
             try:
                 strategy_executor = strategy_factory.create_strategy(strategy)
                 strategy_result = await strategy_executor.execute(
-                    codebase, prompt, subdirs_or_files
+                    codebase, prompt, subdirs_or_files, target_type
                 )
 
                 # Add file paths to the set of extended_subdirs_or_files
@@ -374,7 +382,7 @@ async def _multi_strategy_code_recall(
         return [], []
 
     logger.info(
-        f"Processing {len(extended_subdirs_or_files)} files with {granularity} granularity"
+        f"Processing {len(extended_subdirs_or_files)} files with {target_type} target_type"
     )
 
     # Check if the llm_method supports mode parameter (for SmartCodebase methods)
@@ -391,12 +399,12 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
         logger.info("Using relaxed prompt for primary recall (secondary recall enabled)")
     
     additional_code_elements = []
-    if use_coarse_recall_returned_elements and mode != "precise":
+    if not extend_coarse_recall_element_to_file and coarse_recall_strategy in ["line_per_symbol", "symbol_name"]:
         extended_subdirs_or_files = []
         additional_code_elements = strategy_result.elements 
     elements, llm_results = await llm_method(
         prompt=primary_prompt,
-        target_type=granularity,
+        target_type=target_type,
         subdirs_or_files=extended_subdirs_or_files,
         additional_code_elements=additional_code_elements,
         llm_call_mode=settings.llm_call_mode,
@@ -411,7 +419,7 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
             prompt=prompt,
             elements=elements,
             llm_results=llm_results,
-            granularity=granularity,
+            target_type=target_type,
             llm_method=llm_method,
             llm_call_mode=settings.llm_call_mode,
             model_id=settings.llm_secondary_recall_model_id,
@@ -427,7 +435,7 @@ async def llm_traversal_mapping(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
-    granularity: LLMMapFilterTargetType,
+    target_type: LLMMapFilterTargetType,
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
@@ -437,7 +445,7 @@ async def llm_traversal_mapping(
         codebase,
         prompt,
         subdirs_or_files,
-        granularity,
+        target_type,
         "precise",
         codebase.llm_map,
         custom_strategies,
@@ -450,33 +458,38 @@ async def coderetrx_mapping(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
-    granularity: LLMMapFilterTargetType,
-    coarse_recall_strategy: Literal["filename", "symbol", "line", "auto", "custom", "dependency"],
+    target_type: Literal["symbol_content", "file_content", "function_content", "class_content"],
+    coarse_recall_strategy: CoarseRecallStrategyType, 
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
-    use_coarse_recall_returned_elements: bool = False,
+    extend_coarse_recall_element_to_file: bool = True,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
+    if not target_type.endswith("_content"):
+        raise ValueError(
+            f"Target type '{target_type}' must end with '_content' for coderetrx_mapping. Use 'symbol_content', 'file_content', etc."
+        )
+
     return await _multi_strategy_code_recall(
         codebase,
         prompt,
         subdirs_or_files,
-        granularity,
+        target_type,
         coarse_recall_strategy,
         codebase.llm_map,
         custom_strategies,
         topic_extractor,
         settings,
         enable_secondary_recall,
-        use_coarse_recall_returned_elements
+        extend_coarse_recall_element_to_file
     )
 
 async def llm_traversal_filter(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
-    granularity: LLMMapFilterTargetType,
+    target_type: LLMMapFilterTargetType,
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
@@ -486,7 +499,7 @@ async def llm_traversal_filter(
         codebase,
         prompt,
         subdirs_or_files,
-        granularity,
+        target_type,
         "precise",
         codebase.llm_filter,
         custom_strategies,
@@ -499,24 +512,28 @@ async def coderetrx_filter(
     codebase: Codebase,
     prompt: str,
     subdirs_or_files: List[str],
-    granularity: LLMMapFilterTargetType,
-    coarse_recall_strategy: Literal["filename", "symbol", "line", "auto", "custom", "dependency"],
+    target_type: Literal["symbol_content", "file_content", "function_content", "class_content"],
+    coarse_recall_strategy: CoarseRecallStrategyType,
     custom_strategies: List[RecallStrategy] = [],
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
-    use_coarse_recall_returned_elements: bool = False,
+    extend_coarse_recall_element_to_file: bool = True,
 ) -> Tuple[List[Symbol | File | Keyword], List[CodeMapFilterResult]]:
+    if not target_type.endswith("_content"):
+        raise ValueError(
+            f"Target type '{target_type}' must end with '_content' for coderetrx_filter. Use 'symbol_content', 'file_content', etc."
+        )
     return await _multi_strategy_code_recall(
         codebase,
         prompt,
         subdirs_or_files,
-        granularity,
+        target_type,
         coarse_recall_strategy,
         codebase.llm_filter,
         custom_strategies,
         topic_extractor,
         settings,
         enable_secondary_recall,
-        use_coarse_recall_returned_elements
+        extend_coarse_recall_element_to_file
     )

@@ -4,7 +4,7 @@ from coderetrx.static.codebase import Symbol, Keyword, File, CodeLine
 from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
 from coderetrx.retrieval.smart_codebase import CodeMapFilterResult
 from attrs import define, field
-from coderetrx.utils.embedding import SimilaritySearcher,embed_batch_with_retry
+from coderetrx.utils.embedding import SimilaritySearcher, embed_batch_with_retry
 import os
 import logging
 from pathlib import Path
@@ -22,6 +22,7 @@ from .prompt import (
 )
 from tqdm.asyncio import tqdm
 import asyncio
+
 if TYPE_CHECKING:
     from .factory import SmartCodebaseSettings
 
@@ -42,11 +43,16 @@ LLMMapFilterTargetType = Literal[
     "keyword",
 ]
 
-SimilaritySearchTargetType = Literal["symbol_name", "symbol_content", "keyword", "symbol_codeline"]
+SimilaritySearchTargetType = Literal[
+    "symbol_name", "symbol_content", "keyword", "symbol_codeline"
+]
+
 
 def get_smart_codebase_settings() -> "SmartCodebaseSettings":
     from .factory import SmartCodebaseSettings
+
     return SmartCodebaseSettings()
+
 
 @define
 class SmartCodebase(SmartCodebaseBase):
@@ -54,8 +60,28 @@ class SmartCodebase(SmartCodebaseBase):
     symbol_content_searcher: Optional["SimilaritySearcher"] = field(default=None)
     keyword_searcher: Optional["SimilaritySearcher"] = field(default=None)
     # unified codeline searcher for all symbols with metadata filtering
-    symbol_codeline_searcher: Optional["SimilaritySearcher"] = field(default=None)
+    codeline_searcher: Optional["SimilaritySearcher"] = field(default=None)
     settings: "SmartCodebaseSettings" = field(factory=get_smart_codebase_settings)
+
+    def _fixup_path(self, path: str) -> str:
+        original_path = path
+        path = path.replace("\\", "/")
+
+        # If it's an absolute path, try to make it relative to the codebase directory
+        if Path(path).is_absolute():
+            try:
+                abs_codebase_dir = Path(self.dir).resolve()
+                abs_path = Path(path).resolve()
+                path = str(abs_path.relative_to(abs_codebase_dir))
+            except ValueError:
+                print(
+                    f"Warning: Path {original_path} is not within codebase directory {self.dir}"
+                )
+        else:
+            # For relative paths, strip leading slash and handle current directory
+            path = path.lstrip("/")
+            if path == "." or path == "./":
+                path = ""
 
     def _get_filtered_elements(
         self,
@@ -70,7 +96,7 @@ class SmartCodebase(SmartCodebaseBase):
             target_type: The type of code element to filter
             subdirs_or_files: List of subdirectories or files to filter by
             additional_code_elements: Additional code elements to include in filtering
-            
+
         Returns:
             List of filtered elements
         """
@@ -93,39 +119,21 @@ class SmartCodebase(SmartCodebaseBase):
 
         # Filter by subdirectories/files if specified
         filtered_elements = []
-        for path_prefix in subdirs_or_files:
-            original_path_prefix = path_prefix
-            path_prefix = path_prefix.replace("\\", "/")
-            
-            # If it's an absolute path, try to make it relative to the codebase directory
-            if Path(path_prefix).is_absolute():
-                try:
-                    abs_codebase_dir = Path(self.dir).resolve()
-                    abs_path_prefix = Path(path_prefix).resolve()
-                    path_prefix = str(abs_path_prefix.relative_to(abs_codebase_dir))
-                except ValueError:
-                    print(f"Warning: Path {original_path_prefix} is not within codebase directory {self.dir}")
-                    continue
-            else:
-                # For relative paths, strip leading slash and handle current directory
-                path_prefix = path_prefix.lstrip("/")
-                if path_prefix == "." or path_prefix == "./":
-                    path_prefix = ""
-            
-            for element in elements:
-                if isinstance(element, Symbol) and str(element.file.path).startswith(
-                    path_prefix
-                ):
-                    filtered_elements.append(element)
-                elif isinstance(element, File) and str(element.path).startswith(
-                    path_prefix
-                ):
-                    filtered_elements.append(element)
-                elif isinstance(element, Keyword):
-                    for path in element.referenced_by:
-                        if str(path).startswith(path_prefix):
-                            filtered_elements.append(element)
-                            break
+        subdirs_or_files = [self._fixup_path(path) for path in subdirs_or_files]
+        for element in elements:
+            if isinstance(element, Symbol) and str(element.file.path).startswith(
+                subdirs_or_files
+            ):
+                filtered_elements.append(element)
+            elif isinstance(element, File) and str(element.path).startswith(
+                subdirs_or_files
+            ):
+                filtered_elements.append(element)
+            elif isinstance(element, Keyword):
+                for path in element.referenced_by:
+                    if str(path).startswith(subdirs_or_files):
+                        filtered_elements.append(element)
+                        break
 
         # Add additional elements if provided
         if additional_code_elements:
@@ -133,11 +141,13 @@ class SmartCodebase(SmartCodebaseBase):
 
         logger.debug(f"filtered_elements size: {len(filtered_elements)}")
         elements = filtered_elements if filtered_elements else elements
-        
+
         return elements
-    
+
     @classmethod
-    def new(cls, id: str, dir: Path, settings: "SmartCodebaseSettings") -> "SmartCodebase":
+    def new(
+        cls, id: str, dir: Path, settings: "SmartCodebaseSettings"
+    ) -> "SmartCodebase":
         codebase = Codebase.new(id, dir)
         return cls(
             id=codebase.id,
@@ -149,7 +159,7 @@ class SmartCodebase(SmartCodebaseBase):
             dependencies=codebase.dependencies,
             settings=settings,
         )
-        
+
     async def llm_filter(
         self,
         prompt: str,
@@ -179,14 +189,24 @@ class SmartCodebase(SmartCodebaseBase):
             - LLM results with reasoning
         """
 
-        elements = self._get_filtered_elements(target_type, subdirs_or_files, additional_code_elements)
-        if target_type == "keyword" or target_type == "symbol_name" or target_type == "dependency_name":
+        elements = self._get_filtered_elements(
+            target_type, subdirs_or_files, additional_code_elements
+        )
+        if (
+            target_type == "keyword"
+            or target_type == "symbol_name"
+            or target_type == "dependency_name"
+        ):
             model_id = self.settings.llm_mapfilter_special_model_id
 
         if llm_call_mode == "function_call":
-            return await self._process_elements_with_function_call(elements, target_type, prompt, is_filter=True, model_id=model_id)
+            return await self._process_elements_with_function_call(
+                elements, target_type, prompt, is_filter=True, model_id=model_id
+            )
         else:
-            return await self._process_elements_traditional(elements, target_type, prompt, prompt_template, model_id=model_id)
+            return await self._process_elements_traditional(
+                elements, target_type, prompt, prompt_template, model_id=model_id
+            )
 
     async def _process_elements_traditional(
         self,
@@ -201,7 +221,9 @@ class SmartCodebase(SmartCodebaseBase):
 
         # Process elements in batches
         async def process_element_batch(
-            elements_batch: List[Any], target_type: str, requirement: str,
+            elements_batch: List[Any],
+            target_type: str,
+            requirement: str,
         ) -> Tuple[List[Any], List[Any]]:
             text = ""
             for i, element in enumerate(elements_batch):
@@ -236,7 +258,10 @@ class SmartCodebase(SmartCodebaseBase):
             }
 
             try:
-                model_ids = [model_id or self.settings.llm_mapfilter_model_id, self.settings.llm_fallback_model_id]
+                model_ids = [
+                    model_id or self.settings.llm_mapfilter_model_id,
+                    self.settings.llm_fallback_model_id,
+                ]
                 llm_results = await call_llm_with_fallback(
                     response_model=List[CodeMapFilterResult],
                     input_data=invoke_input,
@@ -260,7 +285,7 @@ class SmartCodebase(SmartCodebaseBase):
         element_tasks = []
         cur_batch = []
         max_batch_length = self.settings.llm_mapfilter_max_batch_length
-        max_batch_size = self.settings.llm_mapfilter_max_batch_size 
+        max_batch_size = self.settings.llm_mapfilter_max_batch_size
 
         for element in elements:
             content_length = 0
@@ -300,7 +325,7 @@ class SmartCodebase(SmartCodebaseBase):
 
         max_concurrent_requests = self.settings.llm_max_concurrent_requests
         semaphore = asyncio.Semaphore(max_concurrent_requests)
-        
+
         async def process_with_semaphore(batch):
             async with semaphore:
                 return await process_element_batch(batch, target_type, prompt)
@@ -376,7 +401,7 @@ class SmartCodebase(SmartCodebaseBase):
                 code_element_number_minus_one=len(elements_batch) - 1,
                 requirement=requirement,
             )
-            
+
             function_definition = (
                 get_filter_function_definition()
                 if is_filter
@@ -385,7 +410,10 @@ class SmartCodebase(SmartCodebaseBase):
 
             try:
                 # Call LLM with function call
-                model_ids = [model_id or self.settings.llm_function_call_model_id, self.settings.llm_fallback_model_id]
+                model_ids = [
+                    model_id or self.settings.llm_function_call_model_id,
+                    self.settings.llm_fallback_model_id,
+                ]
                 function_args = await call_llm_with_function_call(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -401,21 +429,25 @@ class SmartCodebase(SmartCodebaseBase):
                 for i, analysis in enumerate(analyses):
                     # Add type checking to handle cases where analysis is not a dict
                     if not isinstance(analysis, dict):
-                        logger.warning(f"Analysis item {i} is not a dictionary, got {type(analysis)}: {analysis}")
+                        logger.warning(
+                            f"Analysis item {i} is not a dictionary, got {type(analysis)}: {analysis}"
+                        )
                         # Skip this analysis item or create a default one
                         analysis = {
                             "index": i,
                             "reason": f"Invalid analysis format: {type(analysis)}",
-                            "result": False if is_filter else ""
+                            "result": False if is_filter else "",
                         }
-                    
+
                     index = analysis.get("index", -1)
                     reason = analysis.get("reason", "")
                     result = analysis.get("result")
-                    
+
                     if result is None:
-                        logger.warning(f"Analysis item {i} missing 'result' field: {analysis}")
-                    
+                        logger.warning(
+                            f"Analysis item {i} missing 'result' field: {analysis}"
+                        )
+
                     # Create CodeMapFilterResult object
                     llm_result = CodeMapFilterResult(
                         index=index,
@@ -423,7 +455,7 @@ class SmartCodebase(SmartCodebaseBase):
                         result=result,
                     )
                     llm_results.append(llm_result)
-                    
+
                     # For filter mode, include elements where result is True
                     # For mapping mode, include all elements with non-empty results
                     if is_filter and result is True:
@@ -432,9 +464,9 @@ class SmartCodebase(SmartCodebaseBase):
                     elif not is_filter and result:  # For mapping, result is string
                         if 0 <= index < len(elements_batch):
                             right_elements.append(elements_batch[index])
-                
+
                 return llm_results, right_elements
-                
+
             except Exception as e:
                 logger.error(f"Function call processing failed: {str(e)}")
                 return [], []
@@ -484,10 +516,12 @@ class SmartCodebase(SmartCodebaseBase):
 
         max_concurrent_requests = self.settings.llm_max_concurrent_requests
         semaphore = asyncio.Semaphore(max_concurrent_requests)
-        
+
         async def process_with_semaphore(batch):
             async with semaphore:
-                return await process_element_batch_with_function_call(batch, target_type, prompt, is_filter)
+                return await process_element_batch_with_function_call(
+                    batch, target_type, prompt, is_filter
+                )
 
         gather_results = await tqdm.gather(
             *[process_with_semaphore(batch) for batch in element_tasks],
@@ -530,8 +564,12 @@ class SmartCodebase(SmartCodebaseBase):
         """
         if llm_call_mode == "function_call":
             # Get and filter elements using the shared method
-            elements = self._get_filtered_elements(target_type, subdirs_or_files, additional_code_elements)
-            return await self._process_elements_with_function_call(elements, target_type, prompt, is_filter=False, model_id=model_id)
+            elements = self._get_filtered_elements(
+                target_type, subdirs_or_files, additional_code_elements
+            )
+            return await self._process_elements_with_function_call(
+                elements, target_type, prompt, is_filter=False, model_id=model_id
+            )
         else:
             return await self.llm_filter(
                 prompt=prompt,
@@ -549,6 +587,7 @@ class SmartCodebase(SmartCodebaseBase):
         query: str,
         threshold: Optional[float] = None,
         top_k: int = 100,
+        subdirs_or_files: List[str] = ["/"],
     ) -> List[Any]:
         """
         Perform similarity search on symbols based on the specified types.
@@ -577,7 +616,9 @@ class SmartCodebase(SmartCodebaseBase):
                 if self.symbol_name_searcher is None:
                     raise ValueError("Symbol name searcher is not initialized")
                 symbol_by_name = {symbol.name: symbol for symbol in self.symbols}
-                for doc, score in await self.symbol_name_searcher.asearch_with_score(query, top_k):
+                for doc, score in await self.symbol_name_searcher.asearch_with_score(
+                    query, top_k
+                ):
                     if score >= threshold and doc in symbol_by_name:
                         results.append(symbol_by_name[doc])
 
@@ -587,7 +628,9 @@ class SmartCodebase(SmartCodebaseBase):
                 symbol_by_content = {
                     symbol.chunk.code(): symbol for symbol in self.symbols
                 }
-                for doc, score in await self.symbol_content_searcher.asearch_with_score(query, top_k):
+                for doc, score in await self.symbol_content_searcher.asearch_with_score(
+                    query, top_k
+                ):
                     if score >= threshold and doc in symbol_by_content:
                         results.append(symbol_by_content[doc])
 
@@ -595,13 +638,22 @@ class SmartCodebase(SmartCodebaseBase):
                 if self.keyword_searcher is None:
                     raise ValueError("Keyword searcher is not initialized")
                 keyword_map = {keyword.content: keyword for keyword in self.keywords}
-                for doc, score in await self.keyword_searcher.asearch_with_score(query, top_k):
+                for doc, score in await self.keyword_searcher.asearch_with_score(
+                    query, top_k
+                ):
                     if score >= threshold and doc in keyword_map:
                         results.append(keyword_map[doc])
 
         return results
 
-    async def similarity_search_lines_per_symbol(self, query: str,  threshold: Optional[float] = None,  top_k: int = 10) -> List[Any]:
+    async def similarity_search_lines_per_symbol(
+        self,
+        query: str,
+        threshold: Optional[float] = None,
+        top_k: int = 10,
+        scope: Literal["top_level_symbol", "symbol", "class", "function"] = "symbol",
+        subdirs_or_files: List[str] = ["/"],
+    ) -> List[Any]:
         """
         Search for similar lines within a specific symbol using metadata filtering.
 
@@ -609,6 +661,7 @@ class SmartCodebase(SmartCodebaseBase):
             query: The search query
             threshold: Similarity threshold, defaults to value from environment variable
             top_k: Maximum number of results to return
+            scope: The scope of symbols to search within - "all", "top", "class", "function"
 
         Returns:
             List of CodeLine objects that match the search criteria within the specified symbol
@@ -616,9 +669,9 @@ class SmartCodebase(SmartCodebaseBase):
         Raises:
             ValueError: If symbol codeline searcher is not initialized
         """
-        if self.symbol_codeline_searcher is None:
+        if self.codeline_searcher is None:
             raise ValueError("Symbol codeline searcher is not initialized")
-
+        subdirs_or_files = [self._fixup_path(path) for path in subdirs_or_files]
         threshold = (
             self.settings.similarity_search_threshold
             if threshold is None
@@ -626,11 +679,27 @@ class SmartCodebase(SmartCodebaseBase):
         )
         query_vector = (await embed_batch_with_retry([query]))[0]
 
+        if scope == "symbo":
+            symbols = self.symbols
+        if scope == "top_level_symbol":
+            # search only on top-level symbols (those without a parent chunk)
+            symbols = [symbol for symbol in self.symbols if not symbol.chunk.parent]
+        else:
+            symbols = [symbol for symbol in self.symbols if symbol.type == scope]
+        symbols = [
+            symbol
+            for symbol in symbols
+            if str(symbol.file.path).startswith(subdirs_or_files)
+        ]
         results = []
         search_tasks = []
-        for symbol in self.symbols: 
+        for symbol in symbols:
             search_tasks.append(
-                self.symbol_codeline_searcher.asearch_by_vector(query_vector, top_k, {"symbol_id": symbol.id},)
+                self.codeline_searcher.asearch_by_vector(
+                    query_vector,
+                    top_k,
+                    {"symbol_id": symbol.id},
+                )
             )
         search_task_results = await tqdm.gather(
             *search_tasks,
@@ -641,11 +710,7 @@ class SmartCodebase(SmartCodebaseBase):
         for idx, search_task_result in enumerate(search_task_results):
             for doc in search_task_result:
                 results.append(
-                    CodeLine.new(
-                    line_content=doc,
-                    symbol=self.symbols[idx],
-                    score=0
+                    CodeLine.new(line_content=doc, symbol=symbols[idx], score=0)
                 )
-            )
 
         return results

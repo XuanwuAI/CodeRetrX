@@ -23,7 +23,7 @@ def parse_repos():
 
 async def main():
     repos = parse_repos()
-    modes = ["filename", "symbol", "line", "precise", "auto"]
+    modes = ["file_name", "symbol_name", "line_per_symbol", "precise", "auto"]
     
     print(f"Running benchmark on {len(repos)} repositories with {len(modes)} modes")
 
