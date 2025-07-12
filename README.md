@@ -74,11 +74,12 @@ The llm_traversal_filter provides the most comprehensive and accurate analysis, 
 #### Using coderetrx_filter with symbol_name strategy 
 
 ```python
+from pathlib import Path
 from coderetrx.retrieval import coderetrx_filter
 from coderetrx.impl.default import CodebaseFactory
 
 # Initialize codebase
-codebase = CodebaseFactory.new("repo_name", "/path/to/your/repo")
+codebase = CodebaseFactory.new("repo_name", Path("/path/to/your/repo"))
 
 # Basic symbol search
 elements, llm_results = await coderetrx_filter(
@@ -102,8 +103,8 @@ from coderetrx.retrieval.code_recall import CodeRecallSettings
 
 # Configure advanced settings
 settings = CodeRecallSettings(
-    llm_primary_recall_model_id="google/gemini-2.5-flash-lite-preview-06-17",
-    llm_secondary_recall_model_id="openai/gpt-4.1-mini"
+    llm_primary_recall_model_id="anthropic/claude-sonnet-4",
+    llm_secondary_recall_model_id="openai/gpt-4o-mini"
 )
 
 # Cost-efficient and complete search with line_per_symbol mode and secondary recall
@@ -167,7 +168,7 @@ settings = CodeRecallSettings(
     llm_secondary_recall_model_id="...",    # Model used for secondary recall in the refined stage. If set (not None), secondary recall will be enabled.
     llm_selector_strategy_model_id="...",   # Model used for strategy selection in "auto" mode during the coarse recall stage.
     llm_call_mode="function_call"           # LLM call mode. If set to "function_call", the LLM will return results as a function call (recommended for models supporting this feature). 
-                                             # If set to "traditional", the LLM will return results in plain text format.
+                                            # If set to "traditional", the LLM will return results in plain text format.
 )
 ```
 
@@ -178,16 +179,17 @@ settings = CodeRecallSettings(
 for element in elements:
     if hasattr(element, 'name'):  # Symbol
         print(f"Symbol: {element.name} in {element.file.path}")
-        print(f"Content: {element.chunk.content}")
+        print(f"Content: {element.chunk.code()}")
     elif hasattr(element, 'path'):  # File
         print(f"File: {element.path}")
-    elif hasattr(element, 'text'):  # Keyword
-        print(f"Keyword: {element.text}")
+    elif hasattr(element, 'content'):  # Keyword
+        print(f"Keyword: {element.content}")
         
 # Access LLM analysis results
 for result in llm_results:
-    print(f"Analysis: {result.analysis}")
-    print(f"Confidence: {result.confidence}")
+    print(f"Index: {result.index}")
+    print(f"Reason: {result.reason}")
+    print(f"Result: {result.result}")
 ```
 
 ### Quick Start

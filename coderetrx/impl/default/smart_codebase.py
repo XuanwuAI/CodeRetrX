@@ -1,15 +1,12 @@
-from typing import Optional, List, Tuple, Any, Union, Literal, TYPE_CHECKING
+from typing import Optional, List, Tuple, Any, Literal, TYPE_CHECKING
 from coderetrx.static import Codebase, Dependency
 from coderetrx.static.codebase import Symbol, Keyword, File, CodeLine
 from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
 from coderetrx.retrieval.smart_codebase import CodeMapFilterResult
 from attrs import define, field
 from coderetrx.utils.embedding import SimilaritySearcher, embed_batch_with_retry
-import os
 import logging
 from pathlib import Path
-from pydantic import Field
-from pydantic_settings import BaseSettings
 from tqdm.asyncio import tqdm
 from .prompt import (
     llm_filter_prompt_template,
@@ -20,7 +17,6 @@ from .prompt import (
     get_filter_function_definition,
     get_mapping_function_definition,
 )
-from tqdm.asyncio import tqdm
 import asyncio
 
 if TYPE_CHECKING:
@@ -87,8 +83,8 @@ class SmartCodebase(SmartCodebaseBase):
     def _get_filtered_elements(
         self,
         target_type: LLMMapFilterTargetType,
-        subdirs_or_files: List[str] = [],
-        additional_code_elements: List[Any] = [],
+        subdirs_or_files: Optional[List[str]] = None,
+        additional_code_elements: Optional[List[Any]] = None,
     ) -> List[Any]:
         """
         Filter code elements based on the specified type and prompt using LLM.
@@ -101,6 +97,10 @@ class SmartCodebase(SmartCodebaseBase):
         Returns:
             List of filtered elements
         """
+        if subdirs_or_files is None:
+            subdirs_or_files = ["/"]
+        if additional_code_elements is None:
+            additional_code_elements = []
         # Get elements based on type
         elements = []
         if target_type in ["file_name", "file_content"]:
@@ -122,17 +122,13 @@ class SmartCodebase(SmartCodebaseBase):
         filtered_elements = []
         subdirs_or_files = [self._fixup_path(path) for path in subdirs_or_files]
         for element in elements:
-            if isinstance(element, Symbol) and str(element.file.path).startswith(
-                subdirs_or_files
-            ):
+            if isinstance(element, Symbol) and any(str(element.file.path).startswith(subdir) for subdir in subdirs_or_files):
                 filtered_elements.append(element)
-            elif isinstance(element, File) and str(element.path).startswith(
-                subdirs_or_files
-            ):
+            elif isinstance(element, File) and any(str(element.path).startswith(subdir) for subdir in subdirs_or_files):
                 filtered_elements.append(element)
             elif isinstance(element, Keyword):
                 for path in element.referenced_by:
-                    if str(path).startswith(subdirs_or_files):
+                    if any(str(path).startswith(subdir) for subdir in subdirs_or_files):
                         filtered_elements.append(element)
                         break
 
@@ -147,9 +143,18 @@ class SmartCodebase(SmartCodebaseBase):
 
     @classmethod
     def new(
-        cls, id: str, dir: Path, settings: "SmartCodebaseSettings"
+        cls, 
+        id: str, 
+        dir: Path, 
+        url: Optional[str] = None,
+        lazy: bool = False,
+        version: str = "v0.0.1",
+        ignore_tests: bool = True,
+        settings: Optional["SmartCodebaseSettings"] = None
     ) -> "SmartCodebase":
-        codebase = Codebase.new(id, dir)
+        if settings is None:
+            settings = get_smart_codebase_settings()
+        codebase = Codebase.new(id, dir, url, lazy, version, ignore_tests)
         return cls(
             id=codebase.id,
             dir=codebase.dir,
@@ -165,8 +170,8 @@ class SmartCodebase(SmartCodebaseBase):
         self,
         prompt: str,
         target_type: LLMMapFilterTargetType,
-        subdirs_or_files: List[str] = [],
-        additional_code_elements: List[Any] = [],
+        subdirs_or_files: Optional[List[str]] = None,
+        additional_code_elements: Optional[List[Any]] = None,
         prompt_template: str = llm_filter_prompt_template,
         llm_call_mode: LLMCallMode = "traditional",
         model_id: Optional[str] = None,
@@ -189,6 +194,10 @@ class SmartCodebase(SmartCodebaseBase):
             - Filtered elements
             - LLM results with reasoning
         """
+        if subdirs_or_files is None:
+            subdirs_or_files = ["/"]
+        if additional_code_elements is None:
+            additional_code_elements = []
 
         elements = self._get_filtered_elements(
             target_type, subdirs_or_files, additional_code_elements
@@ -543,8 +552,8 @@ class SmartCodebase(SmartCodebaseBase):
         self,
         prompt: str,
         target_type: LLMMapFilterTargetType,
-        subdirs_or_files: List[str] = [],
-        additional_code_elements: List[Any] = [],
+        subdirs_or_files: Optional[List[str]] = None,
+        additional_code_elements: Optional[List[Any]] = None,
         llm_call_mode: LLMCallMode = "traditional",
         model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[Any]]:
@@ -563,6 +572,11 @@ class SmartCodebase(SmartCodebaseBase):
             - Mapped elements
             - LLM results with mapping content
         """
+        if subdirs_or_files is None:
+            subdirs_or_files = ["/"]
+        if additional_code_elements is None:
+            additional_code_elements = []
+
         if llm_call_mode == "function_call":
             # Get and filter elements using the shared method
             elements = self._get_filtered_elements(
@@ -588,7 +602,7 @@ class SmartCodebase(SmartCodebaseBase):
         query: str,
         threshold: Optional[float] = None,
         top_k: int = 100,
-        subdirs_or_files: List[str] = ["/"],
+        subdirs_or_files: Optional[List[str]] = None,
     ) -> List[Any]:
         """
         Perform similarity search on symbols based on the specified types.
@@ -605,6 +619,9 @@ class SmartCodebase(SmartCodebaseBase):
         Raises:
             ValueError: If searcher is not initialized for the requested type
         """
+        if subdirs_or_files is None:
+            subdirs_or_files = ["/"]
+
         threshold = (
             self.settings.similarity_search_threshold
             if threshold is None
@@ -653,7 +670,7 @@ class SmartCodebase(SmartCodebaseBase):
         threshold: Optional[float] = None,
         top_k: int = 10,
         scope: Literal["top_level_symbol", "symbol", "class", "function"] = "symbol",
-        subdirs_or_files: List[str] = ["/"],
+        subdirs_or_files: Optional[List[str]] = None,
     ) -> List[Any]:
         """
         Search for similar lines within a specific symbol using metadata filtering.
@@ -670,6 +687,9 @@ class SmartCodebase(SmartCodebaseBase):
         Raises:
             ValueError: If symbol codeline searcher is not initialized
         """
+        if subdirs_or_files is None:
+            subdirs_or_files = ["/"]
+
         if self.codeline_searcher is None:
             raise ValueError("Symbol codeline searcher is not initialized")
         subdirs_or_files = [self._fixup_path(path) for path in subdirs_or_files]
@@ -682,7 +702,7 @@ class SmartCodebase(SmartCodebaseBase):
 
         if scope == "symbol":
             symbols = self.symbols
-        if scope == "top_level_symbol":
+        elif scope == "top_level_symbol":
             # search only on top-level symbols (those without a parent chunk)
             symbols = [symbol for symbol in self.symbols if not symbol.chunk.parent]
         else:
@@ -690,7 +710,7 @@ class SmartCodebase(SmartCodebaseBase):
         symbols = [
             symbol
             for symbol in symbols
-            if str(symbol.file.path).startswith(subdirs_or_files)
+            if any(str(symbol.file.path).startswith(subdir) for subdir in subdirs_or_files)
         ]
         results = []
         search_tasks = []

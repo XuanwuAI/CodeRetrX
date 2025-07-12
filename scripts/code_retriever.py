@@ -27,8 +27,8 @@ class CodeRetriever:
         self.repo_path = get_data_dir() / "repos" / get_repo_id(repo_url)
         self.topic_extractor = TopicExtractor()
         self.coarse_recall_strategy: CoarseRecallStrategyType = coarse_recall_strategy 
-        if not isinstance(coarse_recall_strategy, CoarseRecallStrategyType):
-            raise ValueError(f"Invalid coarse_recall_strategy '{coarse_recall_strategy}'. Must be one of: {CoarseRecallStrategyType.__args__}")
+        if coarse_recall_strategy != "precise" and coarse_recall_strategy not in CoarseRecallStrategyType.__args__:
+            raise ValueError(f"Invalid coarse_recall_strategy '{coarse_recall_strategy}'. Must be one of: {CoarseRecallStrategyType.__args__} or 'precise'")
         self.use_function_call = use_function_call
 
     def generate_prompts(self, limit: int = 10) -> list[str]:
@@ -122,7 +122,7 @@ class CodeRetriever:
             
             try:
                 # Create settings with appropriate llm_call_coarse_recall_strategy
-                settings = CodeRecallSettings(llm_call_coarse_recall_strategy=llm_call_coarse_recall_strategy)
+                settings = CodeRecallSettings(llm_call_mode=llm_call_coarse_recall_strategy)
                 
                 if self.coarse_recall_strategy == "precise":
                     result, llm_output = await llm_traversal_filter(
@@ -142,7 +142,7 @@ class CodeRetriever:
                         prompt=prompt,
                         target_type="symbol_content",
                         coarse_recall_strategy=self.coarse_recall_strategy,
-                        topic_extractor=self.topic_extractor,
+                        topic_extractor=None,
                         settings=settings,
                         enable_secondary_recall=enable_secondary_recall
                     )
@@ -388,7 +388,7 @@ def parse_arguments():
 Available coarse_recall_strategies:
   file_name   - Uses file_name filtering only (fastest, least accurate)
   symbol_name      - Uses adaptive symbol name vector filtering (balanced speed/accuracy) 
-  line_per_symbol - Uses filtering with line_per_symbol-level vector recall and LLM judgment [DEFAULT]
+  line_per_symbol  - Uses filtering with line_per_symbol-level vector recall and LLM judgment [DEFAULT]
   dependency  - Uses dependency analysis to find related code
   auto        - Uses LLM to determine the best strategy based on the prompt
   precise     - Uses full LLM processing (most accurate but slowest)
@@ -400,7 +400,7 @@ Available coarse_recall_strategies:
         "--repo", "-r",
         type=str,
         default="https://github.com/ollama/ollama.git",
-        help="Repository URL to analyze (default: PaddleX)"
+        help="Repository URL to analyze (default: Ollama)"
     )
     
     parser.add_argument(
