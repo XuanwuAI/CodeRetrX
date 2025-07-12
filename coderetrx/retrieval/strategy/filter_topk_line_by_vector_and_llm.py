@@ -34,7 +34,7 @@ class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
 
     def __init__(
         self,
-        top_k_by_symbol: int = 5,
+        top_k_by_symbol: int = 15,
         max_queries: int = 20,
         topic_extractor: Optional[TopicExtractor] = None,
         llm_call_mode: LLMCallMode = "traditional",
@@ -71,7 +71,7 @@ class FilterTopkLineByVectorAndLLMStrategy(RecallStrategyExecutor):
         if not line_candidates:
             return []
 
-        max_batch_size = 30
+        max_batch_size = 50
         all_selected_lines = []
 
         # Process in batches
@@ -248,7 +248,7 @@ Call the select_relevant_lines function with your analysis."""
             selected_file_paths = set()
             recalled_symbols = []
             recalled_symbol_ids = set()
-            batch_size = 30  # Smaller batch size for better LLM processing
+            batch_size = 150
 
             # Process candidates in dynamic batches
             current_index = 0

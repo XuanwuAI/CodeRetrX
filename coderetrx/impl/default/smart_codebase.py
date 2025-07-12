@@ -131,7 +131,7 @@ class SmartCodebase(SmartCodebaseBase):
         if additional_code_elements:
             filtered_elements.extend(additional_code_elements)
 
-        logger.info(f"filtered_elements size: {len(filtered_elements)}", )
+        logger.debug(f"filtered_elements size: {len(filtered_elements)}")
         elements = filtered_elements if filtered_elements else elements
         
         return elements
