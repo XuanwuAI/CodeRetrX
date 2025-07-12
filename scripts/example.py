@@ -8,7 +8,7 @@ from coderetrx.utils.path import get_data_dir
 
 async def main():
     # Set up the repository URL and path
-    repo_url = "https://github.com/TecharoHQ/anubis.git"
+    repo_url = "https://github.com/ollama/ollama.git"
     repo_path = get_data_dir() / "repos" / get_repo_id(repo_url)
 
     # Clone the repository if it does not exist

@@ -109,8 +109,8 @@ class SmartCodebase(Codebase, ABC):
         self,
         prompt: str,
         target_type: LLMMapFilterTargetType,
-        subdirs_or_files: List[str] = [],
-        additional_code_elements: List[Union[Keyword, Symbol, File]] = [],
+        subdirs_or_files: Optional[List[str]] = None,
+        additional_code_elements: Optional[List[Union[Keyword, Symbol, File]]] = None,
         llm_call_mode: LLMCallMode = "traditional",
         model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[CodeMapFilterResult]]:
@@ -121,8 +121,8 @@ class SmartCodebase(Codebase, ABC):
         self,
         prompt: str,
         target_type: LLMMapFilterTargetType,
-        subdirs_or_files: List[str] = [],
-        additional_code_elements: List[Union[Keyword, Symbol, File]] = [],
+        subdirs_or_files: Optional[List[str]] = None,
+        additional_code_elements: Optional[List[Union[Keyword, Symbol, File]]] = None,
         llm_call_mode: LLMCallMode = "traditional",
         model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[CodeMapFilterResult]]:
@@ -145,7 +145,7 @@ class SmartCodebase(Codebase, ABC):
         threshold: Optional[float] = None,
         top_k: int = 10,
         scope: Literal["top_level_symbol", "symbol", "class", "function"] = "symbol",
-        subdirs_or_files: List[str] = ["/"],
+        subdirs_or_files: Optional[List[str]] = None,
     ) -> List[CodeLine]:
         """
         Search for similar lines within a specific symbol using metadata filtering.
