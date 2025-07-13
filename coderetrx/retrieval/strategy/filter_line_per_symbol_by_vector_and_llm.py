@@ -3,6 +3,7 @@ Strategy for filtering top-k lines using vector similarity search followed by LL
 """
 
 from typing import List, Tuple, Union, Optional, override, Any
+from tqdm import tqdm
 
 from coderetrx.retrieval.topic_extractor import TopicExtractor
 from .base import (
@@ -35,8 +36,6 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
 
     def __init__(
         self,
-        top_k_by_symbol: int = 15,
-        max_queries: int = 20,
         topic_extractor: Optional[TopicExtractor] = None,
         llm_call_mode: LLMCallMode = "traditional",
     ):
@@ -45,20 +44,20 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
 
         Args:
             top_k: Number of top lines to recall for each symbol from builtin searcher (default: 5)
-            max_queries: Maximum number of LLM queries allowed (default: 20)
+            max_iteration: Maximum number of LLM queries allowed (default: 20)
             topic_extractor: Optional TopicExtractor instance
             llm_call_mode: Mode for LLM calls
         """
         super().__init__(topic_extractor=topic_extractor, llm_call_mode=llm_call_mode)
-        self.top_k = top_k_by_symbol
-        self.max_queries = max_queries
+        self.top_k = 5
+        self.max_iteration = int(self.top_k * 1.5)
 
     def get_strategy_name(self) -> str:
         return "INTELLIGENT_FILTER"
 
     async def _llm_recall_judgment(
-        self, line_candidates: List[Tuple[str, str, str]], query: str
-    ) -> List[str]:
+        self, line_candidates: List[CodeLine], query: str
+    ) -> List[CodeLine]:
         """
         Use LLM to judge and select the most relevant lines from candidates.
 
@@ -97,15 +96,18 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
         return all_selected_lines
 
     async def _process_candidate_batch(
-        self, line_candidates: List[Tuple[str, str, str]], query: str
-    ) -> List[str]:
+        self, line_candidates: List[CodeLine], query: str, retry_cnt=0
+    ) -> List[CodeLine]:
         """Process a single batch of line candidates."""
         try:
             from coderetrx.utils.llm import call_llm_with_function_call
 
             # Prepare candidates text
             candidates_text = []
-            for i, (line, symbol_name, file_path) in enumerate(line_candidates):
+            for i, codeline in enumerate(line_candidates):
+                line = codeline.line_content
+                symbol_name = codeline.symbol.name
+                file_path = str(codeline.symbol.file.path)
                 candidates_text.append(
                     f"{i+1}. [{symbol_name} in {file_path}] {line.strip()}"
                 )
@@ -170,14 +172,14 @@ Call the select_relevant_lines function with your analysis."""
             selected_lines = []
             for idx in selected_indices:
                 if 1 <= idx <= len(line_candidates):
-                    selected_lines.append(line_candidates[idx - 1][0])
+                    selected_lines.append(line_candidates[idx - 1])
 
             return selected_lines
 
         except Exception as e:
             logger.error(f"Error in LLM recall judgment batch: {e}")
             # Fallback: return first few candidates from this batch
-            return [candidate[0] for candidate in line_candidates[:3]]
+            return [candidate[0] for candidate in line_candidates[:10]]
 
     async def execute(
         self,
@@ -226,7 +228,7 @@ Call the select_relevant_lines function with your analysis."""
                 "Step 1 - Using builtin codeline searcher for line-level vector recall"
             )
             # Use the builtin similarity_search with symbol_codeline target type
-            all_recalled_lines: list[CodeLine] = (
+            vector_per_symbol_recalled_lines: list[CodeLine] = (
                 await codebase.similarity_search_lines_per_symbol(
                     query=topic,
                     threshold=0,
@@ -237,120 +239,89 @@ Call the select_relevant_lines function with your analysis."""
             )
 
             logger.info(
-                f"Builtin codeline searcher found {len(all_recalled_lines)} line candidates"
+                f"Builtin codeline searcher found {len(vector_per_symbol_recalled_lines)} line candidates"
             )
 
-            if not all_recalled_lines:
+            if not vector_per_symbol_recalled_lines:
                 logger.info("No lines recalled from builtin codeline searcher")
                 return StrategyExecuteResult(file_paths=[], elements=[], llm_results=[])
 
-            # Filter by subdirectories if specified
-            if subdirs_or_files:
-                filtered_lines = []
-                for code_line in all_recalled_lines:
-                    file_path = str(code_line.symbol.file.path)
-                    if any(file_path.startswith(subdir) for subdir in subdirs_or_files):
-                        filtered_lines.append(code_line)
-                all_recalled_lines = filtered_lines
-                logger.info(
-                    f"Filtered to {len(all_recalled_lines)} lines from specified subdirectories"
-                )
-
             # Sort by vector similarity score (descending) - CodeLine objects should have score attribute
-            all_recalled_lines.sort(key=lambda x: x.score, reverse=True)
+            vector_per_symbol_recalled_lines.sort(key=lambda x: x.score, reverse=True)
             logger.info("Sorted line candidates by vector similarity score")
 
             # Step 2: LLM processing with dynamic batch evaluation
             logger.info("Step 2 - LLM processing with dynamic batch evaluation")
-            selected_file_paths = set()
+            recalled_file_paths = set()
             recalled_symbols = []
             recalled_symbol_ids = set()
-            batch_size = 150
+            # Calculate dynamic batch size based on total candidates
+            max_candidates_per_round = int((len(vector_per_symbol_recalled_lines) / self.top_k) * 0.2)
 
             # Process candidates in dynamic batches
-            current_index = 0
-            batch_count = 0
-            query_count = 0
+            line_idx = 0
+            current_round_lines = vector_per_symbol_recalled_lines
 
             # Progress bar for LLM queries
-            from tqdm import tqdm
 
-            with tqdm(
-                total=self.max_queries, desc="LLM batch queries", unit="query"
-            ) as pbar:
-                while (
-                    current_index < len(all_recalled_lines)
-                    and query_count < self.max_queries
+
+            for round in tqdm(range(self.max_iteration)): 
+                visited_symbol = set()
+                line_idx = 0
+                next_round_heading_lines = []
+                # Collect next batch of valid candidates
+                current_round_candidates: list[CodeLine] = []
+
+                while len(current_round_candidates) < max_candidates_per_round and line_idx < len(
+                    current_round_lines
                 ):
-                    # Collect next batch of valid candidates
-                    batch_candidates: list[CodeLine] = []
+                    entry = current_round_lines[line_idx]
+                    line_idx += 1
+                    # Skip if symbol already visited
+                    if entry.symbol.id in visited_symbol:
+                        next_round_heading_lines.append(entry)
+                        continue
 
-                    while len(batch_candidates) < batch_size and current_index < len(
-                        all_recalled_lines
-                    ):
-                        entry = all_recalled_lines[current_index]
-                        current_index += 1
-
-                        # Skip if symbol already recalled
-                        symbol_id = (
-                            entry.symbol.id
-                            or f"{entry.symbol.name}_{entry.symbol.file.path}"
-                        )
-                        if symbol_id in recalled_symbol_ids:
-                            continue
-
-                        # Skip if file path already selected
-                        file_path = str(entry.symbol.file.path)
-                        if file_path in selected_file_paths:
-                            continue
-
-                        batch_candidates.append(entry)
-
-                    if not batch_candidates:
-                        break
-
-                    batch_count += 1
-
-                    # Prepare batch data for LLM judgment
-                    batch_data = [
-                        (
-                            entry.line_content,
-                            entry.symbol.name,
-                            str(entry.symbol.file.path),
-                        )
-                        for entry in batch_candidates
-                    ]
-
-                    # Get LLM judgment on this batch
-                    selected_lines = await self._llm_recall_judgment(batch_data, prompt)
-                    query_count += 1
-                    pbar.update(1)  # Update progress bar
-
-                    # Mark selected symbols as recalled
-                    for selected_line in selected_lines:
-                        for entry in batch_candidates:
-                            symbol_id = (
-                                entry.symbol.id
-                                or f"{entry.symbol.name}_{entry.symbol.file.path}"
-                            )
-                            file_path = str(entry.symbol.file.path)
-                            if (
-                                entry.line_content == selected_line
-                                and symbol_id not in recalled_symbol_ids
-                            ):
-                                recalled_symbols.append(entry.symbol)
-                                recalled_symbol_ids.add(symbol_id)
-                                selected_file_paths.add(file_path)
-                                logger.debug(
-                                    f"Selected symbol '{entry.symbol.name}' from {file_path} (score: {entry.score:.3f})"
-                                )
-                                break
-
-                    logger.debug(
-                        f"Processed batch {batch_count}: Selected {len(selected_lines)} symbols from {len(batch_candidates)} candidates"
+                    # Skip if symbol already recalled
+                    symbol_id = (
+                        entry.symbol.id
+                        or f"{entry.symbol.name}_{entry.symbol.file.path}"
                     )
+                    if symbol_id in recalled_symbol_ids:
+                        continue
 
-            file_paths = list(selected_file_paths)
+                    # Skip if file path already selected
+                    file_path = str(entry.symbol.file.path)
+                    if file_path in recalled_file_paths:
+                        continue
+
+
+                    visited_symbol.add(symbol_id)
+                    current_round_candidates.append(entry)
+
+                if not current_round_candidates:
+                    break
+
+
+                # Get LLM judgment on this batch
+                selected_lines = await self._llm_recall_judgment(current_round_candidates, prompt)
+
+                # Mark selected symbols as recalled
+                for entry in selected_lines:
+                    recalled_symbols.append(entry.symbol)
+                    recalled_symbol_ids.add(entry.symbol.id)
+                    recalled_file_paths.add(entry.symbol.file.path)
+                    logger.debug(
+                        f"Selected symbol '{entry.symbol.name}' from {file_path} (score: {entry.score:.3f})"
+                    )
+                    break
+
+                logger.debug(
+                    f"Processed round {round}: Selected {len(selected_lines)} symbols from {len(current_round_candidates)} candidates"
+                )
+                current_round_lines = next_round_heading_lines + current_round_lines[line_idx:]
+
+            file_paths = list(recalled_file_paths)
             logger.info(
                 f"Intelligent filtering completed. Selected {len(file_paths)} files from {len(recalled_symbols)} symbols."
             )
