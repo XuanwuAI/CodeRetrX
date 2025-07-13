@@ -93,7 +93,7 @@ LLMMapFilterTargetType = Literal[
     "keyword",
 ]
 
-SimilaritySearchTargetType = Literal["symbol_name", "symbol_content", "keyword"]
+SimilaritySearchTargetType = Literal["symbol_name", "symbol_content", "keyword", "symbol_codeline"]
 LLMCallMode = Literal["traditional", "function_call"]
 
 

@@ -3,7 +3,7 @@ from typing import Optional, List, Tuple, Any, Literal, TYPE_CHECKING
 from coderetrx.static import Codebase, Dependency
 from coderetrx.static.codebase import Symbol, Keyword, File, CodeLine
 from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
-from coderetrx.retrieval.smart_codebase import CodeMapFilterResult, LLMMapFilterTargetType
+from coderetrx.retrieval.smart_codebase import CodeMapFilterResult, LLMMapFilterTargetType, SimilaritySearchTargetType
 from attrs import define, field
 from coderetrx.utils.embedding import SimilaritySearcher, embed_batch_with_retry
 import logging
@@ -24,11 +24,6 @@ if TYPE_CHECKING:
     from .factory import SmartCodebaseSettings
 
 logger = logging.getLogger(__name__)
-
-SimilaritySearchTargetType = Literal[
-    "symbol_name", "symbol_content", "keyword", "symbol_codeline"
-]
-
 
 def get_smart_codebase_settings() -> "SmartCodebaseSettings":
     from .factory import SmartCodebaseSettings
