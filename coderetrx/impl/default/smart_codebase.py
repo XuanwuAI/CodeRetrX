@@ -30,6 +30,10 @@ LLMMapFilterTargetType = Literal[
     "file_content",
     "symbol_name",
     "symbol_content",
+    "root_symbol_name",
+    "root_symbol_content",
+    "leaf_symbol_name",
+    "leaf_symbol_content",
     "class_name",
     "class_content",
     "function_name",
@@ -108,6 +112,16 @@ class SmartCodebase(SmartCodebaseBase):
             elements = [file for file in self.source_files]
         elif target_type in ["symbol_name", "symbol_content"]:
             elements = [symbol for symbol in self.symbols]
+        elif target_type in ["root_symbol_name", "root_symbol_content"]:
+            elements = [
+                symbol for symbol in self.symbols if not symbol.chunk.parent
+            ]
+        elif target_type in ["leaf_symbol_name", "leaf_symbol_content"]:
+            elements = [
+                symbol
+                for symbol in self.symbols
+                if not self.childs_of_symbol[symbol.id]  # No children means leaf
+            ]
         elif target_type in ["class_name", "class_content"]:
             elements = [symbol for symbol in self.symbols if symbol.type == "class"]
         elif target_type in ["function_name", "function_content"]:
@@ -194,6 +208,11 @@ class SmartCodebase(SmartCodebaseBase):
             A tuple containing:
             - Filtered elements
             - LLM results with reasoning
+
+        Note: 
+            For symbol_content filtering, duplicate analysis may occur—for example, both a class and its methods might be analyzed. 
+            This is intentional. Analyzing only the root symbols may lead to suboptimal LLM performance if the symbol content is too large, 
+            while analyzing only the leaf symbols might miss certain features that require a broader scope to identify.
         """
         if subdirs_or_files is None:
             subdirs_or_files = ["/"]
@@ -209,11 +228,6 @@ class SmartCodebase(SmartCodebaseBase):
             or target_type == "dependency_name"
         ):
             model_id = self.settings.llm_mapfilter_special_model_id
-        if target_type == "symbol_content":
-            elements: list[Symbol] 
-            elements = [element for element in elements if not self.childs_of_symbol[element.id]]
-
-
         if llm_call_mode == "function_call":
             right_elements, llm_results = await self._process_elements_with_function_call(
                 elements, target_type, prompt, is_filter=True, model_id=model_id
@@ -223,30 +237,7 @@ class SmartCodebase(SmartCodebaseBase):
                 elements, target_type, prompt, prompt_template, model_id=model_id
             )
         
-        if target_type == "symbol_content":
-            # For symbol_content, we need to filter out symbols that have children
-            extended_right_element_ids = set()  # 使用集合提高去重和查找效率
-
-            # iterate through right_elements to find all ancestor symbols
-            for symbol in right_elements:
-                ancestry_symbol_id = self.parent_of_symbol.get(symbol.id)
-                while ancestry_symbol_id and ancestry_symbol_id not in extended_right_element_ids:
-                    extended_right_element_ids.add(ancestry_symbol_id)
-                    ancestry_symbol_id = self.parent_of_symbol.get(ancestry_symbol_id)
-
-            # iterate through all symbols to find those that match the extended right elements
-            for symbol in self.symbols:
-                if symbol.id in extended_right_element_ids: 
-                    right_elements.append(symbol)
-                    llm_results.append(
-                        CodeMapFilterResult(
-                            index=symbol.id,
-                            reason="Symbol content matches the filter criteria because it is an ancestor of a matching symbol.",
-                            result=True,
-                            is_extended_match=True,
-                        )
-                    )
-            return right_elements, llm_results
+        return right_elements, llm_results
 
     async def _process_elements_traditional(
         self,

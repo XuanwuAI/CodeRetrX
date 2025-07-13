@@ -145,16 +145,17 @@ elements, llm_results = await llm_traversal_filter(
 
 Target type defines the retrieval target, determining the type of code object to be recalled and returned. For example, if the target_type is set to class_content, the result will include the relevant classes whose content match the query. Below are the available target_type options:
 
-
-- **`file_name`**: Matches files whose name satisfies the query.  
-- **`file_content`**: Matches files whose content satisfies the query.  
-- **`symbol_name`**: Matches symbols (e.g., functions, classes) whose name satisfies the query.  
-- **`symbol_content`**: Matches symbols  (e.g., functions, classes)  whose code content satisfies the query.
-- **`class_name`**: Matches class names that satisfy the query.  
-- **`class_content`**:  Matches class  whose code content satisfies the query. 
-- **`function_name`**: Matches function names that satisfy the query.  
-- **`function_content`**:  Matches function whose code content satisfies the query.  
-- **`dependency_name`**: Matches dependency names (e.g., imported libraries or modules) that satisfy the query.
+- **`symbol_name`**:Matches symbols (e.g., functions, classes) whose **name** satisfies the query. 
+- **`symbol_content`**: Matches symbols whose **entire code content** satisfies the query.
+- **`leaf_symbol_name`**: Matches **leaf symbols** (symbols without child elements, such as methods) whose **name** satisfy the query.
+- **`leaf_symbol_content`**: Matches **leaf symbols** whose **code content** satisfies the query.
+- **`root_symbol_name`**: Matches **root symbols** (symbols without parent elements, such as top-level classes, functions) whose **name** satisfy the query.
+- **`root_symbol_content`**: Matches **root symbols** whose **entire code content** satisfies the query.
+- **`class_name`**: Matches **classes** whose **name** that satisfy the query.
+- **`class_content`**: Matches **classes** whose **entire code content** satisfies the query.
+- **`function_name`**: Matches **functions**  whose **name**  satisfy the query.
+- **`function_content`**: Matches **functions** whose **entire code content** satisfies the query.
+- **`dependency_name`**: Matches **dependency names** (e.g., imported libraries or modules) that satisfy the query.
 
 Note: The coderetrx_filter only supports the xxx_content series of target_type, while the llm_traversal_filter supports all target_type options.
 
