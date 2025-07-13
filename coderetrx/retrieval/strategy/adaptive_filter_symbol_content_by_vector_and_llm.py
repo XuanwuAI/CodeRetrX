@@ -67,6 +67,15 @@ class AdaptiveFilterSymbolContentByVectorAndLLMStrategy(AdaptiveFilterByVectorAn
             filtered_symbols = [
                 elem for elem in filtered_symbols if elem.type == "function"
             ]
+        elif target_type == "leaf_symbol_content":
+            # If the target type is leaf_symbol_content, filter symbols that are leaves
+            filtered_symbol = [
+                elem for elem in filtered_symbol if not codebase.childs_of_symbol[elem.id]
+            ]
+        elif target_type == "root_symbol_content":
+            filtered_symbol = [
+                elem for elem in filtered_symbol if not codebase.parent_of_symbol[elem.id]
+            ]
         return filtered_symbols
 
     @override
