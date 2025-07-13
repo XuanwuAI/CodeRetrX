@@ -217,20 +217,13 @@ Call the select_relevant_lines function with your analysis."""
             logger.info(
                 "Step 1 - Using builtin codeline searcher for line-level vector recall"
             )
-            target_type_to_scope = {
-                "symbol_content": "symbol",
-                "file_content": "top_level_symbol",
-                "function_content": "function",
-                "class_content": "class",
-            }
-
             # Use the builtin similarity_search with symbol_codeline target type
             all_recalled_lines: list[CodeLine] = (
                 await codebase.similarity_search_lines_per_symbol(
                     query=topic,
                     threshold=0,
                     top_k=self.top_k,
-                    scope=target_type_to_scope.get(target_type, "symbol"),
+                    scope="leaf_symbol",
                     subdirs_or_files=subdirs_or_files,
                 )
             )

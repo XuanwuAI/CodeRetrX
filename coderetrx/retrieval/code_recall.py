@@ -424,12 +424,19 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
         )
 
     additional_code_elements = []
-    if not extend_coarse_recall_element_to_file and coarse_recall_strategy in [
-        "line_per_symbol",
-        "symbol_name",
-    ]:
+    # If coarse recall strategy is not extendable to file, we use the elements from the strategy result, currently only for symbol
+    if (
+        not extend_coarse_recall_element_to_file
+        and coarse_recall_strategy
+        in [
+            "line_per_symbol",
+            "symbol_name",
+        ]
+        and target_type in ["symbol_content", "function_content", "class_content"]
+    ):
         extended_subdirs_or_files = []
         additional_code_elements = strategy_result.elements
+    # for case of symbol_content, since the llm judge has already been applied in the strategy, we can use the elements directly 
     if (
         not extend_coarse_recall_element_to_file
         and coarse_recall_strategy == "symbol_content"
