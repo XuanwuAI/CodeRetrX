@@ -15,6 +15,7 @@ dependencies = [
     "pydantic-settings>=2.9.1",
     "python-dotenv>=1.1.0",
     "python-git>=2018.2.1",
+    "qdrant-client>=1.14.3",
     "tomli-w>=1.2.0",
     "tree-sitter>=0.24.0",
     "tree-sitter-language-pack>=0.7.3",
@@ -41,7 +42,9 @@ builtin-impl = [
     "langchain-chroma>=0.2.4",
     "langchain-community>=0.3.24",
     "langchain-openai>=0.3.17",
+    "langchain-qdrant>=0.2.0",
     "openai>=1.0.0",
+    "qdrant-client>=1.12.0",
 ]
 cli = ["typer>=0.16.0"]
 

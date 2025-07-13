@@ -73,6 +73,12 @@ class SmartCodebaseSettings(BaseSettings):
         alias="SYMBOL_CODELINE_EMBEDDING",
     )
 
+    vector_db_provider: Literal["chroma","qdrant"] = Field(
+        default="chroma",
+        description="Provider of vector database to use for embeddings",
+        alias="VECTOR_DB_PROVIDER",
+    )
+
 
 LLMMapFilterTargetType = Literal[
     "file_name",
