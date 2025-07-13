@@ -1,4 +1,5 @@
-from typing import Literal
+from typing import Optional
+
 from dotenv import load_dotenv
 from coderetrx.retrieval import LLMCallMode
 load_dotenv()
@@ -67,8 +68,16 @@ class CodeRetriever:
             json.dump(codebase.to_json(), f, indent=4)
         return codebase
 
-    async def find_codes(self, subdirs: list[str] = ["/"], enable_secondary_recall: bool = False, limit: int = 10) -> tuple[list[dict], dict, dict]:
+    async def find_codes(
+            self,
+            subdirs: Optional[list[str]] = None,
+            enable_secondary_recall: bool = False,
+            limit: int = 10
+    ) -> tuple[list[dict], dict, dict]:
         """Find potential codes in the codebase using the specified coarse_recall_strategy"""
+        if subdirs is None:
+            subdirs = ["/"]
+
         start_time = time.time()
         timing_info = {
             "total_duration": 0.0,
