@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Optional, List, Tuple, Any, Literal, TYPE_CHECKING
 from coderetrx.static import Codebase, Dependency
 from coderetrx.static.codebase import Symbol, Keyword, File, CodeLine
@@ -208,15 +209,44 @@ class SmartCodebase(SmartCodebaseBase):
             or target_type == "dependency_name"
         ):
             model_id = self.settings.llm_mapfilter_special_model_id
+        if target_type == "symbol_content":
+            elements: list[Symbol] 
+            elements = [element for element in elements if not self.childs_of_symbol[element.id]]
+
 
         if llm_call_mode == "function_call":
-            return await self._process_elements_with_function_call(
+            right_elements, llm_results = await self._process_elements_with_function_call(
                 elements, target_type, prompt, is_filter=True, model_id=model_id
             )
         else:
-            return await self._process_elements_traditional(
+            right_elements, llm_results = await self._process_elements_traditional(
                 elements, target_type, prompt, prompt_template, model_id=model_id
             )
+        
+        if target_type == "symbol_content":
+            # For symbol_content, we need to filter out symbols that have children
+            extended_right_element_ids = set()  # 使用集合提高去重和查找效率
+
+            # iterate through right_elements to find all ancestor symbols
+            for symbol in right_elements:
+                ancestry_symbol_id = self.parent_of_symbol.get(symbol.id)
+                while ancestry_symbol_id and ancestry_symbol_id not in extended_right_element_ids:
+                    extended_right_element_ids.add(ancestry_symbol_id)
+                    ancestry_symbol_id = self.parent_of_symbol.get(ancestry_symbol_id)
+
+            # iterate through all symbols to find those that match the extended right elements
+            for symbol in self.symbols:
+                if symbol.id in extended_right_element_ids: 
+                    right_elements.append(symbol)
+                    llm_results.append(
+                        CodeMapFilterResult(
+                            index=symbol.id,
+                            reason="Symbol content matches the filter criteria because it is an ancestor of a matching symbol.",
+                            result=True,
+                            is_extended_match=True,
+                        )
+                    )
+            return right_elements, llm_results
 
     async def _process_elements_traditional(
         self,
@@ -669,7 +699,7 @@ class SmartCodebase(SmartCodebaseBase):
         query: str,
         threshold: Optional[float] = None,
         top_k: int = 10,
-        scope: Literal["top_level_symbol", "symbol", "class", "function"] = "symbol",
+        scope: Literal["root_symbol", "leaf_symbol",  "symbol", "class", "function"] = "symbol",
         subdirs_or_files: Optional[List[str]] = None,
     ) -> List[Any]:
         """
@@ -679,7 +709,7 @@ class SmartCodebase(SmartCodebaseBase):
             query: The search query
             threshold: Similarity threshold, defaults to value from environment variable
             top_k: Maximum number of results to return
-            scope: The scope of symbols to search within - "all", "top", "class", "function"
+            scope: The scope of symbols to search within - "root_symbol", "leaf_symbol", "symbol", "class", "function"
 
         Returns:
             List of CodeLine objects that match the search criteria within the specified symbol
@@ -689,6 +719,7 @@ class SmartCodebase(SmartCodebaseBase):
         """
         if subdirs_or_files is None:
             subdirs_or_files = ["/"]
+
 
         if self.codeline_searcher is None:
             raise ValueError("Symbol codeline searcher is not initialized")
@@ -702,9 +733,11 @@ class SmartCodebase(SmartCodebaseBase):
 
         if scope == "symbol":
             symbols = self.symbols
-        elif scope == "top_level_symbol":
+        elif scope == "root_symbol":
             # search only on top-level symbols (those without a parent chunk)
             symbols = [symbol for symbol in self.symbols if not symbol.chunk.parent]
+        elif scope == "leaf_symbol":
+            symbols = [symbol for symbol in self.symbols if not self.childs_of_symbol[symbol.id]]  
         else:
             symbols = [symbol for symbol in self.symbols if symbol.type == scope]
         symbols = [

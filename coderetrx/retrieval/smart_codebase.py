@@ -96,6 +96,8 @@ class CodeMapFilterResult(BaseModel):
     index: int
     reason: str
     result: Any
+    is_extended_match: bool = False
+    
 
 
 class KeywordExtractorResult(BaseModel):
@@ -144,7 +146,7 @@ class SmartCodebase(Codebase, ABC):
         query: str,
         threshold: Optional[float] = None,
         top_k: int = 10,
-        scope: Literal["top_level_symbol", "symbol", "class", "function"] = "symbol",
+        scope: Literal["root_symbol", "leaf_symbol", "symbol", "class", "function"] = "symbol",
         subdirs_or_files: Optional[List[str]] = None,
     ) -> List[CodeLine]:
         """
