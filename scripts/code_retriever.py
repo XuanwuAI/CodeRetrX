@@ -151,7 +151,7 @@ class CodeRetriever:
                         prompt=prompt,
                         target_type="symbol_content",
                         coarse_recall_strategy=self.coarse_recall_strategy,
-                        topic_extractor=None,
+                        topic_extractor=self.topic_extractor,
                         settings=settings,
                         enable_secondary_recall=enable_secondary_recall
                     )
