@@ -103,7 +103,7 @@ from coderetrx.retrieval.code_recall import CodeRecallSettings
 
 # Configure advanced settings
 settings = CodeRecallSettings(
-    llm_primary_recall_model_id="anthropic/claude-sonnet-4",
+    llm_primary_recall_model_id="google/gemini-2.5-flash-lite-preview-06-17",
     llm_secondary_recall_model_id="openai/gpt-4o-mini"
 )
 

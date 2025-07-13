@@ -79,6 +79,10 @@ LLMMapFilterTargetType = Literal[
     "file_content",
     "symbol_name",
     "symbol_content",
+    "root_symbol_name",
+    "root_symbol_content",
+    "leaf_symbol_name",
+    "leaf_symbol_content",
     "class_name",
     "class_content",
     "function_name",
@@ -88,6 +92,7 @@ LLMMapFilterTargetType = Literal[
     "dependency",
     "keyword",
 ]
+
 SimilaritySearchTargetType = Literal["symbol_name", "symbol_content", "keyword"]
 LLMCallMode = Literal["traditional", "function_call"]
 
