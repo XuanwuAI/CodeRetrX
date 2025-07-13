@@ -3,9 +3,17 @@ from typing import Optional, List, Tuple, Any, Literal, TYPE_CHECKING
 from coderetrx.static import Codebase, Dependency
 from coderetrx.static.codebase import Symbol, Keyword, File, CodeLine
 from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
-from coderetrx.retrieval.smart_codebase import CodeMapFilterResult, LLMMapFilterTargetType, SimilaritySearchTargetType
+from coderetrx.retrieval.smart_codebase import (
+    CodeMapFilterResult,
+    LLMMapFilterTargetType,
+    SimilaritySearchTargetType,
+)
 from attrs import define, field
-from coderetrx.utils.embedding import SimilaritySearcher, embed_batch_with_retry
+from coderetrx.utils.embedding import (
+    SimilaritySearcher,
+    ChromaSimilaritySearcher,
+    embed_batch_with_retry,
+)
 import logging
 from pathlib import Path
 from tqdm.asyncio import tqdm
@@ -24,6 +32,7 @@ if TYPE_CHECKING:
     from .factory import SmartCodebaseSettings
 
 logger = logging.getLogger(__name__)
+
 
 def get_smart_codebase_settings() -> "SmartCodebaseSettings":
     from .factory import SmartCodebaseSettings
@@ -89,9 +98,7 @@ class SmartCodebase(SmartCodebaseBase):
         elif target_type in ["symbol_name", "symbol_content"]:
             elements = [symbol for symbol in self.symbols]
         elif target_type in ["root_symbol_name", "root_symbol_content"]:
-            elements = [
-                symbol for symbol in self.symbols if not symbol.chunk.parent
-            ]
+            elements = [symbol for symbol in self.symbols if not symbol.chunk.parent]
         elif target_type in ["leaf_symbol_name", "leaf_symbol_content"]:
             elements = [
                 symbol
@@ -113,9 +120,13 @@ class SmartCodebase(SmartCodebaseBase):
         filtered_elements = []
         subdirs_or_files = [self._fixup_path(path) for path in subdirs_or_files]
         for element in elements:
-            if isinstance(element, Symbol) and any(str(element.file.path).startswith(subdir) for subdir in subdirs_or_files):
+            if isinstance(element, Symbol) and any(
+                str(element.file.path).startswith(subdir) for subdir in subdirs_or_files
+            ):
                 filtered_elements.append(element)
-            elif isinstance(element, File) and any(str(element.path).startswith(subdir) for subdir in subdirs_or_files):
+            elif isinstance(element, File) and any(
+                str(element.path).startswith(subdir) for subdir in subdirs_or_files
+            ):
                 filtered_elements.append(element)
             elif isinstance(element, Keyword):
                 for path in element.referenced_by:
@@ -134,14 +145,14 @@ class SmartCodebase(SmartCodebaseBase):
 
     @classmethod
     def new(
-        cls, 
-        id: str, 
-        dir: Path, 
+        cls,
+        id: str,
+        dir: Path,
         url: Optional[str] = None,
         lazy: bool = False,
         version: str = "v0.0.1",
         ignore_tests: bool = True,
-        settings: Optional["SmartCodebaseSettings"] = None
+        settings: Optional["SmartCodebaseSettings"] = None,
     ) -> "SmartCodebase":
         if settings is None:
             settings = get_smart_codebase_settings()
@@ -185,9 +196,9 @@ class SmartCodebase(SmartCodebaseBase):
             - Filtered elements
             - LLM results with reasoning
 
-        Note: 
-            For symbol_content filtering, duplicate analysis may occur—for example, both a class and its methods might be analyzed. 
-            This is intentional. Analyzing only the root symbols may lead to suboptimal LLM performance if the symbol content is too large, 
+        Note:
+            For symbol_content filtering, duplicate analysis may occur—for example, both a class and its methods might be analyzed.
+            This is intentional. Analyzing only the root symbols may lead to suboptimal LLM performance if the symbol content is too large,
             while analyzing only the leaf symbols might miss certain features that require a broader scope to identify.
         """
         if subdirs_or_files is None:
@@ -205,14 +216,16 @@ class SmartCodebase(SmartCodebaseBase):
         ):
             model_id = self.settings.llm_mapfilter_special_model_id
         if llm_call_mode == "function_call":
-            right_elements, llm_results = await self._process_elements_with_function_call(
-                elements, target_type, prompt, is_filter=True, model_id=model_id
+            right_elements, llm_results = (
+                await self._process_elements_with_function_call(
+                    elements, target_type, prompt, is_filter=True, model_id=model_id
+                )
             )
         else:
             right_elements, llm_results = await self._process_elements_traditional(
                 elements, target_type, prompt, prompt_template, model_id=model_id
             )
-        
+
         return right_elements, llm_results
 
     async def _process_elements_traditional(
@@ -631,9 +644,7 @@ class SmartCodebase(SmartCodebaseBase):
                 if self.symbol_name_searcher is None:
                     raise ValueError("Symbol name searcher is not initialized")
                 symbol_by_name = {symbol.name: symbol for symbol in self.symbols}
-                for doc, score in await self.symbol_name_searcher.asearch_with_score(
-                    query, top_k
-                ):
+                for doc, score in await self.symbol_name_searcher.asearch(query, top_k):
                     if score >= threshold and doc in symbol_by_name:
                         results.append(symbol_by_name[doc])
 
@@ -643,7 +654,7 @@ class SmartCodebase(SmartCodebaseBase):
                 symbol_by_content = {
                     symbol.chunk.code(): symbol for symbol in self.symbols
                 }
-                for doc, score in await self.symbol_content_searcher.asearch_with_score(
+                for doc, score in await self.symbol_content_searcher.asearch(
                     query, top_k
                 ):
                     if score >= threshold and doc in symbol_by_content:
@@ -653,9 +664,7 @@ class SmartCodebase(SmartCodebaseBase):
                 if self.keyword_searcher is None:
                     raise ValueError("Keyword searcher is not initialized")
                 keyword_map = {keyword.content: keyword for keyword in self.keywords}
-                for doc, score in await self.keyword_searcher.asearch_with_score(
-                    query, top_k
-                ):
+                for doc, score in await self.keyword_searcher.asearch(query, top_k):
                     if score >= threshold and doc in keyword_map:
                         results.append(keyword_map[doc])
 
@@ -666,7 +675,9 @@ class SmartCodebase(SmartCodebaseBase):
         query: str,
         threshold: Optional[float] = None,
         top_k: int = 10,
-        scope: Literal["root_symbol", "leaf_symbol",  "symbol", "class", "function"] = "symbol",
+        scope: Literal[
+            "root_symbol", "leaf_symbol", "symbol", "class", "function"
+        ] = "symbol",
         subdirs_or_files: Optional[List[str]] = None,
     ) -> List[Any]:
         """
@@ -687,7 +698,6 @@ class SmartCodebase(SmartCodebaseBase):
         if subdirs_or_files is None:
             subdirs_or_files = ["/"]
 
-
         if self.codeline_searcher is None:
             raise ValueError("Symbol codeline searcher is not initialized")
         subdirs_or_files = [self._fixup_path(path) for path in subdirs_or_files]
@@ -704,22 +714,28 @@ class SmartCodebase(SmartCodebaseBase):
             # search only on top-level symbols (those without a parent chunk)
             symbols = [symbol for symbol in self.symbols if not symbol.chunk.parent]
         elif scope == "leaf_symbol":
-            symbols = [symbol for symbol in self.symbols if not self.childs_of_symbol[symbol.id]]  
+            symbols = [
+                symbol
+                for symbol in self.symbols
+                if not self.childs_of_symbol[symbol.id]
+            ]
         else:
             symbols = [symbol for symbol in self.symbols if symbol.type == scope]
         symbols = [
             symbol
             for symbol in symbols
-            if any(str(symbol.file.path).startswith(subdir) for subdir in subdirs_or_files)
+            if any(
+                str(symbol.file.path).startswith(subdir) for subdir in subdirs_or_files
+            )
         ]
         results = []
         search_tasks = []
         for symbol in symbols:
             search_tasks.append(
                 self.codeline_searcher.asearch_by_vector(
-                    query_vector,
-                    top_k,
-                    {"symbol_id": symbol.id},
+                    query_vector=query_vector,
+                    k=top_k,
+                    where={"symbol_id": symbol.id},
                 )
             )
         search_task_results = await tqdm.gather(
@@ -729,9 +745,9 @@ class SmartCodebase(SmartCodebaseBase):
         )
         # Use metadata filtering to search only within the specified symbol
         for idx, search_task_result in enumerate(search_task_results):
-            for doc in search_task_result:
+            for doc, score in search_task_result:
                 results.append(
-                    CodeLine.new(line_content=doc, symbol=symbols[idx], score=0)
+                    CodeLine.new(line_content=doc, symbol=symbols[idx], score=score)
                 )
 
         return results
