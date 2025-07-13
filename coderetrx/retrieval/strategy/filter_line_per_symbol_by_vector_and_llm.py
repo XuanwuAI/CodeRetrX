@@ -20,9 +20,9 @@ from ..smart_codebase import (
 from coderetrx.static import Keyword, Symbol, File
 from coderetrx.static.codebase import CodeLine
 import logging
-
 logger = logging.getLogger(__name__)
 
+import asyncio
 
 class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
     """
@@ -74,17 +74,25 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
 
         max_batch_size = 50
         all_selected_lines = []
-
-        # Process in batches
+        
+        # Create tasks for all batches
+        tasks = []
         for i in range(0, len(line_candidates), max_batch_size):
             batch = line_candidates[i : i + max_batch_size]
-            batch_selected = await self._process_candidate_batch(batch, query)
+            task = self._process_candidate_batch(batch, query)
+            tasks.append(task)
+        
+        # Execute all batches concurrently
+        batch_results = await asyncio.gather(*tasks)
+        
+        # Combine results
+        for batch_selected in batch_results:
             all_selected_lines.extend(batch_selected)
 
-            if len(line_candidates) > max_batch_size:
-                logger.debug(
-                    f"Processed batch {i//max_batch_size + 1}: Selected {len(batch_selected)} lines from {len(batch)} candidates"
-                )
+        if len(line_candidates) > max_batch_size:
+            logger.debug(
+                f"Processed {len(tasks)} batches concurrently: Selected {len(all_selected_lines)} total lines"
+            )
 
         return all_selected_lines
 
