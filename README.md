@@ -34,6 +34,7 @@ The refined filter targets precision by removing the false positives introduced 
 ### Prerequisites
 
 - **uv** package manager ([Install uv](https://docs.astral.sh/uv/getting-started/installation/)), with python 3.12+
+- **Docker** (for running vector database services like Qdrant)
 - **LLM provider API keys** (OpenAI, Anthropic, etc.)
 - **Vector embedding model keys** (for similarity search)
 
@@ -60,6 +61,32 @@ The refined filter targets precision by removing the false positives introduced 
    OPENAI_BASE_URL=https://your-key-service.com/
    OPENAI_API_KEY=your_openai_api_key_here
    ```
+
+4. **Start vector database (optional):**
+
+   If using Qdrant as the vector database provider:
+
+   ```bash
+   # Option 1: Direct Docker run
+   docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant:latest
+   
+   # Option 2: Create docker-compose.yml and run
+   cat > docker-compose.yml << 'EOF'
+   version: '3.8'
+   services:
+     qdrant:
+       image: qdrant/qdrant:latest
+       ports:
+         - "6333:6333"
+         - "6334:6334"
+       volumes:
+         - ./.cache/qdrant_storage:/qdrant/storage
+   EOF
+   
+   docker-compose up -d
+   ```
+
+   Alternatively, use Chroma (no Docker required) by setting `VECTOR_DB_PROVIDER=chroma` in your environment. However, Qdrant offers better precision and performance compared to ChromaDB.
 
 ## 🖥️ Usage
 
