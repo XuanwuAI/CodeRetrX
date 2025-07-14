@@ -706,7 +706,11 @@ class SmartCodebase(SmartCodebaseBase):
             if threshold is None
             else threshold
         )
+        import numpy as np
+        
         query_vector = (await embed_batch_with_retry([query]))[0]
+        query_vec = np.array(query_vector)
+        query_norm = query_vec / np.linalg.norm(query_vec)
 
         if scope == "symbol":
             symbols = self.symbols
@@ -728,26 +732,63 @@ class SmartCodebase(SmartCodebaseBase):
                 str(symbol.file.path).startswith(subdir) for subdir in subdirs_or_files
             )
         ]
+        
+        # Get all data for manual similarity calculation using lists to avoid hashable issues
         results = []
-        search_tasks = []
+        symbol_tasks = []
         for symbol in symbols:
-            search_tasks.append(
-                self.codeline_searcher.asearch_by_vector(
-                    query_vector=query_vector,
-                    k=top_k,
-                    where={"symbol_id": symbol.id},
-                )
+            # Get large k to retrieve all documents, we'll manually calculate similarity
+            task = self.codeline_searcher.asearch_by_vector(
+                query_vector=query_vector,
+                k=100,  # Large k to get most documents
+                where={"symbol_id": symbol.id},
             )
+            symbol_tasks.append((symbol, task))
+        
+        # Execute all tasks in parallel
+        tasks = [task for symbol, task in symbol_tasks]
         search_task_results = await tqdm.gather(
-            *search_tasks,
-            desc="Searching code lines per symbol",
-            total=len(search_tasks),
+            *tasks,
+            desc="Getting code lines per symbol for manual similarity",
+            total=len(tasks),
         )
-        # Use metadata filtering to search only within the specified symbol
-        for idx, search_task_result in enumerate(search_task_results):
-            for doc, score in search_task_result:
-                results.append(
-                    CodeLine.new(line_content=doc, symbol=symbols[idx], score=score)
-                )
+        
+        # Manual similarity calculation per symbol, then merge
+        all_candidates = []
+        for idx, (symbol, _) in enumerate(symbol_tasks):
+            search_task_result = search_task_results[idx]
+            if not search_task_result:
+                continue
+                
+            # Get texts and re-calculate embeddings for manual similarity
+            docs = [doc for doc, _ in search_task_result]
+            if not docs:
+                continue
+                
+            # Re-embed all documents for this symbol
+            doc_vectors = await embed_batch_with_retry(docs)
+            
+            # Calculate similarities manually for all docs in this symbol
+            symbol_candidates = []
+            for doc, doc_vector in zip(docs, doc_vectors):
+                doc_vec = np.array(doc_vector)
+                doc_norm = doc_vec / np.linalg.norm(doc_vec)
+                
+                # Calculate cosine similarity using dot product of normalized vectors
+                similarity = np.dot(doc_norm, query_norm)
+
+                if similarity >= threshold:
+                    symbol_candidates.append((doc, symbol, similarity))
+            
+            # Sort and take top_k per symbol
+            symbol_candidates.sort(key=lambda x: x[2], reverse=True)
+            all_candidates.extend(symbol_candidates[:top_k])
+        
+        # Final sort across all symbols
+        all_candidates.sort(key=lambda x: x[2], reverse=True)
+        for doc, symbol, score in all_candidates:
+            results.append(
+                CodeLine.new(line_content=doc, symbol=symbol, score=score)
+            )
 
         return results
