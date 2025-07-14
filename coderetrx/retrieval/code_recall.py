@@ -358,6 +358,7 @@ async def _multi_strategy_code_recall(
                 if str(symbol.file.path).startswith(subdir):
                     extended_subdirs_or_files.add(str(symbol.file.path))
                     break
+
     elif coarse_recall_strategy == "custom" and custom_strategies:
         strategies_to_run = custom_strategies
     else:
@@ -436,7 +437,11 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
     ):
         extended_subdirs_or_files = []
         additional_code_elements = strategy_result.elements
-    # for case of symbol_content, since the llm judge has already been applied in the strategy, we can use the elements directly 
+
+    logger.debug(f"extended_subdirs_or_files: {len(extended_subdirs_or_files)}")
+    logger.debug(f"additional_code_elements:{len(additional_code_elements)}")
+
+    # for case of symbol_content, since the llm judge has already been applied in the strategy, we can use the elements directly
     if (
         not extend_coarse_recall_element_to_file
         and coarse_recall_strategy == "symbol_content"
