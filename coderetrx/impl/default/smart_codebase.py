@@ -10,9 +10,8 @@ from coderetrx.retrieval.smart_codebase import (
 )
 from attrs import define, field
 from coderetrx.utils.embedding import (
-    SimilaritySearcher,
-    ChromaSimilaritySearcher,
     embed_batch_with_retry,
+    SimilaritySearcher,
 )
 import logging
 from pathlib import Path
@@ -644,7 +643,7 @@ class SmartCodebase(SmartCodebaseBase):
                 if self.symbol_name_searcher is None:
                     raise ValueError("Symbol name searcher is not initialized")
                 symbol_by_name = {symbol.name: symbol for symbol in self.symbols}
-                for doc, score in await self.symbol_name_searcher.asearch(query, top_k):
+                for doc, score in await self.symbol_name_searcher.asearch_with_score(query, top_k, threshold):
                     if score >= threshold and doc in symbol_by_name:
                         results.append(symbol_by_name[doc])
 
@@ -654,8 +653,8 @@ class SmartCodebase(SmartCodebaseBase):
                 symbol_by_content = {
                     symbol.chunk.code(): symbol for symbol in self.symbols
                 }
-                for doc, score in await self.symbol_content_searcher.asearch(
-                    query, top_k
+                for doc, score in await self.symbol_content_searcher.asearch_with_score(
+                    query, top_k, threshold
                 ):
                     if score >= threshold and doc in symbol_by_content:
                         results.append(symbol_by_content[doc])
@@ -664,7 +663,7 @@ class SmartCodebase(SmartCodebaseBase):
                 if self.keyword_searcher is None:
                     raise ValueError("Keyword searcher is not initialized")
                 keyword_map = {keyword.content: keyword for keyword in self.keywords}
-                for doc, score in await self.keyword_searcher.asearch(query, top_k):
+                for doc, score in await self.keyword_searcher.asearch_with_score(query, top_k, threshold):
                     if score >= threshold and doc in keyword_map:
                         results.append(keyword_map[doc])
 
@@ -737,55 +736,38 @@ class SmartCodebase(SmartCodebaseBase):
         results = []
         symbol_tasks = []
         for symbol in symbols:
-            # Get large k to retrieve all documents, we'll manually calculate similarity
             task = self.codeline_searcher.asearch_by_vector(
                 query_vector=query_vector,
-                k=100,  # Large k to get most documents
+                k=top_k,
                 where={"symbol_id": symbol.id},
             )
             symbol_tasks.append((symbol, task))
         
-        # Execute all tasks in parallel
-        tasks = [task for symbol, task in symbol_tasks]
+        # Execute search tasks with concurrency limiting to prevent connection overload
+        semaphore = asyncio.Semaphore(20)
+        
+        async def search_with_limit(search_task):
+            async with semaphore:
+                return await search_task
+        
         search_task_results = await tqdm.gather(
-            *tasks,
-            desc="Getting code lines per symbol for manual similarity",
-            total=len(tasks),
+            *[search_with_limit(task) for symbol, task in symbol_tasks],
+            desc="Getting topk code lines per symbol",
+            total=len(symbol_tasks),
         )
         
-        # Manual similarity calculation per symbol, then merge
+        # Flatten and sort all results by similarity score
         all_candidates = []
         for idx, (symbol, _) in enumerate(symbol_tasks):
-            search_task_result = search_task_results[idx]
-            if not search_task_result:
-                continue
-                
-            # Get texts and re-calculate embeddings for manual similarity
-            docs = [doc for doc, _ in search_task_result]
-            if not docs:
-                continue
-                
-            # Re-embed all documents for this symbol
-            doc_vectors = await embed_batch_with_retry(docs)
-            
-            # Calculate similarities manually for all docs in this symbol
-            symbol_candidates = []
-            for doc, doc_vector in zip(docs, doc_vectors):
-                doc_vec = np.array(doc_vector)
-                doc_norm = doc_vec / np.linalg.norm(doc_vec)
-                
-                # Calculate cosine similarity using dot product of normalized vectors
-                similarity = np.dot(doc_norm, query_norm)
-
-                if similarity >= threshold:
-                    symbol_candidates.append((doc, symbol, similarity))
-            
-            # Sort and take top_k per symbol
-            symbol_candidates.sort(key=lambda x: x[2], reverse=True)
-            all_candidates.extend(symbol_candidates[:top_k])
+            search_result = search_task_results[idx]
+            for doc, score in search_result:
+                if score >= threshold:
+                    all_candidates.append((doc, symbol, score))
         
-        # Final sort across all symbols
+        # Sort by similarity score (highest first)
         all_candidates.sort(key=lambda x: x[2], reverse=True)
+        
+        # Convert to CodeLine objects
         for doc, symbol, score in all_candidates:
             results.append(
                 CodeLine.new(line_content=doc, symbol=symbol, score=score)
