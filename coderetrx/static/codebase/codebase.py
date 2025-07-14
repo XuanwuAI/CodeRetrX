@@ -974,11 +974,6 @@ class Codebase:
         if call_graph:
             self._build_call_graph()
 
-        self.parent_of_symbol = {symbol.id: symbol.chunk.parent.id for symbol in self.symbols if symbol.chunk.parent}
-        self.childs_of_symbol = defaultdict(list)
-        for child, parent in self.parent_of_symbol.items():
-            self.childs_of_symbol[parent].append(child)
-
     def get_collection_name(self):
         return get_collection_name(self.url or self.id, self.version)
 

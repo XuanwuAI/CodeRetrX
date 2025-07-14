@@ -2,6 +2,7 @@
 Strategy for adaptive filtering of symbols using vector similarity search followed by LLM refinement.
 """
 
+from collections import defaultdict
 from typing import List, Union, Optional, override, Literal, Any
 from .base import (
     AdaptiveFilterByVectorAndLLMStrategy,
@@ -45,7 +46,7 @@ class AdaptiveFilterSymbolContentByVectorAndLLMStrategy(AdaptiveFilterByVectorAn
         subdirs_or_files: List[str] = [],
         codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:
-        filtered_symbols: List[Union[Keyword, Symbol, File]] = []
+        filtered_symbols: List[Symbol] = []
         for element in elements:
             if not isinstance(element, Symbol):
                 continue
@@ -69,12 +70,18 @@ class AdaptiveFilterSymbolContentByVectorAndLLMStrategy(AdaptiveFilterByVectorAn
             ]
         elif target_type == "leaf_symbol_content":
             # If the target type is leaf_symbol_content, filter symbols that are leaves
-            filtered_symbol = [
-                elem for elem in filtered_symbol if not codebase.childs_of_symbol[elem.id]
+
+            parent_of_symbol = {symbol.id: symbol.chunk.parent.id for symbol in codebase.symbols if symbol.chunk.parent}
+            childs_of_symbol = defaultdict(list)
+            for child, parent in parent_of_symbol.items():
+                childs_of_symbol[parent].append(child)
+            filtered_symbols = [
+                elem for elem in filtered_symbols if not childs_of_symbol[elem.id] 
             ]
         elif target_type == "root_symbol_content":
-            filtered_symbol = [
-                elem for elem in filtered_symbol if not codebase.parent_of_symbol[elem.id]
+            parent_of_symbol = {symbol.id: symbol.chunk.parent.id for symbol in codebase.symbols if symbol.chunk.parent}
+            filtered_symbols = [
+                elem for elem in filtered_symbols if not parent_of_symbol[elem.id]
             ]
         return filtered_symbols
 

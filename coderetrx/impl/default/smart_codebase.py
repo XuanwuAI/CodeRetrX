@@ -100,10 +100,14 @@ class SmartCodebase(SmartCodebaseBase):
         elif target_type in ["root_symbol_name", "root_symbol_content"]:
             elements = [symbol for symbol in self.symbols if not symbol.chunk.parent]
         elif target_type in ["leaf_symbol_name", "leaf_symbol_content"]:
+            parent_of_symbol = {symbol.id: symbol.chunk.parent.id for symbol in self.symbols if symbol.chunk.parent}
+            childs_of_symbol = defaultdict(list)
+            for child, parent in parent_of_symbol.items():
+                childs_of_symbol[parent].append(child)
             elements = [
                 symbol
                 for symbol in self.symbols
-                if not self.childs_of_symbol[symbol.id]  # No children means leaf
+                if not childs_of_symbol[symbol.id]  # No children means leaf
             ]
         elif target_type in ["class_name", "class_content"]:
             elements = [symbol for symbol in self.symbols if symbol.type == "class"]
@@ -718,10 +722,14 @@ class SmartCodebase(SmartCodebaseBase):
             # search only on top-level symbols (those without a parent chunk)
             symbols = [symbol for symbol in self.symbols if not symbol.chunk.parent]
         elif scope == "leaf_symbol":
+            parent_of_symbol = {symbol.id: symbol.chunk.parent.id for symbol in self.symbols if symbol.chunk.parent}
+            childs_of_symbol = defaultdict(list)
+            for child, parent in parent_of_symbol.items():
+                childs_of_symbol[parent].append(child)
             symbols = [
                 symbol
                 for symbol in self.symbols
-                if not self.childs_of_symbol[symbol.id]
+                if not childs_of_symbol[symbol.id]
             ]
         else:
             symbols = [symbol for symbol in self.symbols if symbol.type == scope]
