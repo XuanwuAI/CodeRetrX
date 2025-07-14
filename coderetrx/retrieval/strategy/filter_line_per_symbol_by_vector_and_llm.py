@@ -14,11 +14,8 @@ from .base import (
 )
 from ..smart_codebase import (
     SmartCodebase as Codebase,
-    LLMMapFilterTargetType,
-    SimilaritySearchTargetType,
     LLMCallMode,
 )
-from coderetrx.static import Keyword, Symbol, File
 from coderetrx.static.codebase import CodeLine
 import logging
 
@@ -45,14 +42,14 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
         Initialize the filtering strategy.
 
         Args:
-            top_k: Number of top lines to recall for each symbol from builtin searcher (default: 5)
-            max_iteration: Maximum number of LLM queries allowed (default: 20)
+            top_k: Number of top lines to recall for each symbol from builtin searcher (default: 15)
+            max_iteration: Maximum number of LLM queries allowed (default: 30)
             topic_extractor: Optional TopicExtractor instance
             llm_call_mode: Mode for LLM calls
         """
         super().__init__(topic_extractor=topic_extractor, llm_call_mode=llm_call_mode)
         self.top_k = 15
-        self.max_iteration = int(self.top_k * 1.5)
+        self.max_iteration = int(self.top_k * 2)
 
     def get_strategy_name(self) -> str:
         return "INTELLIGENT_FILTER"
