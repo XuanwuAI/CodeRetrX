@@ -35,7 +35,7 @@ class FilterSymbolContentByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
     @override
     def filter_elements(
         self,
-        elements: List[Any],
+        elements: List[Symbol],
         target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
         codebase: Optional[Codebase] = None,
