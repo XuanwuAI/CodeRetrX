@@ -33,8 +33,16 @@ from functools import wraps
 try:
     from langchain_qdrant import QdrantVectorStore
     from qdrant_client import QdrantClient, AsyncQdrantClient
-    from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
+    from qdrant_client.models import (
+        Distance,
+        VectorParams,
+        PointStruct,
+        Filter,
+        FieldCondition,
+        MatchValue,
+    )
     import httpx
+
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
@@ -63,6 +71,7 @@ cached_embedder = CacheBackedEmbeddings.from_bytes_store(
 # Common retry decorator for similarity search operations
 def similarity_search_retry(func):
     """Decorator for retry logic on similarity search operations."""
+
     @retry(
         stop=stop_after_attempt(5),
         wait=wait_exponential(min=30, max=600),
@@ -71,6 +80,7 @@ def similarity_search_retry(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         return await func(*args, **kwargs)
+
     return wrapper
 
 
@@ -95,9 +105,7 @@ async def embed_batch_with_retry(batch: List[str]) -> List[List[float]]:
 
 
 def create_documents_embedding(
-    docs: List[str], 
-    batch_size: int = 100, 
-    max_concurrency: int = 5
+    docs: List[str], batch_size: int = 100, max_concurrency: int = 5
 ) -> List[List[float]]:
     """Create embeddings for a list of documents with batching and concurrency."""
     # Prepare batches
@@ -150,6 +158,7 @@ def process_search_results(results: List[Tuple[Any, float]]) -> List[Tuple[str, 
 
 class SearchConfig(BaseModel):
     """Configuration for similarity search operations."""
+
     k: int = 10
     threshold: Optional[float] = None
     where: Optional[Dict[str, Any]] = None
@@ -157,6 +166,7 @@ class SearchConfig(BaseModel):
 
 class CollectionInfo(BaseModel):
     """Information about a vector database collection."""
+
     name: str
     exists: bool
     document_count: int
@@ -191,11 +201,11 @@ class SimilaritySearcher(ABC):
 
     @abstractmethod
     async def asearch_with_score(
-        self, 
-        query: str, 
-        k: int = 10, 
+        self,
+        query: str,
+        k: int = 10,
         threshold: float = 0.0,
-        where: Optional[dict] = None
+        where: Optional[dict] = None,
     ) -> List[Tuple[str, float]]:
         """
         Search for the most similar documents to the query.
@@ -213,10 +223,7 @@ class SimilaritySearcher(ABC):
 
     @abstractmethod
     async def asearch_by_vector(
-        self,
-        query_vector: List[float],
-        k: int = 10,
-        where: Optional[dict] = None
+        self, query_vector: List[float], k: int = 10, where: Optional[dict] = None
     ) -> List[Tuple[str, float]]:
         """
         Search for the most similar documents to the query vector.
@@ -231,16 +238,25 @@ class SimilaritySearcher(ABC):
         """
         pass
 
-    def search_with_score(self, query: str, k: int = 10, threshold: float = 0.0, where: Optional[dict] = None):
+    def search_with_score(
+        self,
+        query: str,
+        k: int = 10,
+        threshold: float = 0.0,
+        where: Optional[dict] = None,
+    ):
         """Synchronous wrapper for asearch_with_score."""
         from coderetrx.utils.concurrency import run_coroutine_sync
+
         return run_coroutine_sync(self.asearch_with_score(query, k, threshold, where))
 
-    def search_by_vector(self, query_vector: List[float], k: int = 10, where: Optional[dict] = None):
+    def search_by_vector(
+        self, query_vector: List[float], k: int = 10, where: Optional[dict] = None
+    ):
         """Synchronous wrapper for asearch_by_vector."""
         from coderetrx.utils.concurrency import run_coroutine_sync
-        return run_coroutine_sync(self.asearch_by_vector(query_vector, k, where))
 
+        return run_coroutine_sync(self.asearch_by_vector(query_vector, k, where))
 
 
 class ChromaSimilaritySearcher(SimilaritySearcher):
@@ -259,14 +275,14 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
         self._initialize_vector_store(embeddings, use_cache)
 
     def _initialize_vector_store(
-        self, 
-        embeddings: Optional[List[List[float]]], 
-        use_cache: bool
+        self, embeddings: Optional[List[List[float]]], use_cache: bool
     ) -> None:
         """Initialize the ChromaDB vector store."""
         # Check or create Chroma collection
         try:
-            collection = chromadb_client.get_collection(self.name)
+            collection = chromadb_client.get_collection(
+                self.name, metadata={"hnsw:space": "cosine", "hnsw:M": 1024}
+            )
             if collection.count() != len(self.texts):
                 logger.info(
                     f"Collection '{self.name}' exists but has {collection.count()} documents instead of {len(self.texts)}. Recreating collection."
@@ -274,7 +290,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
                 use_cache = False
                 chromadb_client.delete_collection(self.name)
                 collection = chromadb_client.create_collection(
-                    self.name, metadata={"hnsw:space": "cosine"}
+                    self.name, metadata={"hnsw:space": "cosine", "hnsw:M": 1024}
                 )
             else:
                 logger.info(
@@ -283,7 +299,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
         except Exception:
             logger.info(f"Creating new ChromaDB collection: '{self.name}'")
             collection = chromadb_client.create_collection(
-                self.name, metadata={"hnsw:space": "cosine"}
+                self.name, metadata={"hnsw:space": "cosine", "hnsw:M": 1024}
             )
             use_cache = False
 
@@ -299,18 +315,14 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
             self._add_texts_in_batches(self.texts, embeddings, self.metadatas)
 
     def _validate_embeddings_match_texts(
-        self, 
-        texts: List[str], 
-        embeddings: List[List[float]]
+        self, texts: List[str], embeddings: List[List[float]]
     ) -> None:
         """Validate that embeddings match texts count."""
         if len(texts) != len(embeddings):
             raise ValueError("Number of texts must match number of embeddings")
 
     def _validate_metadatas_match_texts(
-        self, 
-        texts: List[str], 
-        metadatas: List[dict]
+        self, texts: List[str], metadatas: List[dict]
     ) -> None:
         """Validate that metadatas match texts count."""
         if len(texts) != len(metadatas):
@@ -341,24 +353,28 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
         batch_size: int = 1000,
     ) -> None:
         """Add texts to vector store in batches with progress tracking."""
-        logger.info(f"Adding {len(texts)} documents to {self.__class__.__name__} collection '{self.name}'")
-        
+        logger.info(
+            f"Adding {len(texts)} documents to {self.__class__.__name__} collection '{self.name}'"
+        )
+
         for idx in tqdm(
             range(0, len(texts), batch_size),
             desc=f"Adding {self.content_type} to {self.__class__.__name__.replace('SimilaritySearcher', '')}",
         ):
             text_batch = texts[idx : idx + batch_size]
             metadata_batch = metadatas[idx : idx + batch_size] if metadatas else None
-            
+
             if embeddings:
                 embedding_batch = embeddings[idx : idx + batch_size]
-                self._add_texts_with_embeddings(text_batch, embedding_batch, metadata_batch, idx)
+                self._add_texts_with_embeddings(
+                    text_batch, embedding_batch, metadata_batch, idx
+                )
             else:
                 add_kwargs = self._prepare_add_kwargs(
-                    text_batch, 
+                    text_batch,
                     create_documents_embedding(text_batch),
                     metadata_batch,
-                    idx
+                    idx,
                 )
                 self.langchain_chroma_client.add_texts(**add_kwargs)
 
@@ -383,62 +399,79 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
 
     @similarity_search_retry
     async def asearch_with_score(
-        self, 
-        query: str, 
-        k: int = 10, 
+        self,
+        query: str,
+        k: int = 10,
         threshold: float = 0.0,
-        where: Optional[dict] = None
+        where: Optional[dict] = None,
     ) -> List[Tuple[str, float]]:
         """
         Search for the most similar documents to the query.
         """
-        logger.info(f"Performing similarity search in collection '{self.name}' with k={k}")
-        
+        logger.info(
+            f"Performing similarity search in collection '{self.name}' with k={k}"
+        )
+
         try:
             # Use Chroma's similarity search with score
             results = await asyncio.to_thread(
                 self.langchain_chroma_client.similarity_search_with_score,
-                query, k=k, filter=where
+                query,
+                k=k,
+                filter=where,
             )
-            
+
             # Filter by threshold and convert to our format
             filtered_results = []
             for doc, score in results:
                 if score >= threshold:
                     filtered_results.append((doc.page_content, score))
-            
+
             return filtered_results
-            
+
         except Exception as e:
             logger.error(f"Error during similarity search: {repr(e)}")
             return []
 
     @similarity_search_retry
     async def asearch_by_vector(
-        self,
-        query_vector: List[float],
-        k: int = 10,
-        where: Optional[dict] = None
+        self, query_vector: List[float], k: int = 10, where: Optional[dict] = None
     ) -> List[Tuple[str, float]]:
         """
         Search for the most similar documents to the query vector.
         """
-        logger.debug(f"Performing vector similarity search in collection '{self.name}' with k={k}")
-        
+        logger.debug(
+            f"Performing vector similarity search in collection '{self.name}' with k={k}"
+        )
+
         try:
             # Use Chroma's similarity search by vector
             results = await asyncio.to_thread(
-                getattr(self.langchain_chroma_client, 'similarity_search_by_vector_with_score', None) or self.langchain_chroma_client.similarity_search_by_vector,
-                query_vector, k=k, filter=where
+                getattr(
+                    self.langchain_chroma_client,
+                    "similarity_search_by_vector_with_score",
+                    None,
+                )
+                or self.langchain_chroma_client.similarity_search_by_vector,
+                query_vector,
+                k=k,
+                filter=where,
             )
-            
+
             # Convert to our format
-            if hasattr(self.langchain_chroma_client, 'similarity_search_by_vector_with_score') and results and len(results[0]) == 2:
+            if (
+                hasattr(
+                    self.langchain_chroma_client,
+                    "similarity_search_by_vector_with_score",
+                )
+                and results
+                and len(results[0]) == 2
+            ):
                 return [(doc.page_content, score) for doc, score in results]
             else:
                 # Fallback when scores aren't available
                 return [(doc.page_content, 1.0) for doc in results]
-            
+
         except Exception as e:
             logger.error(f"Error during vector similarity search: {repr(e)}")
             return []
@@ -471,10 +504,10 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             raise ImportError(
                 "Qdrant dependencies not available. Install with: pip install qdrant-client"
             )
-        
+
         super().__init__(name, texts, embeddings, use_cache, metadatas)
         self.vector_size = vector_size
-        
+
         # Determine content type
         if "symbol_names" in name:
             content_type = "symbol names"
@@ -488,13 +521,13 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             content_type = "documents"
 
         self.content_type = content_type
-        
+
         # Initialize Qdrant clients
         self._init_clients()
-        
+
         # Initialize collection
         self._init_collection()
-        
+
         # Add texts if not using cache or collection is empty
         if not use_cache or self._get_collection_count() != len(texts):
             self._add_texts_to_collection(embeddings)
@@ -503,20 +536,20 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         """Initialize Qdrant clients with connection pooling."""
         QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
         QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
-        
+
         connection_limits = httpx.Limits(
             max_connections=50,
             max_keepalive_connections=20,
             keepalive_expiry=30.0,
         )
-        
+
         self.qdrant_client = QdrantClient(
             host=QDRANT_HOST,
             port=QDRANT_PORT,
             timeout=30,
             limits=connection_limits,
         )
-        
+
         self.async_qdrant_client = AsyncQdrantClient(
             host=QDRANT_HOST,
             port=QDRANT_PORT,
@@ -528,7 +561,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         """Initialize or create Qdrant collection."""
         try:
             collection_count = self.qdrant_client.count(collection_name=self.name).count
-            
+
             if collection_count != len(self.texts):
                 logger.info(
                     f"Collection '{self.name}' exists but has {collection_count} documents instead of {len(self.texts)}. Recreating collection."
@@ -536,8 +569,10 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
                 self.qdrant_client.delete_collection(self.name)
                 self._create_collection()
             else:
-                logger.info(f"Using cached {self.content_type} from Qdrant collection '{self.name}' ({collection_count} items)")
-                
+                logger.info(
+                    f"Using cached {self.content_type} from Qdrant collection '{self.name}' ({collection_count} items)"
+                )
+
         except Exception:
             logger.info(f"Creating new Qdrant collection: '{self.name}'")
             self._create_collection()
@@ -547,9 +582,8 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         self.qdrant_client.create_collection(
             collection_name=self.name,
             vectors_config=VectorParams(
-                size=self.vector_size,
-                distance=Distance.COSINE
-            )
+                size=self.vector_size, distance=Distance.COSINE
+            ),
         )
 
     def _get_collection_count(self) -> int:
@@ -561,152 +595,166 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
 
     def _add_texts_to_collection(self, embeddings: Optional[List[List[float]]] = None):
         """Add texts and embeddings to the Qdrant collection."""
-        logger.info(f"Adding {len(self.texts)} documents to Qdrant collection '{self.name}'")
-        
+        logger.info(
+            f"Adding {len(self.texts)} documents to Qdrant collection '{self.name}'"
+        )
+
         # Calculate adaptive batch size based on content
-        avg_text_length = sum(len(text) for text in self.texts[:100]) / min(100, len(self.texts))
+        avg_text_length = sum(len(text) for text in self.texts[:100]) / min(
+            100, len(self.texts)
+        )
         estimated_point_size = avg_text_length + self.vector_size * 4 + 1000
         max_payload_size = 30 * 1024 * 1024
         batch_size = max(1, min(300, int(max_payload_size // estimated_point_size)))
-        
-        logger.info(f"Using adaptive batch size: {batch_size} (avg text length: {avg_text_length:.0f} chars)")
-        
+
+        logger.info(
+            f"Using adaptive batch size: {batch_size} (avg text length: {avg_text_length:.0f} chars)"
+        )
+
         total_batches = (len(self.texts) + batch_size - 1) // batch_size
-        
-        for batch_idx in tqdm(range(total_batches), desc=f"Adding {self.content_type} to Qdrant"):
+
+        for batch_idx in tqdm(
+            range(total_batches), desc=f"Adding {self.content_type} to Qdrant"
+        ):
             start_idx = batch_idx * batch_size
             end_idx = min(start_idx + batch_size, len(self.texts))
-            
+
             text_batch = self.texts[start_idx:end_idx]
-            metadata_batch = self.metadatas[start_idx:end_idx] if self.metadatas else None
-            
+            metadata_batch = (
+                self.metadatas[start_idx:end_idx] if self.metadatas else None
+            )
+
             if embeddings:
                 embedding_batch = embeddings[start_idx:end_idx]
             else:
                 embedding_batch = create_documents_embedding(text_batch)
-            
-            self._add_batch_to_qdrant(text_batch, embedding_batch, metadata_batch, start_idx)
+
+            self._add_batch_to_qdrant(
+                text_batch, embedding_batch, metadata_batch, start_idx
+            )
 
     def _add_batch_to_qdrant(
-        self, 
-        texts: List[str], 
-        embeddings: List[List[float]], 
+        self,
+        texts: List[str],
+        embeddings: List[List[float]],
         metadatas: Optional[List[dict]] = None,
-        start_idx: int = 0
+        start_idx: int = 0,
     ):
         """Add a batch of texts with embeddings to Qdrant."""
         points = []
-        
+
         for i, (text, embedding) in enumerate(zip(texts, embeddings)):
             payload = {"content": text}
             if metadatas and i < len(metadatas):
                 payload.update(metadatas[i])
-            
+
             points.append(
-                PointStruct(
-                    id=start_idx + i,
-                    vector=embedding,
-                    payload=payload
-                )
+                PointStruct(id=start_idx + i, vector=embedding, payload=payload)
             )
-        
+
         try:
-            self.qdrant_client.upsert(
-                collection_name=self.name,
-                points=points
-            )
+            self.qdrant_client.upsert(collection_name=self.name, points=points)
         except Exception as e:
             if "larger than allowed" in str(e) and len(points) > 1:
-                logger.warning(f"Batch too large ({len(points)} points), splitting into smaller batches")
+                logger.warning(
+                    f"Batch too large ({len(points)} points), splitting into smaller batches"
+                )
                 mid = len(points) // 2
-                
+
                 first_texts = texts[:mid]
-                first_embeddings = embeddings[:mid] 
+                first_embeddings = embeddings[:mid]
                 first_metadatas = metadatas[:mid] if metadatas else None
-                self._add_batch_to_qdrant(first_texts, first_embeddings, first_metadatas, start_idx)
-                
+                self._add_batch_to_qdrant(
+                    first_texts, first_embeddings, first_metadatas, start_idx
+                )
+
                 second_texts = texts[mid:]
                 second_embeddings = embeddings[mid:]
                 second_metadatas = metadatas[mid:] if metadatas else None
-                self._add_batch_to_qdrant(second_texts, second_embeddings, second_metadatas, start_idx + mid)
+                self._add_batch_to_qdrant(
+                    second_texts, second_embeddings, second_metadatas, start_idx + mid
+                )
             else:
                 raise
 
     @similarity_search_retry
     async def asearch_with_score(
-        self, 
-        query: str, 
-        k: int = 10, 
+        self,
+        query: str,
+        k: int = 10,
         threshold: float = 0.0,
-        where: Optional[dict] = None
+        where: Optional[dict] = None,
     ) -> List[Tuple[str, float]]:
         """
         Search for the most similar documents to the query.
         """
-        logger.info(f"Performing similarity search in collection '{self.name}' with k={k}")
-        
+        logger.info(
+            f"Performing similarity search in collection '{self.name}' with k={k}"
+        )
+
         try:
             # Get query embedding
             query_embedding = await cached_embedder.aembed_query(query)
-            
+
             # Build filter if provided
             query_filter = None
             if where:
                 logger.debug(f"Applying filter: {where}")
                 query_filter = self._build_filter(where)
-            
+
             # Perform search
             search_result = await self.async_qdrant_client.search(
                 collection_name=self.name,
                 query_vector=query_embedding,
                 limit=k,
                 score_threshold=threshold,
-                query_filter=query_filter
+                query_filter=query_filter,
             )
-            
+
             # Format results
             results = []
             for point in search_result:
                 content = point.payload.get("content", "")
                 score = point.score
                 results.append((content, score))
-            
+
             return results
-            
+
         except Exception as e:
             logger.error(f"Error during similarity search: {repr(e)}")
             # Return empty results on connection failure instead of crashing
             if "ConnectError" in str(e) or "ConnectTimeout" in str(e):
-                logger.warning(f"Connection error in search, returning empty results: {e}")
+                logger.warning(
+                    f"Connection error in search, returning empty results: {e}"
+                )
                 return []
             raise
 
     @similarity_search_retry
     async def asearch_by_vector(
-        self,
-        query_vector: List[float],
-        k: int = 10,
-        where: Optional[dict] = None
+        self, query_vector: List[float], k: int = 10, where: Optional[dict] = None
     ) -> List[Tuple[str, float]]:
         """
         Search for the most similar documents to the query vector.
         """
-        logger.debug(f"Performing vector similarity search in collection '{self.name}' with k={k}")
-        
+        logger.debug(
+            f"Performing vector similarity search in collection '{self.name}' with k={k}"
+        )
+
         # Build filter if provided
         query_filter = None
         if where:
             logger.debug(f"Applying filter: {where}")
             query_filter = self._build_filter(where)
-        
+
         try:
             search_result = await self.async_qdrant_client.search(
                 collection_name=self.name,
                 query_vector=query_vector,
                 limit=k,
-                query_filter=query_filter
+                query_filter=query_filter,
             )
-            
+
             # Extract content and scores from results
             results = []
             for point in search_result:
@@ -714,19 +762,19 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
                 score = point.score
                 results.append((content, score))
             return results
-            
+
         except Exception as e:
             logger.error(f"Error during similarity search: {repr(e)}")
             # Return empty results on connection failure instead of crashing
             if "ConnectError" in str(e) or "ConnectTimeout" in str(e):
-                logger.warning(f"Connection error in search, returning empty results: {e}")
+                logger.warning(
+                    f"Connection error in search, returning empty results: {e}"
+                )
                 return []
             raise
 
     def _initialize_vector_store(
-        self, 
-        embeddings: Optional[List[List[float]]], 
-        use_cache: bool
+        self, embeddings: Optional[List[List[float]]], use_cache: bool
     ) -> None:
         """Initialize the Qdrant vector store."""
         # This method is called by the parent constructor, but we handle initialization
@@ -753,16 +801,13 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
     def _build_filter(self, where: dict) -> Filter:
         """Build Qdrant filter from dictionary conditions."""
         conditions = []
-        
+
         for key, value in where.items():
             if isinstance(value, (str, int, float, bool)):
                 conditions.append(
-                    FieldCondition(
-                        key=key,
-                        match=MatchValue(value=value)
-                    )
+                    FieldCondition(key=key, match=MatchValue(value=value))
                 )
-        
+
         return Filter(must=conditions) if conditions else None
 
 
