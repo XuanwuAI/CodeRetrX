@@ -593,7 +593,7 @@ async def coderetrx_filter(
         "root_symbol_content",
     ],
     coarse_recall_strategy: CoarseRecallStrategyType,
-    custom_strategies: List[RecallStrategy] = [],
+    custom_strategies: Optional[List[RecallStrategy]] = None,
     topic_extractor: Optional[TopicExtractor] = None,
     settings: Optional[CodeRecallSettings] = None,
     enable_secondary_recall: bool = False,
@@ -603,6 +603,8 @@ async def coderetrx_filter(
         raise ValueError(
             f"Target type '{target_type}' must end with '_content' for coderetrx_filter. Use 'symbol_content', 'file_content', etc."
         )
+    if custom_strategies is None:
+        custom_strategies = []
     return await _multi_strategy_code_recall(
         codebase,
         prompt,
