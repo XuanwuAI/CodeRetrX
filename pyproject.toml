@@ -19,6 +19,10 @@ dependencies = [
     "tomli-w>=1.2.0",
     "tree-sitter>=0.24.0",
     "tree-sitter-language-pack>=0.7.3",
+    "openai>=1.0.0",
+    "qdrant-client>=1.12.0",
+    "tenacity>=9.1.2",
+    "chromadb>=1.0.15",
 ]
 
 [tool.setuptools.packages.find]
@@ -33,20 +37,14 @@ dev = [
     "ipython>=9.2.0",
     "pytest>=8.3.5",
     "rich>=14.0.0",
+    "black",
 ]
 
 [project.optional-dependencies]
 stats = ["tiktoken>=0.9.0"]
-builtin-impl = [
-    "langchain>=0.3.25",
-    "langchain-chroma>=0.2.4",
-    "langchain-community>=0.3.24",
-    "langchain-openai>=0.3.17",
-    "langchain-qdrant>=0.2.0",
-    "openai>=1.0.0",
-    "qdrant-client>=1.12.0",
-]
 cli = ["typer>=0.16.0"]
+redis = ["redis>=5.0.0"]
+
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
