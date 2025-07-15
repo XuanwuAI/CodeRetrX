@@ -35,10 +35,10 @@ class FilterSymbolContentByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
     @override
     def filter_elements(
         self,
+        codebase: Codebase,
         elements: List[Symbol],
         target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
-        codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:
         filtered_symbols: List[Symbol] = []
         for element in elements:
@@ -65,15 +65,23 @@ class FilterSymbolContentByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
         elif target_type == "leaf_symbol_content":
             # If the target type is leaf_symbol_content, filter symbols that are leaves
 
-            parent_of_symbol = {symbol.id: symbol.chunk.parent.id for symbol in codebase.symbols if symbol.chunk.parent}
+            parent_of_symbol = {
+                symbol.id: symbol.chunk.parent.id
+                for symbol in codebase.symbols
+                if symbol.chunk.parent
+            }
             childs_of_symbol = defaultdict(list)
             for child, parent in parent_of_symbol.items():
                 childs_of_symbol[parent].append(child)
             filtered_symbols = [
-                elem for elem in filtered_symbols if not childs_of_symbol[elem.id] 
+                elem for elem in filtered_symbols if not childs_of_symbol[elem.id]
             ]
         elif target_type == "root_symbol_content":
-            parent_of_symbol = {symbol.id: symbol.chunk.parent.id for symbol in codebase.symbols if symbol.chunk.parent}
+            parent_of_symbol = {
+                symbol.id: symbol.chunk.parent.id
+                for symbol in codebase.symbols
+                if symbol.chunk.parent
+            }
             filtered_symbols = [
                 elem for elem in filtered_symbols if not parent_of_symbol[elem.id]
             ]

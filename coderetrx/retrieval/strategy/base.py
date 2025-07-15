@@ -60,7 +60,9 @@ class RecallStrategy(Enum):
     ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM = (
         "adaptive_filter_symbol_by_vector_and_llm"
     )
-    FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM = "filter_line_per_symbol_by_vector_and_llm"
+    FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM = (
+        "filter_line_per_symbol_by_vector_and_llm"
+    )
 
 
 class StrategyExecuteResult(BaseModel):
@@ -138,8 +140,8 @@ class RecallStrategyExecutor(ABC):
 
     def filter_elements_by_subdirs(
         self,
-        elements: List[CodeElement],
         codebase: Codebase,
+        elements: List[CodeElement],
         subdirs_or_files: List[str],
     ) -> List[CodeElement]:
         """Filter elements to only include those from the specified subdirectories."""
@@ -179,7 +181,11 @@ class RecallStrategyExecutor(ABC):
 
     @abstractmethod
     async def execute(
-        self, codebase: Any, prompt: str, subdirs_or_files: List[str], target_type: str = "symbol_content"
+        self,
+        codebase: Any,
+        prompt: str,
+        subdirs_or_files: List[str],
+        target_type: str = "symbol_content",
     ) -> StrategyExecuteResult:
         """
         Execute the recall strategy.
@@ -217,7 +223,11 @@ class FilterByLLMStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar], A
         pass
 
     async def execute(
-        self, codebase: Codebase, prompt: str, subdirs_or_files: List[str], target_type: str = "symbol_content"
+        self,
+        codebase: Codebase,
+        prompt: str,
+        subdirs_or_files: List[str],
+        target_type: str = "symbol_content",
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
@@ -229,7 +239,7 @@ class FilterByLLMStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar], A
                 llm_call_mode=self.llm_call_mode,
             )
             elements = self.filter_elements_by_subdirs(
-                elements, codebase, subdirs_or_files
+                codebase, elements, subdirs_or_files
             )
             file_paths = self.extract_file_paths(elements, codebase)
             return StrategyExecuteResult(
@@ -310,7 +320,7 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar]
             # Filter elements by subdirectories
             if subdirs_or_files:
                 filtered_elements = self.filter_elements_by_subdirs(
-                    elements, codebase, subdirs_or_files
+                    codebase, elements, subdirs_or_files
                 )
                 logger.info(
                     f"Filtered to {len(filtered_elements)} elements from specified subdirectories"
@@ -339,7 +349,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     @abstractmethod
     def get_target_types_for_vector(
         self,
-    ) -> List[Literal["symbol_name", "symbol_content", "keyword"]]:
+    ) -> List[SimilaritySearchTargetType]:
         """Return the target types for similarity search."""
         pass
 
@@ -356,10 +366,10 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     @abstractmethod
     def filter_elements(
         self,
+        codebase: Codebase,
         elements: List[Any],
         target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
-        codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:
         """
         Filter and convert elements to the expected type for additional_code_elements.
@@ -389,7 +399,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
-        target_type: str = "symbol_content",
+        target_type: LLMMapFilterTargetType = "symbol_content",
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
@@ -426,10 +436,10 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
 
             # Filter elements by subdirectories and types
             elements = self.filter_elements_by_subdirs(
-                elements, codebase, subdirs_or_files
+                codebase, elements, subdirs_or_files
             )
             filtered_elements = self.filter_elements(
-                elements, subdirs_or_files, codebase
+                codebase, elements, target_type, subdirs_or_files
             )
             logger.info(
                 f"Filtered to {len(elements)} elements from specified subdirectories"
@@ -513,7 +523,7 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     @abstractmethod
     def get_target_types_for_vector(
         self,
-    ) -> List[Literal["symbol_name", "symbol_content", "keyword"]]:
+    ) -> SimilaritySearchTargetType:
         """Return the target types for similarity search."""
         pass
 
@@ -530,10 +540,10 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     @abstractmethod
     def filter_elements(
         self,
+        codebase: Codebase,
         elements: List[Any],
         target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
-        codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:
         """
         Filter and convert elements to the expected type for additional_code_elements.
@@ -564,7 +574,8 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         prompt: str,
         query_embedding_text: str,
         subdirs_or_files: List[str],
-    ) -> Tuple[List[str],List[CodeElement] ,List[Any]]:
+        target_type: LLMMapFilterTargetType = "symbol_content",
+    ) -> Tuple[List[str], List[CodeElement], List[Any]]:
         """
         Adaptive retrieval algorithm with reduced LLM calls and smarter early exit.
 
@@ -621,10 +632,10 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                 break
 
             new_elements = self.filter_elements_by_subdirs(
-                new_vector_results, codebase, subdirs_or_files
+                codebase, new_vector_results, subdirs_or_files
             )
             new_filtered_elements = self.filter_elements(
-                new_elements, subdirs_or_files, codebase
+                codebase, new_elements, target_type, subdirs_or_files
             )
             accumulated_elements.extend(new_filtered_elements)
 
@@ -700,14 +711,18 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                         total_available_chunks,
                     )
         print("accumulated_file_paths size: ", len(accumulated_file_paths))
-        return list(accumulated_file_paths),deduplicate_elements(accumulated_elements), []
+        return (
+            list(accumulated_file_paths),
+            deduplicate_elements(accumulated_elements),
+            [],
+        )
 
     async def execute(
         self,
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
-        target_type: str = "symbol_content",
+        target_type: LLMMapFilterTargetType = "symbol_content",
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
@@ -732,13 +747,13 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
                 )
 
             # Perform adaptive retrieval (includes both vector search and LLM filtering)
-            file_paths, elements,llm_results = await self.adaptive_retrieval(
-                codebase, prompt, topic, subdirs_or_files
+            file_paths, elements, llm_results = await self.adaptive_retrieval(
+                codebase, prompt, topic, subdirs_or_files, target_type
             )
 
             return StrategyExecuteResult(
                 file_paths=file_paths,
-                elements=elements,  
+                elements=elements,
                 llm_results=llm_results,
             )
         except Exception as e:

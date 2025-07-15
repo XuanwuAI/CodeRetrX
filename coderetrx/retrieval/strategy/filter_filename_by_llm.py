@@ -25,7 +25,11 @@ class FilterFilenameByLLMStrategy(FilterByLLMStrategy[File]):
 
     @override
     async def execute(
-        self, codebase: Codebase, prompt: str, subdirs_or_files: List[str], target_type: str = "symbol_content"
+        self,
+        codebase: Codebase,
+        prompt: str,
+        subdirs_or_files: List[str],
+        target_type: str = "symbol_content",
     ) -> StrategyExecuteResult:
         prompt = f"""
         A file with this path is highly likely to contain content that matches the following criteria:

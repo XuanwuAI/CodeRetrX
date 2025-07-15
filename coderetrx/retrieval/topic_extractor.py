@@ -6,7 +6,9 @@ from logging import warning, info
 
 class TopicExtractor(ABC):
     @abstractmethod
-    async def extract_topic(self, input_text: str, llm_call_mode: LLMCallMode = "traditional") -> Optional[str]:
+    async def extract_topic(
+        self, input_text: str, llm_call_mode: LLMCallMode = "traditional"
+    ) -> Optional[str]:
         pass
 
     async def extract_and_search(

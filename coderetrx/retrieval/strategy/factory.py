@@ -14,7 +14,9 @@ from coderetrx.retrieval.strategy.filter_keyword_by_vector import (
 from coderetrx.retrieval.strategy.filter_symbol_content_by_vector import (
     FilterSymbolContentByVectorStrategy,
 )
-from coderetrx.retrieval.strategy.filter_symbol_name_by_llm import FilterSymbolNameByLLMStrategy
+from coderetrx.retrieval.strategy.filter_symbol_name_by_llm import (
+    FilterSymbolNameByLLMStrategy,
+)
 from coderetrx.retrieval.strategy.filter_dependency_by_llm import (
     FilterDependencyByLLMStrategy,
 )

@@ -36,10 +36,10 @@ class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMSt
     @override
     def filter_elements(
         self,
+        codebase: Codebase,
         elements: List[Any],
         target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
-        codebase: Optional[Codebase] = None,
     ) -> List[Union[Keyword, Symbol, File]]:
         keyword_elements: List[Union[Keyword, Symbol, File]] = []
         for element in elements:
@@ -77,7 +77,7 @@ class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMSt
         codebase: Codebase,
         prompt: str,
         subdirs_or_files: List[str],
-        target_type: str = "symbol_content",
+        target_type: LLMMapFilterTargetType = "symbol_content",
     ) -> StrategyExecuteResult:
         prompt = f"""
         A code chunk containing the specified keywords is highly likely to meet the following criteria:

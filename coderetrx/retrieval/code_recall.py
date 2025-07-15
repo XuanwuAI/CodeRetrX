@@ -433,7 +433,14 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
             "line_per_symbol",
             "symbol_name",
         ]
-        and target_type in ["symbol_content", "function_content", "class_content", "leaf_symbol_content", "root_symbol_content"]
+        and target_type
+        in [
+            "symbol_content",
+            "function_content",
+            "class_content",
+            "leaf_symbol_content",
+            "root_symbol_content",
+        ]
     ):
         extended_subdirs_or_files = []
         additional_code_elements = strategy_result.elements
@@ -445,7 +452,14 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
     if (
         not extend_coarse_recall_element_to_file
         and coarse_recall_strategy == "symbol_content"
-        and target_type in ["symbol_content", "function_content", "class_content" ,"leaf_symbol_content", "root_symbol_content"]
+        and target_type
+        in [
+            "symbol_content",
+            "function_content",
+            "class_content",
+            "leaf_symbol_content",
+            "root_symbol_content",
+        ]
     ):
         elements = strategy_result.elements
         llm_results = strategy_result.llm_results
@@ -508,7 +522,12 @@ async def coderetrx_mapping(
     prompt: str,
     subdirs_or_files: List[str],
     target_type: Literal[
-        "symbol_content", "file_content", "function_content", "class_content", "leaf_symbol_content", "root_symbol_content"
+        "symbol_content",
+        "file_content",
+        "function_content",
+        "class_content",
+        "leaf_symbol_content",
+        "root_symbol_content",
     ],
     coarse_recall_strategy: CoarseRecallStrategyType,
     custom_strategies: List[RecallStrategy] = [],
@@ -566,7 +585,12 @@ async def coderetrx_filter(
     prompt: str,
     subdirs_or_files: List[str],
     target_type: Literal[
-        "symbol_content", "file_content", "function_content", "class_content", "leaf_symbol_content", "root_symbol_content"
+        "symbol_content",
+        "file_content",
+        "function_content",
+        "class_content",
+        "leaf_symbol_content",
+        "root_symbol_content",
     ],
     coarse_recall_strategy: CoarseRecallStrategyType,
     custom_strategies: List[RecallStrategy] = [],

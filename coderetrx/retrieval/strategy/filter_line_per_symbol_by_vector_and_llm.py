@@ -34,9 +34,9 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
     name = "FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM"
 
     def __init__(
-            self,
-            topic_extractor: Optional[TopicExtractor] = None,
-            llm_call_mode: LLMCallMode = "traditional",
+        self,
+        topic_extractor: Optional[TopicExtractor] = None,
+        llm_call_mode: LLMCallMode = "traditional",
     ):
         """
         Initialize the filtering strategy.
@@ -48,14 +48,14 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
             llm_call_mode: Mode for LLM calls
         """
         super().__init__(topic_extractor=topic_extractor, llm_call_mode=llm_call_mode)
-        self.top_k = 15
+        self.top_k = 10
         self.max_iteration = int(self.top_k * 2)
 
     def get_strategy_name(self) -> str:
         return "FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM"
 
     async def _llm_recall_judgment(
-            self, line_candidates: List[CodeLine], query: str
+        self, line_candidates: List[CodeLine], query: str
     ) -> List[CodeLine]:
         """
         Use LLM to judge and select the relevant lines from candidates.
@@ -76,7 +76,7 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
         # Create tasks for all batches
         tasks = []
         for i in range(0, len(line_candidates), max_batch_size):
-            batch = line_candidates[i: i + max_batch_size]
+            batch = line_candidates[i : i + max_batch_size]
             task = self._process_candidate_batch(batch, query)
             tasks.append(task)
 
@@ -218,9 +218,7 @@ Call the select_relevant_lines function with your analysis."""
                 logger.warning("Topic extraction failed, using original prompt")
                 topic = prompt
             else:
-                logger.info(
-                    f"Using extracted topic '{topic}' for filtering"
-                )
+                logger.info(f"Using extracted topic '{topic}' for filtering")
 
             # Step 1: Use builtin codeline searcher to get line-level results
             logger.info(
@@ -262,7 +260,9 @@ Call the select_relevant_lines function with your analysis."""
             recalled_symbols = []
             recalled_symbol_ids = set()
             # Calculate dynamic batch size based on total candidates
-            max_candidates_per_round = int((len(vector_per_symbol_recalled_lines) / self.top_k) * 0.2)
+            max_candidates_per_round = int(
+                (len(vector_per_symbol_recalled_lines) / self.top_k) * 0.2
+            )
             logger.info(f"Max candidates per round: {max_candidates_per_round}")
 
             # Process candidates in dynamic batches
@@ -274,9 +274,9 @@ Call the select_relevant_lines function with your analysis."""
                 next_round_heading_lines = []
                 current_round_candidates: list[CodeLine] = []
 
-                while len(current_round_candidates) < max_candidates_per_round and line_idx < len(
-                    current_round_lines
-                ):
+                while len(
+                    current_round_candidates
+                ) < max_candidates_per_round and line_idx < len(current_round_lines):
                     entry = current_round_lines[line_idx]
                     line_idx += 1
                     # Skip if symbol already visited
@@ -304,7 +304,9 @@ Call the select_relevant_lines function with your analysis."""
                     break
 
                 # Get LLM judgment on this batch
-                selected_lines = await self._llm_recall_judgment(current_round_candidates, prompt)
+                selected_lines = await self._llm_recall_judgment(
+                    current_round_candidates, prompt
+                )
 
                 # Mark selected symbols as recalled
                 for entry in selected_lines:
@@ -318,7 +320,9 @@ Call the select_relevant_lines function with your analysis."""
                 logger.debug(
                     f"Processed round {round}: Selected {len(selected_lines)} symbols from {len(current_round_candidates)} candidates"
                 )
-                current_round_lines = next_round_heading_lines + current_round_lines[line_idx:]
+                current_round_lines = (
+                    next_round_heading_lines + current_round_lines[line_idx:]
+                )
 
             file_paths = list(recalled_file_paths)
             logger.info(
