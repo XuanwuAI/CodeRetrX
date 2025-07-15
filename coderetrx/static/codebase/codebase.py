@@ -868,6 +868,10 @@ class Codebase:
                         # remove extra whitespace and normalize
                         normalized_sentence = ' '.join(sentence.split()).lower()
                         
+                        # Skip empty sentences
+                        if not normalized_sentence:
+                            continue
+                        
                         if normalized_sentence in unique_keywords:
                             unique_keywords[normalized_sentence].referenced_by.append(file)
                         else:

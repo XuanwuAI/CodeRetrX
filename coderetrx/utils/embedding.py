@@ -84,6 +84,10 @@ class EmbeddingSettings(BaseSettings):
         default=25,
         description="Maximum number of concurrent requests for embedding",
     )
+    max_trunc_chars: int = Field(
+        default=10000,
+        description="Max. characters per document to embed. Set to -1 to disable truncation.",
+    )
     proxy: Optional[str] = Field(
         default=None,
         description="Proxy URL for HTTP requests, support socks5 and http(s) proxies",
@@ -122,6 +126,22 @@ def set_embedding_settings(settings: EmbeddingSettings) -> None:
     logger.info(f"Embedding settings updated: {embedding_settings.model_dump()}")
 
 
+def truncate_text(text: str, max_chars: int) -> str:
+    """
+    Truncate text to a maximum number of characters.
+    
+    Args:
+        text: The input text to truncate.
+        max_chars: Maximum number of characters to keep. Use -1 to disable truncation.
+        
+    Returns:
+        Truncated text or original text if max_chars is -1.
+    """
+    if max_chars == -1:
+        return text
+    return text[:max_chars]
+
+
 async def _create_embeddings_with_cache(
     texts: List[str], settings: Optional[EmbeddingSettings] = None
 ) -> List[List[float]]:
@@ -137,6 +157,10 @@ async def _create_embeddings_with_cache(
     """
     if settings is None:
         settings = embedding_settings
+        
+    # Truncate texts based on max_trunc_chars setting
+    truncated_texts = [truncate_text(text, settings.max_trunc_chars) for text in texts]
+    
     cache_settings = SqliteCacheSettings(
         SQLITE_DB_PATH=str(get_cache_dir() / "embedding" / "cache.db"),
     )
@@ -148,7 +172,7 @@ async def _create_embeddings_with_cache(
     uncached_texts: List[str] = []
     uncached_indices: List[int] = []
 
-    for i, text in enumerate(texts):
+    for i, text in enumerate(truncated_texts):
         # Create cache key for individual text
         individual_request = {
             "model": settings.model_id,
@@ -170,14 +194,14 @@ async def _create_embeddings_with_cache(
             uncached_texts.append(text)
             uncached_indices.append(i)
 
-    cache_hits = len(texts) - len(uncached_texts)
+    cache_hits = len(truncated_texts) - len(uncached_texts)
     if cache_hits > 0:
-        logger.info(f"Cache hit for {cache_hits}/{len(texts)} texts")
+        logger.info(f"Cache hit for {cache_hits}/{len(truncated_texts)} texts")
 
     # If all texts are cached, return cached results
     if not uncached_texts:
         result = [embedding for embedding in cached_embeddings if embedding is not None]
-        assert len(result) == len(texts), "Cached embeddings count mismatch"
+        assert len(result) == len(truncated_texts), "Cached embeddings count mismatch"
         return result
 
     # Make API call for uncached texts
