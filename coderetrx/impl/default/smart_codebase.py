@@ -12,6 +12,7 @@ from attrs import define, field
 from coderetrx.utils.embedding import (
     embed_batch_with_retry,
     SimilaritySearcher,
+    embedding_settings
 )
 import logging
 from pathlib import Path
@@ -752,7 +753,7 @@ class SmartCodebase(SmartCodebaseBase):
             symbol_tasks.append((symbol, task))
         
         # Execute search tasks with concurrency limiting to prevent connection overload
-        semaphore = asyncio.Semaphore(self.settings.llm_max_concurrent_requests)
+        semaphore = asyncio.Semaphore(embedding_settings.max_concurrency)
         
         async def search_with_limit(search_task):
             async with semaphore:
