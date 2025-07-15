@@ -562,6 +562,14 @@ async def call_llm_with_function_call(
                 function_args = _parse_json_with_repair(message.tool_calls[0].function.arguments)
                 logger.debug(f"Successfully received function call response with model '{model_id}'")
                 return function_args
+            elif message.content:
+                try:
+                    function_args = _parse_json_with_repair(message.content)
+                except ValueError as e:
+                    logger.error(f"Failed to parse function call arguments: {e}")
+                    raise ValueError("Function call response content is not valid JSON")
+                logger.debug(f"Received content response with model '{model_id}', treating as function call")
+                return function_args
             else:
                 raise ValueError("No function call in response")
         finally:
