@@ -1,9 +1,11 @@
+from typing import Optional
 from attrs import define
 from collections import defaultdict
 from pathlib import Path
 from pydantic import Field
 
 from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
+from coderetrx.utils.llm import LLMSettings
 from coderetrx.utils.embedding import get_similarity_searcher
 from coderetrx.static.codebase import Codebase
 from .smart_codebase import SmartCodebase
@@ -34,8 +36,9 @@ class CodebaseFactory:
         return smart_codebase
 
     @classmethod
-    def new(cls, id: str, dir: Path, settings: SmartCodebaseSettings = SmartCodebaseSettings()) -> SmartCodebase:
-        smart_codebase = SmartCodebase.new(id, dir, settings=settings)
+    def new(cls, id: str, dir: Path, settings: Optional[SmartCodebaseSettings] = None, llm_settings: Optional[LLMSettings] = None) -> SmartCodebase:
+        settings = settings or SmartCodebaseSettings()
+        smart_codebase = SmartCodebase.new(id, dir, settings=settings, llm_settings=llm_settings)
         smart_codebase.init_all()
         cls._initialize_similarity_searchers(smart_codebase, settings)
         return smart_codebase
