@@ -38,6 +38,7 @@ from tenacity import (
 from coderetrx.utils.cost_tracking import get_cost_hook
 from coderetrx.utils.logger import JsonLogger
 import json_repair
+import re
 
 
 def generate_session_id() -> str:
@@ -165,10 +166,11 @@ def _parse_prompt_template(
     
     return messages
 
-
 def _parse_json_with_repair(text: str) -> Any:
     """
     Parse JSON with multiple fallback strategies, similar to TolerantJsonParser.
+    Extracts content between ```json and the last ``` marker if present, ignoring any surrounding text.
+    If no code block is found, tries to find the outermost JSON structure in the text.
     
     Args:
         text: Raw text potentially containing JSON
@@ -179,15 +181,16 @@ def _parse_json_with_repair(text: str) -> Any:
     Raises:
         ValueError: If all parsing strategies fail
     """
-    # Remove potential markdown code blocks
-    text = text.strip()
-    if text.startswith("```json"):
-        text = text[7:]
-    if text.startswith("```"):
-        text = text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-    text = text.strip()
+    
+    # Use regex to extract content between ```json and the last ```
+    json_match = re.search(r'```json(.*?)```', text, re.DOTALL)
+    if json_match:
+        text = json_match.group(1).strip()
+    else:
+        # Fallback to generic ``` ... ``` extraction if no ```json found
+        generic_match = re.search(r'```(.*?)```', text, re.DOTALL)
+        if generic_match:
+            text = generic_match.group(1).strip()
     
     # Try different parsing strategies
     parsers = [
@@ -195,6 +198,7 @@ def _parse_json_with_repair(text: str) -> Any:
         json_repair.loads,  # JSON repair
     ]
     
+    text = text.strip()
     # Try parsing the full text first
     for parser in parsers:
         try:
@@ -202,15 +206,33 @@ def _parse_json_with_repair(text: str) -> Any:
         except (ValueError, json.JSONDecodeError):
             continue
     
-    # Try finding JSON substrings starting with { or [
+    # Try finding the outermost JSON structure
+    # Look for the first { or [ and try to match until the last } or ]
     for i, char in enumerate(text):
         if char in ['{', '[']:
-            substring = text[i:]
-            for parser in parsers:
-                try:
-                    return parser(substring)
-                except (ValueError, json.JSONDecodeError):
-                    continue
+            # Find the matching closing bracket
+            stack = []
+            end_pos = None
+            for j in range(i, len(text)):
+                c = text[j]
+                if c == '{' or c == '[':
+                    stack.append(c)
+                elif c == '}' and stack and stack[-1] == '{':
+                    stack.pop()
+                elif c == ']' and stack and stack[-1] == '[':
+                    stack.pop()
+                
+                if not stack:
+                    end_pos = j
+                    break
+            
+            if end_pos is not None:
+                substring = text[i:end_pos+1]
+                for parser in parsers:
+                    try:
+                        return parser(substring)
+                    except (ValueError, json.JSONDecodeError):
+                        continue
     
     raise ValueError(f"Failed to parse JSON from text: {text[:200]}...")
 
@@ -537,7 +559,7 @@ async def call_llm_with_function_call(
                 
             message = response.choices[0].message
             if message.tool_calls and len(message.tool_calls) > 0:
-                function_args = json.loads(message.tool_calls[0].function.arguments)
+                function_args = _parse_json_with_repair(message.tool_calls[0].function.arguments)
                 logger.debug(f"Successfully received function call response with model '{model_id}'")
                 return function_args
             else:
