@@ -65,9 +65,10 @@ class CodebaseFactory:
                 )
                 logger.info("Symbol name similarity searcher initialized successfully")
             except Exception as e:
-                logger.error(
-                    f"Failed to initialize symbol name similarity searcher: {e}"
+                logger.fatal(
+                    f"Failed to initialize symbol name similarity searcher: {repr(e)}"
                 )
+                raise e
         else:
             logger.info(
                 "Symbol name embeddings feature is not enabled (SYMBOL_NAME_EMBEDDING not set), symbol name searcher not initialized"
@@ -92,9 +93,10 @@ class CodebaseFactory:
                     "Symbol content similarity searcher initialized successfully"
                 )
             except Exception as e:
-                logger.error(
+                logger.fatal(
                     f"Failed to initialize symbol content similarity searcher: {e}"
                 )
+                raise e
         else:
             logger.info(
                 "Symbol content embeddings feature is not enabled (SYMBOL_CONTENT_EMBEDDING not set), symbol content searcher not initialized"
@@ -114,7 +116,7 @@ class CodebaseFactory:
                 )
                 logger.info("Keyword similarity searcher initialized successfully")
             except Exception as e:
-                logger.error(f"Failed to initialize keyword similarity searcher: {e}")
+                logger.fatal(f"Failed to initialize keyword similarity searcher: {repr(e)}")
         else:
             logger.info(
                 "Keyword embeddings feature is not enabled (KEYWORD_EMBEDDING not set), keyword searcher not initialized"
@@ -142,9 +144,10 @@ class CodebaseFactory:
                             f"Collected {len(lines)} lines for symbol {symbol.id}"
                         )
                     except Exception as e:
-                        logger.error(
-                            f"Failed to collect lines for symbol {symbol.id}: {e}"
+                        logger.fatal(
+                            f"Failed to collect lines for symbol {symbol.id}: {repr(e)}"
                         )
+                        raise e
             
             # Create single collection for all lines with metadata
             if all_lines:
@@ -158,4 +161,5 @@ class CodebaseFactory:
                     )
                     logger.info("Unified symbol codeline searcher initialized successfully")
                 except Exception as e:
-                    logger.error(f"Failed to initialize unified symbol codeline searcher: {e}")
+                    logger.fatal(f"Failed to initialize unified symbol codeline searcher: {repr(e)}")
+                    raise e
