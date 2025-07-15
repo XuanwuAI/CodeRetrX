@@ -752,7 +752,7 @@ class SmartCodebase(SmartCodebaseBase):
             symbol_tasks.append((symbol, task))
         
         # Execute search tasks with concurrency limiting to prevent connection overload
-        semaphore = asyncio.Semaphore(20)
+        semaphore = asyncio.Semaphore(self.settings.llm_max_concurrent_requests)
         
         async def search_with_limit(search_task):
             async with semaphore:
