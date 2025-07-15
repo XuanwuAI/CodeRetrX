@@ -106,11 +106,14 @@ class LLMSettings(BaseSettings):
         return JsonLogger(self.get_json_log_path()) 
     
     def get_httpx_client(self) -> AsyncClient:
-        hook = get_cost_hook(self.get_json_logger(), self.openai_base_url)
+        kwargs={}
+        if self.enable_json_log:
+            hook = get_cost_hook(self.get_json_logger(), self.openai_base_url)
+            kwargs["event_hooks"] = {"response": [hook]}
         if self.proxy:
-            return AsyncClient(proxy=self.proxy, event_hooks={"response": [hook]})
+            kwargs.update({"proxy": self.proxy})
         return AsyncClient(
-            event_hooks={"response": [hook]},
+            **kwargs,
         )
 
 
@@ -380,7 +383,7 @@ async def call_llm_with_fallback(
         logger.debug(f"API key length: {len(api_key) if api_key else 0}")
         
         # Initialize client with proper resource management and timeout settings
-        httpx_client = settings.get_httpx_client() if settings.enable_json_log else None
+        httpx_client = settings.get_httpx_client()
         client = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
@@ -513,7 +516,7 @@ async def call_llm_with_function_call(
         logger.debug(f"API key length: {len(api_key) if api_key else 0}")
         
         # Initialize client with proper resource management and timeout settings
-        httpx_client = settings.get_httpx_client() if settings.enable_json_log else None
+        httpx_client = settings.get_httpx_client() 
         client = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
