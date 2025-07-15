@@ -1,7 +1,4 @@
 from coderetrx.utils.path import get_cache_dir
-from ._extras import require_extra
-
-require_extra("langchain", "builtin-impl")
 
 import asyncio
 import json
@@ -25,13 +22,10 @@ from typing import (
 )
 
 from httpx import AsyncClient
-from langchain.globals import set_llm_cache
-from langchain_community.cache import SQLiteCache
-from langchain_core.language_models import BaseChatModel
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from .llm_cache import get_llm_cache_provider
 from nanoid import generate
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletion
 from pydantic import BaseModel, Field, ValidationError, PrivateAttr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from tenacity import (
@@ -42,13 +36,14 @@ from tenacity import (
 )
 
 from coderetrx.utils.cost_tracking import get_cost_hook
-from coderetrx.utils.jsonparser import TolerantJsonParser
 from coderetrx.utils.logger import JsonLogger
+import json_repair
 
 
 def generate_session_id() -> str:
     date_str = datetime.now().strftime("%Y%m%d")
     return f"{date_str}-{generate(size=16)}"
+
 
 class LLMSettings(BaseSettings):
     """Settings for LLM configuration using environment variables."""
@@ -56,12 +51,50 @@ class LLMSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8", env_file=".env", extra="allow"
     )
-    openai_base_url: str = "https://openrouter.ai/api/v1"
-    openai_api_key: str = ""
-    disable_llm_cache: bool = False
-    session_id: str = Field(default_factory=generate_session_id)
-    enable_json_log: bool = True
-    json_log_base_path: Path = Field(default_factory=lambda: Path("logs/"))
+    
+    # OpenAI Configuration
+    openai_base_url: str = Field(
+        default="https://openrouter.ai/api/v1",
+        description="Base URL for OpenAI API",
+        alias="OPENAI_BASE_URL"
+    )
+    openai_api_key: str = Field(
+        default="",
+        description="API key for OpenAI",
+        alias="OPENAI_API_KEY"
+    )
+    
+    # Cache Configuration
+    disable_llm_cache: bool = Field(
+        default=False,
+        description="Disable LLM response caching",
+        alias="DISABLE_LLM_CACHE"
+    )
+    
+    # Session Configuration
+    session_id: str = Field(
+        default_factory=generate_session_id,
+        description="Session ID for tracking requests"
+    )
+    
+    # Logging Configuration
+    enable_json_log: bool = Field(
+        default=True,
+        description="Enable JSON logging for LLM requests",
+        alias="ENABLE_JSON_LOG"
+    )
+    json_log_base_path: Path = Field(
+        default_factory=lambda: Path("logs/"),
+        description="Base path for JSON log files",
+        alias="JSON_LOG_BASE_PATH"
+    )
+    
+    # Proxy Configuration
+    proxy: Optional[str] = Field(
+        default=None,
+        description="Proxy URL for HTTP requests, support socks5 and http(s) proxies",
+        alias="LLM_PROXY"
+    )
 
     def get_json_log_path(self) -> Path:
         path = self.json_log_base_path
@@ -73,6 +106,8 @@ class LLMSettings(BaseSettings):
     
     def get_httpx_client(self) -> AsyncClient:
         hook = get_cost_hook(self.get_json_logger(), self.openai_base_url)
+        if self.proxy:
+            return AsyncClient(proxy=self.proxy, event_hooks={"response": [hook]})
         return AsyncClient(
             event_hooks={"response": [hook]},
         )
@@ -80,48 +115,105 @@ class LLMSettings(BaseSettings):
 
 # Create a global settings instance
 llm_settings = LLMSettings()
-
-
-def get_langchain_model(model_name, settings: Optional[LLMSettings] = None) -> BaseChatModel:
-    if settings is None:
-        settings = llm_settings
+def set_llm_settings(settings: LLMSettings) -> None:
+    """
+    Set global LLM settings.
     
-    custom_client = None
-    if settings.enable_json_log:
-        custom_client = settings.get_httpx_client()
+    Args:
+        settings: LLMSettings instance to set as global settings
+    """
+    global llm_settings
+    llm_settings = settings
 
-    return ChatOpenAI(
-        base_url=settings.openai_base_url,
-        api_key=settings.openai_api_key,
-        model=model_name,
-        timeout=60.0,
-        max_retries=2,
-        http_async_client=custom_client,
-    )
+def get_llm_settings() -> LLMSettings:
+    """
+    Get the global LLM settings.
+    
+    Returns:
+        The current LLMSettings instance
+    """
+    return llm_settings
 
-
-def load_langchain_prompt_template(
-    obj: Union[str, Sequence[Dict[str, str]]],
-    template_format: str = "f-string",
-) -> ChatPromptTemplate:
-    if isinstance(obj, str):
-        obj = [{"user": obj}]
+def _parse_prompt_template(
+    prompt_template: Union[str, Sequence[Dict[str, str]]],
+    input_data: Dict[str, Any]
+) -> List[Dict[str, str]]:
+    """
+    Parse prompt template and format with input data to create OpenAI messages format.
+    
+    Args:
+        prompt_template: Either a string or sequence of role-content dictionaries
+        input_data: Data to format the template with
+        
+    Returns:
+        List of message dictionaries in OpenAI format
+    """
+    if isinstance(prompt_template, str):
+        # Simple string template - treat as user message
+        formatted_content = prompt_template.format(**input_data)
+        return [{"role": "user", "content": formatted_content}]
+    
+    # Sequence of role-content dictionaries
     messages = []
-    for msg in obj:
+    for msg in prompt_template:
         if len(msg) != 1:
-            raise ValueError("Chat template format error.")
-        key, value = next(iter(msg.items()))
-        messages.append((key, value))
-    return ChatPromptTemplate.from_messages(
-        messages,
-        template_format=template_format,  # type: ignore
-    )
+            raise ValueError("Each message must have exactly one role-content pair")
+        
+        role, content_template = next(iter(msg.items()))
+        formatted_content = content_template.format(**input_data)
+        messages.append({"role": role, "content": formatted_content})
+    
+    return messages
 
 
+def _parse_json_with_repair(text: str) -> Any:
+    """
+    Parse JSON with multiple fallback strategies, similar to TolerantJsonParser.
+    
+    Args:
+        text: Raw text potentially containing JSON
+        
+    Returns:
+        Parsed JSON object
+        
+    Raises:
+        ValueError: If all parsing strategies fail
+    """
+    # Remove potential markdown code blocks
+    text = text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    if text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
+    
+    # Try different parsing strategies
+    parsers = [
+        json.loads,  # Standard JSON parsing
+        json_repair.loads,  # JSON repair
+    ]
+    
+    # Try parsing the full text first
+    for parser in parsers:
+        try:
+            return parser(text)
+        except (ValueError, json.JSONDecodeError):
+            continue
+    
+    # Try finding JSON substrings starting with { or [
+    for i, char in enumerate(text):
+        if char in ['{', '[']:
+            substring = text[i:]
+            for parser in parsers:
+                try:
+                    return parser(substring)
+                except (ValueError, json.JSONDecodeError):
+                    continue
+    
+    raise ValueError(f"Failed to parse JSON from text: {text[:200]}...")
 
-
-# Assume these imports already exist
-# from your_module import get_langchain_model, load_langchain_prompt_template, TolerantJsonParser
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +227,7 @@ T = TypeVar("T", bound=BaseModel)
 async def call_llm_with_fallback(
     response_model: Type[T],
     input_data: Dict[str, Any],
-    prompt_template: str,
+    prompt_template: Union[str, Sequence[Dict[str, str]]],
     model_ids: List[str] = [
         "openai/gpt-4.1-mini",
         "anthropic/claude-3.7-sonnet",
@@ -149,7 +241,7 @@ async def call_llm_with_fallback(
 async def call_llm_with_fallback(
     response_model: Type[List[T]],
     input_data: Dict[str, Any],
-    prompt_template: str,
+    prompt_template: Union[str, Sequence[Dict[str, str]]],
     model_ids: List[str] = [
         "openai/gpt-4.1-mini",
         "anthropic/claude-3.7-sonnet",
@@ -167,7 +259,7 @@ async def call_llm_with_fallback(
 async def call_llm_with_fallback(
     response_model: Type[T] | Type[List[T]],
     input_data: Dict[str, Any],
-    prompt_template: str,
+    prompt_template: Union[str, Sequence[Dict[str, str]]],
     model_ids: List[str] = [
         "openai/gpt-4.1-mini",
         "anthropic/claude-3.7-sonnet",
@@ -176,14 +268,16 @@ async def call_llm_with_fallback(
     settings: Optional[LLMSettings] = None,
 ) -> Union[T, List[T]]:
     """
-    Process data with LLM and validate response as a Pydantic model or list of Pydantic models
+    Process data with LLM and validate response as a Pydantic model or list of Pydantic models.
+    Uses async OpenAI API instead of LangChain.
 
     Args:
         response_model: Pydantic model class for validating the response
                        If List[Type], validates as list of models
                        If Type, validates as a single model
         input_data: Dictionary containing input data for the prompt
-        prompt_template: The prompt template to use
+        prompt_template: The prompt template to use (string or sequence of role-content dicts)
+        model_ids: List of model IDs to try in fallback
         attempt: Current attempt number
         settings: Optional LLM settings to use, defaults to global settings
 
@@ -250,46 +344,98 @@ async def call_llm_with_fallback(
         except ValidationError as e:
             raise ValueError(f"Output failed validation: {e}")
 
-    model_id = model_ids[attempt - 1]
+    model_id = model_ids[attempt - 1] if attempt <= len(model_ids) else "unknown"
     logger.debug(
         f"LLM call attempt {attempt}/{len(model_ids)}: Using model '{model_id}'"
     )
 
-    model = get_langchain_model(model_id)
-    langchain_prompt = load_langchain_prompt_template(prompt_template)
-    chain = langchain_prompt | model.with_retry() | TolerantJsonParser()
-
     try:
-        import asyncio
-        llm_result = await asyncio.wait_for(
-            chain.ainvoke(input_data), 
-            timeout=300
+        # Get configuration
+        base_url = settings.openai_base_url
+        api_key = settings.openai_api_key
+        
+        logger.debug(f"Using base_url: {base_url}")
+        logger.debug(f"API key length: {len(api_key) if api_key else 0}")
+        
+        # Initialize client with proper resource management and timeout settings
+        httpx_client = settings.get_httpx_client() if settings.enable_json_log else None
+        client = AsyncOpenAI(
+            base_url=base_url,
+            api_key=api_key,
+            timeout=300.0,
+            max_retries=0,
+            http_client=httpx_client
         )
+        cache_provider = get_llm_cache_provider()
+        
+        try:
+            # Parse prompt template and format with input data
+            messages = _parse_prompt_template(prompt_template, input_data)
+            
+            # Create request
+            request = {
+                "model": model_id,
+                "messages": messages,
+                "temperature": 0.1,
+            }
+            
+            # Check cache first
+            cache_key = cache_provider.hash_params(request)
+            cached_response = cache_provider.get(cache_key)
+            if cached_response:
+                # Cache hit, return the cached response
+                logger.info(f"Cache hit for key: {cache_key}")
+                response = ChatCompletion.model_validate_json(cached_response)
+            else: 
+                response: ChatCompletion = await client.chat.completions.create(**request)
+                cache_provider.insert(
+                    cache_key, 
+                    request,
+                    response.model_dump(exclude_none=True, exclude_unset=True, by_alias=True)
+                )
+            
+            # Parse the response content as JSON
+            content = response.choices[0].message.content
+            if not content:
+                raise ValueError("Empty response from LLM")
+                
+            llm_result = _parse_json_with_repair(content)
 
-        # Check if response_model is a List type
-        is_list_type = get_origin(response_model) is list
+            # Check if response_model is a List type
+            is_list_type = get_origin(response_model) is list
 
-        if is_list_type:
-            # Get the type inside the List
-            item_model = get_args(response_model)[0]
-            validated_result = _validate_list_output(llm_result, item_model)
-            logger.debug(
-                f"Successfully processed LLM request with model '{model_id}', returned {len(validated_result)} validated items"
-            )
-        else:
-            # Validate as a single item
-            assert issubclass(response_model, BaseModel)
-            validated_result = _validate_single_output(llm_result, response_model)
-            logger.debug(
-                f"Successfully processed LLM request with model '{model_id}', returned a validated item"
-            )
+            if is_list_type:
+                # Get the type inside the List
+                item_model = get_args(response_model)[0]
+                validated_result = _validate_list_output(llm_result, item_model)
+                logger.debug(
+                    f"Successfully processed LLM request with model '{model_id}', returned {len(validated_result)} validated items"
+                )
+            else:
+                # Validate as a single item
+                assert issubclass(response_model, BaseModel)
+                validated_result = _validate_single_output(llm_result, response_model)
+                logger.debug(
+                    f"Successfully processed LLM request with model '{model_id}', returned a validated item"
+                )
 
-        return validated_result
+            return validated_result
+            
+        finally:
+            try:
+                await client.close()
+            except Exception as close_error:
+                logger.warning(f"Error closing client: {close_error}")
 
     except Exception as e:
+        error_msg = str(e)
         logger.error(
-            f"LLM processing failed with model '{model_id}': {str(e)}", exc_info=True
+            f"LLM processing failed with model '{model_id}': {error_msg}", exc_info=True
         )
+        
+        if "nodename nor servname provided" in error_msg or "Connection error" in error_msg:
+            logger.warning(f"Network connectivity issue detected, adding delay before retry")
+            await asyncio.sleep(1)
 
         # Always use fallback strategy (try next model)
         if attempt < len(model_ids):
@@ -345,7 +491,7 @@ async def call_llm_with_function_call(
         logger.debug(f"API key length: {len(api_key) if api_key else 0}")
         
         # Initialize client with proper resource management and timeout settings
-        httpx_client = settings.enable_json_log and settings.get_httpx_client()
+        httpx_client = settings.get_httpx_client() if settings.enable_json_log else None
         client = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
@@ -353,6 +499,7 @@ async def call_llm_with_function_call(
             max_retries=0,
             http_client=httpx_client
         )
+        cache_provider = get_llm_cache_provider()
         
         try:
             # Make the function call using the new tools format
@@ -360,18 +507,34 @@ async def call_llm_with_function_call(
                 "type": "function",
                 "function": function_definition
             }
-            
-            response = await client.chat.completions.create(
-                model=model_id,
-                messages=[
+            request = {
+                "model": model_id,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                tools=[tool],
-                tool_choice={"type": "function", "function": {"name": function_definition["name"]}},
-                temperature=0.1,
-            )
-            
+                "tools": [tool],
+                "tool_choice": {
+                    "type": "function",
+                    "function": {"name": function_definition["name"]}
+                },
+                "temperature": 0.1,
+            }
+            cache_key = cache_provider.hash_params(request)
+            cached_response = cache_provider.get(cache_key)
+            if cached_response:
+                logger.info(f"Cache hit for key: {cache_key}")
+                # Cache hit, return the cached response
+                response = ChatCompletion.model_validate_json(cached_response)
+            else: 
+                logger.debug(f"Cache miss for key: {cache_key}")
+                response: ChatCompletion = await client.chat.completions.create(**request)
+                cache_provider.insert(
+                    cache_key, 
+                    request,
+                    response.model_dump(exclude_none=True, exclude_unset=True, by_alias=True)
+                )
+                
             message = response.choices[0].message
             if message.tool_calls and len(message.tool_calls) > 0:
                 function_args = json.loads(message.tool_calls[0].function.arguments)
@@ -399,11 +562,3 @@ async def call_llm_with_function_call(
             )
         else:
             raise
-
-if not llm_settings.disable_llm_cache:
-    cache_dir = get_cache_dir()
-    llm_cache_dir = cache_dir / "llm"
-    llm_cache_dir.mkdir(parents=True, exist_ok=True)
-    set_llm_cache(SQLiteCache(database_path=str(llm_cache_dir / ".langchain.db")))
-else:
-    logger.info("LLM cache disabled via DISABLE_LLM_CACHE environment variable")
