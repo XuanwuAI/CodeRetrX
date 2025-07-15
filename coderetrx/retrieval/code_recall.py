@@ -300,7 +300,7 @@ async def _multi_strategy_code_recall(
         mode: The search mode to use:
             - "file_name": Uses FILTER_FILENAME_BY_LLM only
             - "symbol_name": Uses ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM strategy
-            - "line_per_symbol": Uses INTELLIGENT_FILTER strategy with line-level vector recall
+            - "line_per_symbol": Uses FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM strategy with line-level vector recall
             - "dependency": Uses FILTER_DEPENDENCY_BY_LLM strategy
             - "auto": Uses LLM to determine best strategy based on prompt (chooses from filename, symbol, line)
             - "precise": Uses full LLM filtering/mapping (default behavior)

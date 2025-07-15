@@ -60,7 +60,7 @@ class RecallStrategy(Enum):
     ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM = (
         "adaptive_filter_symbol_by_vector_and_llm"
     )
-    FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM = "intelligent_filter"
+    FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM = "filter_line_per_symbol_by_vector_and_llm"
 
 
 class StrategyExecuteResult(BaseModel):

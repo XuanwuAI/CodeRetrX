@@ -52,7 +52,7 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
         self.max_iteration = int(self.top_k * 2)
 
     def get_strategy_name(self) -> str:
-        return "INTELLIGENT_FILTER"
+        return "FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM"
 
     async def _llm_recall_judgment(
             self, line_candidates: List[CodeLine], query: str
@@ -178,7 +178,7 @@ Call the select_relevant_lines function with your analysis."""
         except Exception as e:
             logger.error(f"Error in LLM recall judgment batch: {e}")
             # Fallback: return first few candidates from this batch
-            return [candidate[0] for candidate in line_candidates[:10]]
+            return [candidate for candidate in line_candidates[:10]]
 
     async def execute(
         self,
@@ -314,7 +314,6 @@ Call the select_relevant_lines function with your analysis."""
                     logger.debug(
                         f"Selected symbol '{entry.symbol.name}' from {entry.symbol.file.path} (score: {entry.score:.3f})"
                     )
-                    break
 
                 logger.debug(
                     f"Processed round {round}: Selected {len(selected_lines)} symbols from {len(current_round_candidates)} candidates"
