@@ -22,7 +22,6 @@ from tenacity import (
     retry_if_exception_type,
 )
 from coderetrx.utils.concurrency import abatch_func_call, run_coroutine_sync
-import chromadb
 from abc import ABC, abstractmethod
 from functools import wraps
 from openai import AsyncOpenAI
@@ -47,6 +46,11 @@ try:
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
+try:
+    import chromadb
+    CHROMADB_AVAILABLE = True
+except ImportError:
+    CHROMADB_AVAILABLE = False
 
 
 logger = logging.getLogger(__name__)
@@ -447,6 +451,10 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
         self, embeddings: Optional[List[List[float]]], use_cache: bool
     ) -> None:
         """Initialize the ChromaDB vector store."""
+        if not CHROMADB_AVAILABLE:
+            raise ImportError(
+                "ChromaDB dependencies not available. Install with: pip install chromadb"
+            )
         # Initialize ChromaDB client
         self.chromadb_client = chromadb.PersistentClient(
             path=str(cache_path / "chroma")

@@ -258,7 +258,6 @@ version = "0.1.16"
 source = { editable = "." }
 dependencies = [
     { name = "attrs" },
-    { name = "chromadb" },
     { name = "git-python" },
     { name = "httpx" },
     { name = "ignore-python" },
@@ -277,6 +276,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+chromadb = [
+    { name = "chromadb" },
+]
 cli = [
     { name = "typer" },
 ]
@@ -299,9 +301,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "attrs", specifier = ">=25.3.0" },
-    { name = "chromadb", specifier = ">=1.0.15" },
+    { name = "chromadb", marker = "extra == 'chromadb'", specifier = ">=0.4.0" },
     { name = "git-python", specifier = ">=1.0.3" },
-    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "httpx", specifier = ">=0.27.2" },
     { name = "ignore-python", specifier = ">=0.2.0" },
     { name = "json-repair", specifier = ">=0.46.0" },
     { name = "nanoid", specifier = ">=2.0.0" },
@@ -311,7 +313,6 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "python-git", specifier = ">=2018.2.1" },
     { name = "qdrant-client", specifier = ">=1.12.0" },
-    { name = "qdrant-client", specifier = ">=1.14.3" },
     { name = "redis", marker = "extra == 'redis'", specifier = ">=5.0.0" },
     { name = "tenacity", specifier = ">=9.1.2" },
     { name = "tiktoken", marker = "extra == 'stats'", specifier = ">=0.9.0" },
@@ -320,7 +321,7 @@ requires-dist = [
     { name = "tree-sitter-language-pack", specifier = ">=0.7.3" },
     { name = "typer", marker = "extra == 'cli'", specifier = ">=0.16.0" },
 ]
-provides-extras = ["stats", "cli", "redis"]
+provides-extras = ["stats", "cli", "redis", "chromadb"]
 
 [package.metadata.requires-dev]
 dev = [
