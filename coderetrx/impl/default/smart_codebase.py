@@ -27,6 +27,7 @@ from .prompt import (
     get_mapping_function_definition,
 )
 import asyncio
+from coderetrx.utils.llm import call_llm_with_fallback, call_llm_with_function_call, LLMSettings
 
 if TYPE_CHECKING:
     from .factory import SmartCodebaseSettings
@@ -48,6 +49,7 @@ class SmartCodebase(SmartCodebaseBase):
     # unified codeline searcher for all symbols with metadata filtering
     codeline_searcher: Optional["SimilaritySearcher"] = field(default=None)
     settings: "SmartCodebaseSettings" = field(factory=get_smart_codebase_settings)
+    llm_settings: Optional["LLMSettings"] = field(default=None)
 
     def _fixup_path(self, path: str) -> str:
         original_path = path
@@ -157,6 +159,7 @@ class SmartCodebase(SmartCodebaseBase):
         version: str = "v0.0.1",
         ignore_tests: bool = True,
         settings: Optional["SmartCodebaseSettings"] = None,
+        llm_settings: Optional[LLMSettings] = None,
     ) -> "SmartCodebase":
         if settings is None:
             settings = get_smart_codebase_settings()
@@ -170,6 +173,7 @@ class SmartCodebase(SmartCodebaseBase):
             keywords=codebase.keywords,
             dependencies=codebase.dependencies,
             settings=settings,
+            llm_settings=llm_settings,
         )
 
     async def llm_filter(
@@ -241,7 +245,6 @@ class SmartCodebase(SmartCodebaseBase):
         model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[Any]]:
         """Process elements using traditional prompt-based approach."""
-        from coderetrx.utils.llm import call_llm_with_fallback
 
         # Process elements in batches
         async def process_element_batch(
@@ -291,6 +294,7 @@ class SmartCodebase(SmartCodebaseBase):
                     input_data=invoke_input,
                     prompt_template=prompt_template,
                     model_ids=model_ids,
+                    settings=self.llm_settings,
                 )
 
                 right_llm_results = [result for result in llm_results if result.result]
@@ -378,8 +382,6 @@ class SmartCodebase(SmartCodebaseBase):
         model_id: Optional[str] = None,
     ) -> Tuple[List[Any], List[Any]]:
         """Process elements using function call approach."""
-        from coderetrx.utils.llm import call_llm_with_function_call
-
         # Process elements in batches
         async def process_element_batch_with_function_call(
             elements_batch: List[Any],
@@ -443,6 +445,7 @@ class SmartCodebase(SmartCodebaseBase):
                     user_prompt=user_prompt,
                     function_definition=function_definition,
                     model_ids=model_ids,
+                    settings=self.llm_settings,
                 )
 
                 # Parse function call results
