@@ -409,7 +409,7 @@ async def call_llm_with_fallback(
             cached_response = cache_provider.get(cache_key)
             if cached_response:
                 # Cache hit, return the cached response
-                logger.info(f"Cache hit for key: {cache_key}")
+                logger.debug(f"Cache hit for key: {cache_key}")
                 response = ChatCompletion.model_validate_json(cached_response)
             else: 
                 response: ChatCompletion = await client.chat.completions.create(**request)
@@ -548,7 +548,7 @@ async def call_llm_with_function_call(
             cache_key = cache_provider.hash_params(request)
             cached_response = cache_provider.get(cache_key)
             if cached_response:
-                logger.info(f"Cache hit for key: {cache_key}")
+                logger.debug(f"Cache hit for key: {cache_key}")
                 # Cache hit, return the cached response
                 response = ChatCompletion.model_validate_json(cached_response)
             else: 

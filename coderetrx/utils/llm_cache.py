@@ -96,7 +96,7 @@ class Sqlite3CacheProvider(BaseCacheProvider):
 
     def __init__(self, settings: SqliteCacheSettings = DEFAULT_SQLITE_SETTINGS):
         self.db_path = settings.db_path
-        logger.info(f"Using SQLite3 cache at {self.db_path}")
+        logger.debug(f"Using SQLite3 cache at {self.db_path}")
 
         # Ensure the directory exists
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
@@ -216,7 +216,7 @@ class RedisCacheProvider(BaseCacheProvider):
             )
 
         self.settings = settings
-        logger.info(f"Using Redis cache at {settings.host}:{settings.port}")
+        logger.debug(f"Using Redis cache at {settings.host}:{settings.port}")
 
         # Initialize Redis connection
         self._init_redis()
@@ -240,7 +240,7 @@ class RedisCacheProvider(BaseCacheProvider):
             self.redis_client = redis.Redis(**connection_kwargs)
             # Test connection
             self.redis_client.ping()
-            logger.info("Redis connection established successfully")
+            logger.debug("Redis connection established successfully")
         except Exception as e:
             logger.error(f"Failed to connect to Redis: {e}")
             raise

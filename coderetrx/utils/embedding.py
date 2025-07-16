@@ -200,7 +200,7 @@ async def _create_embeddings_with_cache(
 
     cache_hits = len(truncated_texts) - len(uncached_texts)
     if cache_hits > 0:
-        logger.info(f"Cache hit for {cache_hits}/{len(truncated_texts)} texts")
+        logger.debug(f"Cache hit for {cache_hits}/{len(truncated_texts)} texts")
 
     # If all texts are cached, return cached results
     if not uncached_texts:
@@ -209,7 +209,7 @@ async def _create_embeddings_with_cache(
         return result
 
     # Make API call for uncached texts
-    logger.info(f"Making API call for {len(uncached_texts)} uncached texts")
+    logger.debug(f"Making API call for {len(uncached_texts)} uncached texts")
 
     httpx_client = settings.get_httpx_client()
     client = AsyncOpenAI(
@@ -497,7 +497,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
                     name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": 1024}
                 )
             else:
-                logger.info(
+                logger.debug(
                     f"Using cached {self.content_type} from ChromaDB collection '{self.name}' ({self.collection.count()} items)"
                 )
         except Exception:
@@ -595,7 +595,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
         """
         Search for the most similar documents to the query.
         """
-        logger.info(
+        logger.debug(
             f"Performing similarity search in collection '{self.name}' with k={k}"
         )
 
