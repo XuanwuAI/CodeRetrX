@@ -36,7 +36,7 @@ from tenacity import (
 )
 
 from coderetrx.utils.cost_tracking import get_cost_hook
-from coderetrx.utils.logger import JsonLogger
+from coderetrx.utils.logger import JsonLogger, LLMCallLog, ErrLog
 import json_repair
 import re
 
@@ -239,6 +239,28 @@ def _parse_json_with_repair(text: str) -> Any:
     
     raise ValueError(f"Failed to parse JSON from text: {text[:200]}...")
 
+def _log_response(llm_settings: LLMSettings, response: ChatCompletion, cached: bool=True):
+    json_logger = llm_settings.get_json_logger()
+    if response.usage:
+        json_logger.log(
+            LLMCallLog(
+                completion_id=response.id,
+                model=response.model,
+                completion_tokens=response.usage.completion_tokens,
+                prompt_tokens=response.usage.prompt_tokens,
+                total_tokens=response.usage.total_tokens,
+                call_url=response.model + "/completions",
+                cached=cached,
+            )
+        )
+    else:
+        json_logger.log(
+            ErrLog(
+                error_type="No usage information in response",
+                error=f"No usage information in response for model '{response.model}' ... raw response: {response.model_dump_json()}",
+            )
+        )
+
 
 logger = logging.getLogger(__name__)
 
@@ -411,6 +433,7 @@ async def call_llm_with_fallback(
                 # Cache hit, return the cached response
                 logger.debug(f"Cache hit for key: {cache_key}")
                 response = ChatCompletion.model_validate_json(cached_response)
+                _log_response(settings, response)
             else: 
                 response: ChatCompletion = await client.chat.completions.create(**request)
                 cache_provider.insert(
@@ -551,6 +574,7 @@ async def call_llm_with_function_call(
                 logger.debug(f"Cache hit for key: {cache_key}")
                 # Cache hit, return the cached response
                 response = ChatCompletion.model_validate_json(cached_response)
+                _log_response(settings, response)
             else: 
                 logger.debug(f"Cache miss for key: {cache_key}")
                 response: ChatCompletion = await client.chat.completions.create(**request)

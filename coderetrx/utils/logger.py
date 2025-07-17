@@ -2,6 +2,7 @@
 # The "logging" here should specifically be for dataset creation.
 from datetime import datetime
 from os import PathLike
+from pathlib import Path
 from typing import Literal, Optional, List, TYPE_CHECKING
 
 from pydantic import BaseModel, RootModel
@@ -47,6 +48,7 @@ class LLMCallLog(BaseModel):
     prompt_tokens: int
     total_tokens: int
     call_url: str
+    cached: bool = False
 
 
 class ErrLog(BaseModel):
@@ -78,7 +80,7 @@ def read_logs(file: PathLike | str):
 class JsonLogger:
     def __init__(self, file: PathLike | str):
         self.file = file
-        self.file.touch(exist_ok=True)
+        Path(file).touch(exist_ok=True)
 
     def log(self, data: LogData):
         entry = LogEntry(timestamp=datetime.now().isoformat(), data=data)
