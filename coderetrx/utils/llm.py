@@ -97,6 +97,13 @@ class LLMSettings(BaseSettings):
         alias="LLM_PROXY"
     )
 
+    # Timeout Configuration
+    llm_timeout: float = Field(
+        default=300.0,
+        description="Timeout in seconds for LLM API calls",
+        alias="LLM_TIMEOUT"
+    )
+
     def get_json_log_path(self) -> Path:
         path = self.json_log_base_path
         path.mkdir(parents=True, exist_ok=True)
@@ -409,7 +416,7 @@ async def call_llm_with_fallback(
         client = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
-            timeout=300.0,
+            timeout=settings.llm_timeout,
             max_retries=0,
             http_client=httpx_client
         )
@@ -543,7 +550,7 @@ async def call_llm_with_function_call(
         client = AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
-            timeout=180.0,
+            timeout=settings.llm_timeout,
             max_retries=0,
             http_client=httpx_client
         )
