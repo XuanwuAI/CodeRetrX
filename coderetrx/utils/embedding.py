@@ -89,7 +89,7 @@ class EmbeddingSettings(BaseSettings):
         description="Maximum number of concurrent requests for embedding",
     )
     max_trunc_chars: int = Field(
-        default=10000,
+        default=8000,
         description="Max. characters per document to embed. Set to -1 to disable truncation.",
     )
     proxy: Optional[str] = Field(
