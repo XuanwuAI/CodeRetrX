@@ -17,6 +17,8 @@ from ..smart_codebase import (
     LLMCallMode,
 )
 from coderetrx.static.codebase import CodeLine
+from coderetrx.utils.cost_tracking import calc_llm_costs, calc_input_tokens, calc_output_tokens
+from coderetrx.utils.llm import llm_settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -49,7 +51,7 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
         """
         super().__init__(topic_extractor=topic_extractor, llm_call_mode=llm_call_mode)
         self.top_k = 10
-        self.max_iteration = int(self.top_k * 2)
+        self.max_iteration = int(self.top_k * 3)
 
     def get_strategy_name(self) -> str:
         return "FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM"
@@ -70,7 +72,7 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
         if not line_candidates:
             return []
 
-        max_batch_size = 30
+        max_batch_size = 100
         all_selected_lines = []
 
         # Create tasks for all batches
@@ -116,14 +118,14 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
             # Define function for line selection
             function_definition = {
                 "name": "select_relevant_lines",
-                "description": "Select the most relevant code lines based on the query criteria",
+                "description": "Select the relevant code lines based on the query criteria",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "selected_indices": {
                             "type": "array",
                             "items": {"type": "integer"},
-                            "description": "List of indices (1-based) of the most relevant lines",
+                            "description": "List of indices (1-based) of the relevant lines",
                         },
                         "reasoning": {
                             "type": "string",
@@ -134,11 +136,11 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
                 },
             }
 
-            system_prompt = f"""You are analyzing code lines to find the most relevant ones for a specific query.
+            system_prompt = f"""You are analyzing code lines to find the relevant ones for a specific query.
 
 Query: {query}
 
-Select the most relevant lines from the candidates below. Focus on:
+Select the relevant lines from the candidates below. Focus on:
 1. Direct relevance to the query requirements
 2. Functional significance and completeness
 3. Quality and clarity of the code
@@ -149,7 +151,7 @@ Be selective and choose only the lines that truly match the query criteria."""
 
 {candidates_str}
 
-Select the most relevant lines for the query: "{query}"
+Select the relevant lines for the query: "{query}"
 
 Call the select_relevant_lines function with your analysis."""
 
@@ -256,6 +258,12 @@ Call the select_relevant_lines function with your analysis."""
 
             # Step 2: LLM processing with dynamic batch evaluation
             logger.info("Step 2 - LLM processing with dynamic batch evaluation")
+            
+            # Record initial cost before Step 2
+            log_path = llm_settings.get_json_log_path()
+            initial_step2_cost = await calc_llm_costs(log_path)
+            initial_step2_input_tokens = calc_input_tokens(log_path)
+            initial_step2_output_tokens = calc_output_tokens(log_path)
             recalled_file_paths = set()
             recalled_symbols = []
             recalled_symbol_ids = set()
@@ -323,6 +331,20 @@ Call the select_relevant_lines function with your analysis."""
                 current_round_lines = (
                     next_round_heading_lines + current_round_lines[line_idx:]
                 )
+
+            # Record final cost after Step 2
+            final_step2_cost = await calc_llm_costs(log_path)
+            final_step2_input_tokens = calc_input_tokens(log_path)
+            final_step2_output_tokens = calc_output_tokens(log_path)
+            
+            # Calculate Step 2 cost difference
+            step2_cost = final_step2_cost - initial_step2_cost
+            step2_input_tokens = final_step2_input_tokens - initial_step2_input_tokens
+            step2_output_tokens = final_step2_output_tokens - initial_step2_output_tokens
+
+            logger.info(
+                f"Step 2 LLM cost: ${step2_cost:.6f} (Input tokens: {step2_input_tokens}, Output tokens: {step2_output_tokens})"
+            )
 
             file_paths = list(recalled_file_paths)
             logger.info(
