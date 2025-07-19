@@ -72,7 +72,7 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
         if not line_candidates:
             return []
 
-        max_batch_size = 100
+        max_batch_size = 50
         all_selected_lines = []
 
         # Create tasks for all batches
