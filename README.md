@@ -239,7 +239,7 @@ For detailed results, see:
 
 [Ollama Analysis by Bug Type](bench/Ollama_Analysis_by_Bug_Type.md)
 
-[Neondatabase Analysis by Bug Type](bench/NeonDatabase_Analysis_By_Bug_Type.md)
+[Rosenpass Analysis by Bug Type](bench/Rosenpass_Analysis_By_Bug_Type.md)
 
 
 ## 📚 Extras

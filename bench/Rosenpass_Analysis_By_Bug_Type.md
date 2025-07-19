@@ -1,8 +1,8 @@
-# NeonDatabase Analysis by Bug Type
+# Rosenpass Analysis by Bug Type
 
 ## Introduction
 
-To assess the effectiveness of the **coderetrx_filter** strategy, we conducted experiments on the NeonDatabase repository using nine filter prompts, with **llm_traversal_filter** serving as the ground truth comparator.  
+To assess the effectiveness of the **coderetrx_filter** strategy, we conducted experiments on the Rosenpass repository using nine filter prompts, with **llm_traversal_filter** serving as the ground truth comparator.  
 
 We employed *text-embedding-3-large* for embedding generation. For task resolution, *google/gemini-2.5-flash-lite-preview-06-17* was utilised for simpler tasks, while *openai/gpt-4.1-mini* was used for more complex tasks. The complete configuration details can be found in `.env.example`.
 
