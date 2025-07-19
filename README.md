@@ -235,7 +235,12 @@ Use `file_name` for structural queries, `symbol_name` for API search, `line_per_
 
 We conducted comprehensive experiments on the *Ollama* repository to validate the effectiveness of our code retrieval strategies. The analysis demonstrates how **`coderetrx_filter`** performs across various bug types and complexity levels.
 
-For detailed results, see: [Ollama Analysis by Bug Type](bench/Ollama_Analysis_by_Bug_Type.md)
+For detailed results, see: 
+
+[Ollama Analysis by Bug Type](bench/Ollama_Analysis_by_Bug_Type.md)
+
+[Neondatabase Analysis by Bug Type](bench/NeonDatabase_Analysis_By_Bug_Type.md)
+
 
 ## 📚 Extras
 
