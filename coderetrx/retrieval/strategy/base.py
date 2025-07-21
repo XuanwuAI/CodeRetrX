@@ -63,6 +63,9 @@ class RecallStrategy(Enum):
     FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM = (
         "filter_line_per_symbol_by_vector_and_llm"
     )
+    FILTER_LINE_PER_FILE_BY_VECTOR_AND_LLM = (
+        "filter_line_per_file_by_vector_and_llm"
+    )
 
 
 class StrategyExecuteResult(BaseModel):

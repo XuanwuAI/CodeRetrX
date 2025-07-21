@@ -398,6 +398,7 @@ Available coarse_recall_strategies:
   file_name   - Uses file_name filtering only (fastest, least accurate)
   symbol_name      - Uses adaptive symbol name vector filtering (balanced speed/accuracy) 
   line_per_symbol  - Uses filtering with line_per_symbol-level vector recall and LLM judgment [DEFAULT]
+  line_per_file    - Uses filtering with line_per_file-level vector recall and LLM judgment
   dependency  - Uses dependency analysis to find related code
   auto        - Uses LLM to determine the best strategy based on the prompt
   precise     - Uses full LLM processing (most accurate but slowest)
@@ -415,7 +416,7 @@ Available coarse_recall_strategies:
     parser.add_argument(
         "--coarse_recall_strategy", "-m",
         type=str,
-        choices=["file_name", "symbol_name", "line_per_symbol", "dependency", "auto", "precise", "custom"],
+        choices=["file_name", "symbol_name", "line_per_symbol", "line_per_file", "dependency", "auto", "precise", "custom"],
         default="line_per_symbol",
         help="Analysis coarse_recall_strategy (default: line_per_symbol)"
     )

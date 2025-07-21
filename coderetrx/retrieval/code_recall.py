@@ -52,6 +52,7 @@ CoarseRecallStrategyType = Literal[
     "symbol_name",
     "symbol_content",
     "line_per_symbol",
+    "line_per_file",
     "dependency",
     "auto",
     "custom",
@@ -300,7 +301,8 @@ async def _multi_strategy_code_recall(
         mode: The search mode to use:
             - "file_name": Uses FILTER_FILENAME_BY_LLM only
             - "symbol_name": Uses ADAPTIVE_FILTER_SYMBOL_BY_VECTOR_AND_LLM strategy
-            - "line_per_symbol": Uses FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM strategy with line-level vector recall
+            - "line_per_symbol": Uses FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM strategy with line-level vector recall per symbol
+            - "line_per_file": Uses FILTER_LINE_PER_FILE_BY_VECTOR_AND_LLM strategy with line-level vector recall across all files
             - "dependency": Uses FILTER_DEPENDENCY_BY_LLM strategy
             - "auto": Uses LLM to determine best strategy based on prompt (chooses from filename, symbol, line)
             - "precise": Uses full LLM filtering/mapping (default behavior)
@@ -330,6 +332,8 @@ async def _multi_strategy_code_recall(
         strategies_to_run = [RecallStrategy.FILTER_SYMBOL_NAME_BY_LLM]
     elif coarse_recall_strategy == "line_per_symbol":
         strategies_to_run = [RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM]
+    elif coarse_recall_strategy == "line_per_file":
+        strategies_to_run = [RecallStrategy.FILTER_LINE_PER_FILE_BY_VECTOR_AND_LLM]
     elif coarse_recall_strategy == "symbol_content":
         strategies_to_run = [
             RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM

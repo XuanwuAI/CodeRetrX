@@ -167,3 +167,16 @@ class SmartCodebase(Codebase, ABC):
         Search for similar lines within a specific symbol using metadata filtering.
         """
         pass
+
+    @abstractmethod
+    async def similarity_search_lines_per_file(
+        self,
+        query: str,
+        threshold: Optional[float] = None,
+        top_k: int = 10,
+        subdirs_or_files: Optional[List[str]] = None,
+    ) -> List[CodeLine]:
+        """
+        Search for similar lines grouped by file using metadata filtering.
+        """
+        pass

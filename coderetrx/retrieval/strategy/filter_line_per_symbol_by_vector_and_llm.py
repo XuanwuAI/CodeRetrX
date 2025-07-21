@@ -287,6 +287,7 @@ Call the select_relevant_lines function with your analysis."""
                 ) < max_candidates_per_round and line_idx < len(current_round_lines):
                     entry = current_round_lines[line_idx]
                     line_idx += 1
+
                     # Skip if symbol already visited
                     if entry.symbol.id in visited_symbol:
                         next_round_heading_lines.append(entry)
