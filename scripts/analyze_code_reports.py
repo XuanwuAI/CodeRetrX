@@ -227,7 +227,7 @@ def main():
             try:
                 # Extract mode from filename
                 mode = "unknown"
-                for m in ["file_name", "symbol_name", "line_per_symbol", "dependency", "auto"]:
+                for m in ["file_name", "symbol_name", "line_per_symbol", "line_per_file", "dependency", "auto"]:
                     if f"_{m}_" in other_file.name:
                         mode = m
                         break
