@@ -786,3 +786,112 @@ class SmartCodebase(SmartCodebaseBase):
             )
 
         return results
+
+    async def similarity_search_lines_per_file(
+        self,
+        query: str,
+        threshold: Optional[float] = None,
+        top_k: int = 10,
+        subdirs_or_files: Optional[List[str]] = None,
+    ) -> List[Any]:
+        """
+        Search for similar lines grouped by file using metadata filtering.
+
+        Args:
+            query: The search query
+            threshold: Similarity threshold, defaults to value from environment variable
+            top_k: Maximum number of results to return per file
+            subdirs_or_files: List of subdirectories or files to limit search scope
+
+        Returns:
+            List of CodeLine objects that match the search criteria grouped by file
+
+        Raises:
+            ValueError: If symbol codeline searcher is not initialized
+        """
+        if subdirs_or_files is None:
+            subdirs_or_files = ["/"]
+
+        if self.codeline_searcher is None:
+            raise ValueError("Symbol codeline searcher is not initialized")
+        
+        subdirs_or_files = [self._fixup_path(path) for path in subdirs_or_files]
+        threshold = (
+            self.settings.similarity_search_threshold
+            if threshold is None
+            else threshold
+        )
+        
+        # Get query vector for file-level search
+        query_vector = (await embed_batch_with_retry([query]))[0]
+        
+        # Get all unique file paths in scope by collecting from symbols
+        files_in_scope = set()
+        symbol_to_file = {}
+        for symbol in self.symbols:
+            file_path = str(symbol.file.path)
+            if any(file_path.startswith(subdir) for subdir in subdirs_or_files):
+                files_in_scope.add(file_path)
+                symbol_to_file[symbol.id] = symbol
+        
+        # Search per file using file_path metadata filter
+        # For each file, get top_k * 3 results, then deduplicate and take top_k
+        results = []
+        file_tasks = []
+        for file_path in files_in_scope:
+            task = self.codeline_searcher.asearch_by_vector(
+                query_vector=query_vector,
+                k=top_k * 3,
+                where={"file_path": file_path},
+            )
+            file_tasks.append((file_path, task))
+        
+        # Execute search tasks with concurrency limiting
+        semaphore = asyncio.Semaphore(embedding_settings.max_concurrency)
+        
+        async def search_with_limit(search_task):
+            async with semaphore:
+                return await search_task
+        
+        search_task_results = await tqdm.gather(
+            *[search_with_limit(task) for file_path, task in file_tasks],
+            desc="Getting topk code lines per file",
+            total=len(file_tasks),
+        )
+        
+        # Process each file's results: deduplicate and take top_k
+        all_candidates = []
+        for idx, (file_path, _) in enumerate(file_tasks):
+            search_result = search_task_results[idx]
+            
+            # Collect candidates for this file
+            file_candidates = []
+            seen_content = set()
+            
+            for doc, score in search_result:
+                if score >= threshold and doc not in seen_content:
+                    seen_content.add(doc)
+                    # Find a symbol from this file to associate with the line
+                    symbol_for_line = None
+                    for symbol in self.symbols:
+                        if str(symbol.file.path) == file_path:
+                            symbol_for_line = symbol
+                            break
+                    
+                    if symbol_for_line:
+                        file_candidates.append((doc, symbol_for_line, score))
+            
+            # Sort this file's candidates by score and take top_k
+            file_candidates.sort(key=lambda x: x[2], reverse=True)
+            all_candidates.extend(file_candidates[:top_k])
+        
+        # Sort all candidates globally by similarity score (highest first)
+        all_candidates.sort(key=lambda x: x[2], reverse=True)
+        
+        # Convert to CodeLine objects
+        for doc, symbol, score in all_candidates:
+            results.append(
+                CodeLine.new(line_content=doc, symbol=symbol, score=score)
+            )
+
+        return results
