@@ -590,7 +590,8 @@ class File:
             # Collect IDs of all chunks that contain the current line
             symbol_ids = [chunk.id for chunk in active_chunks]
             
-            yield CodelineDocument(file_path=str(self.path), line_number=i, content=line, symbol_ids=symbol_ids)
+            if len(line):
+                yield CodelineDocument(file_path=str(self.path), line_number=i, content=line, symbol_ids=symbol_ids)
 
     @classmethod
     def jit_for_testing(cls, filename: str, content: str) -> Self:
