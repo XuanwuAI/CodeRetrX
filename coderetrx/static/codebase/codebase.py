@@ -569,6 +569,28 @@ class File:
 
     def primary_chunks(self) -> List[CodeChunk]:
         return [chunk for chunk in self.chunks if chunk.type == ChunkType.PRIMARY]
+    
+    def get_lines(self):
+        chunks = self.chunks  # Already sorted by start_line
+        active_chunks = []  # List of chunks that currently contain the line
+        chunk_idx = 0  # Index of next chunk to consider
+        
+        for i, line in enumerate(self.lines):
+            # Remove chunks that end before the current line
+            active_chunks = [chunk for chunk in active_chunks if chunk.end_line >= i]
+            
+            # Add chunks that start at or before the current line and haven't been processed yet
+            while chunk_idx < len(chunks) and chunks[chunk_idx].start_line <= i:
+                chunk = chunks[chunk_idx]
+                # Only add chunks that actually contain the current line
+                if chunk.end_line >= i:
+                    active_chunks.append(chunk)
+                chunk_idx += 1
+            
+            # Collect IDs of all chunks that contain the current line
+            symbol_ids = [chunk.id for chunk in active_chunks]
+            
+            yield CodelineDocument(file_path=str(self.path), line_number=i, content=line, symbol_ids=symbol_ids)
 
     @classmethod
     def jit_for_testing(cls, filename: str, content: str) -> Self:
@@ -711,6 +733,13 @@ class CallGraphEdge:
         model = CallGraphEdgeModel.model_validate(data)
         return model.to_edge(codebase)
 
+
+
+class CodelineDocument(BaseModel):
+    file_path: str
+    line_number: int = Field(description="0-indexed line number of the code line")
+    content: str
+    symbol_ids: List[str]
 
 class CodeLine(BaseModel):
     """Pydantic model representing a code line entry with metadata."""
@@ -1067,6 +1096,11 @@ class Codebase:
 
     def get_file(self, path: PathLike | str) -> File | None:
         return self.source_files.get(str(path)) or self.dependency_files.get(str(path))
+    
+    def get_all_lines(self):
+        for file in self.source_files.values():
+            for line in file.get_lines():
+                yield line
 
     @classmethod
     def jit_for_testing(cls) -> Self:

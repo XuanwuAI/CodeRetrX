@@ -128,29 +128,9 @@ class CodebaseFactory:
             # Collect all lines from all symbols with metadata
             all_lines = []
             all_metadatas = []
-            for symbol in codebase.symbols:
-                if symbol.chunk:
-                    try:
-                        logger.debug(
-                            f"Collecting lines for symbol {symbol.id}"
-                        )
-                        lines = symbol.chunk.code().split("\n")
-                        lines = [line.strip() for line in lines if line.strip()]  # Remove empty lines
-                        lines = [line for line in lines if len(line) > 2]  # Remove lines that are too short
-                        lines = list(set(lines))  # Remove duplicates
-                        for line in lines:
-                            all_lines.append(line)
-                            all_metadatas.append({"symbol_id": symbol.id,
-                                                  "file_path": str(symbol.file.path)})
-                        
-                        logger.debug(
-                            f"Collected {len(lines)} lines for symbol {symbol.id}"
-                        )
-                    except Exception as e:
-                        logger.fatal(
-                            f"Failed to collect lines for symbol {symbol.id}: {repr(e)}"
-                        )
-                        raise e
+            for line in codebase.get_all_lines():
+                all_lines.append(line.content)
+                all_metadatas.append(line.model_dump(mode="json"))
             
             # Create single collection for all lines with metadata
             if all_lines:
