@@ -570,10 +570,11 @@ class File:
     def primary_chunks(self) -> List[CodeChunk]:
         return [chunk for chunk in self.chunks if chunk.type == ChunkType.PRIMARY]
     
-    def get_lines(self):
-        chunks = self.chunks  # Already sorted by start_line
+    def get_lines(self, max_chars = 0):
+        chunks = self.primary_chunks()  # Already sorted by start_line
         active_chunks = []  # List of chunks that currently contain the line
         chunk_idx = 0  # Index of next chunk to consider
+        results: List[CodelineDocument] = []
         
         for i, line in enumerate(self.lines):
             # Remove chunks that end before the current line
@@ -591,7 +592,31 @@ class File:
             symbol_ids = [chunk.id for chunk in active_chunks]
             
             if len(line):
-                yield CodelineDocument(file_path=str(self.path), line_number=i, content=line, symbol_ids=symbol_ids)
+                results.append(CodelineDocument(file_path=str(self.path), start_line=i, content=line, symbol_ids=symbol_ids))
+        
+        cur_buf = []
+        cur_symbol_ids = []
+        cur_buf_len = 0
+
+        def get_new_doc():
+            nonlocal cur_buf, cur_buf_len, cur_symbol_ids
+            content = "\n".join([doc.content for doc in cur_buf])
+            new_doc = CodelineDocument(file_path=str(self.path), start_line=cur_buf[0].start_line, end_line=cur_buf[-1].start_line, content=content, symbol_ids=cur_buf[0].symbol_ids)
+            cur_buf = []
+            cur_buf_len = 0
+            return new_doc
+
+        for doc in results:
+            if len(cur_buf) and (
+                cur_buf_len > max_chars or 
+                cur_symbol_ids != doc.symbol_ids
+            ):
+                yield get_new_doc()
+            cur_buf.append(doc)
+            cur_buf_len += len(doc.content)
+            cur_symbol_ids = doc.symbol_ids
+        if len(cur_buf):
+            yield get_new_doc()
 
     @classmethod
     def jit_for_testing(cls, filename: str, content: str) -> Self:
@@ -738,7 +763,9 @@ class CallGraphEdge:
 
 class CodelineDocument(BaseModel):
     file_path: str
-    line_number: int = Field(description="0-indexed line number of the code line")
+    # Range is inclusive [start_line, end_line]
+    start_line: int = Field(description="0-indexed line number of the code line")
+    end_line: Optional[int] = Field(default=None, description="0-indexed end line number of the code line")
     content: str
     symbol_ids: List[str]
 
@@ -1098,9 +1125,9 @@ class Codebase:
     def get_file(self, path: PathLike | str) -> File | None:
         return self.source_files.get(str(path)) or self.dependency_files.get(str(path))
     
-    def get_all_lines(self):
+    def get_all_lines(self, max_chars: int = 0):
         for file in self.source_files.values():
-            for line in file.get_lines():
+            for line in file.get_lines(max_chars=max_chars):
                 yield line
 
     @classmethod

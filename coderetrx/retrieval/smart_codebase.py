@@ -72,6 +72,11 @@ class SmartCodebaseSettings(BaseSettings):
         description="Enable symbol codeline embeddings",
         alias="SYMBOL_CODELINE_EMBEDDING",
     )
+    symbol_codeline_embedding_maxchars: int = Field(
+        default=100,
+        description="Maximum number of characters to embed for symbol codelines. Set to 0 to embed 1 line at a time.",
+        alias="SYMBOL_CODELINE_EMBEDDING_MAXCHARS",
+    )
 
     vector_db_provider: Literal["chroma", "qdrant"] = Field(
         default="qdrant",

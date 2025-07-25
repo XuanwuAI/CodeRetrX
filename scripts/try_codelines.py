@@ -7,6 +7,15 @@ import os
 def x():
     def y():
         return x
+    print("hello world!")
+    for i in range(1000):
+        print(i)
+    
+    print("hello world! Again!!")
+    g = 20
+    do(sth)
+    print("What on earth are we doing")
+    y = 10
     return y
 
 x()
@@ -15,5 +24,5 @@ x()
 
 code_file.init_all()
 
-for line in code_file.get_lines():
+for line in code_file.get_lines(max_chars=100):
     print(line)
