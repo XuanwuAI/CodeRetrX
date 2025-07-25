@@ -267,7 +267,6 @@ Call the select_relevant_lines function with your analysis."""
 
             unique_files = len(set(str(line.symbol.file.path) for line in vector_recalled_lines))
             max_candidates_per_round = max(int(unique_files / self.top_k) * 2, 3)
-            print(unique_files, max_candidates_per_round)
             logger.info(f"Max candidates per round: {max_candidates_per_round}")
 
             current_round_lines = vector_recalled_lines
