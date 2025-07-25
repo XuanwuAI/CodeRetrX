@@ -70,6 +70,12 @@ async def load_model_costs() -> ModelCosts:
     return model_costs_parsed
 
 async def calc_llm_costs(log_path: PathLike | str, model_costs: Optional[ModelCosts] = None):
+    from pathlib import Path
+    
+    # Check if log file exists
+    if not Path(log_path).exists():
+        return 0.0
+        
     model_costs_parsed = model_costs or await load_model_costs()
     total_cost = 0
     for log_item in read_logs(log_path):
@@ -86,6 +92,12 @@ async def calc_llm_costs(log_path: PathLike | str, model_costs: Optional[ModelCo
     return total_cost
 
 def calc_input_tokens(log_path: PathLike | str):
+    from pathlib import Path
+    
+    # Check if log file exists
+    if not Path(log_path).exists():
+        return 0
+        
     total_input_tokens = 0
     for log_item in read_logs(log_path):
         if log_item.data.type == "llm_call":
@@ -94,6 +106,12 @@ def calc_input_tokens(log_path: PathLike | str):
     return total_input_tokens
 
 def calc_output_tokens(log_path: PathLike | str):
+    from pathlib import Path
+    
+    # Check if log file exists
+    if not Path(log_path).exists():
+        return 0
+        
     total_output_tokens = 0
     for log_item in read_logs(log_path):
         if log_item.data.type == "llm_call":

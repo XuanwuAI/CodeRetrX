@@ -13,6 +13,7 @@ from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
 from coderetrx.utils.path import get_data_dir
 from coderetrx.utils.llm import llm_settings
 from coderetrx.utils.cost_tracking import calc_llm_costs, calc_input_tokens, calc_output_tokens
+from coderetrx.utils.checkpoint_manager import CheckpointManager
 import logging
 import datetime
 import argparse
@@ -23,7 +24,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class CodeRetriever:
-    def __init__(self, repo_url: str, coarse_recall_strategy: CoarseRecallStrategyType = "line_per_symbol", use_function_call: bool = True):
+    def __init__(self, repo_url: str, coarse_recall_strategy: CoarseRecallStrategyType = "line_per_symbol", use_function_call: bool = True, enable_checkpoint: bool = False):
         self.repo_url = repo_url
         self.repo_path = get_data_dir() / "repos" / get_repo_id(repo_url)
         self.topic_extractor = TopicExtractor()
@@ -31,6 +32,13 @@ class CodeRetriever:
         if coarse_recall_strategy != "precise" and coarse_recall_strategy not in CoarseRecallStrategyType.__args__:
             raise ValueError(f"Invalid coarse_recall_strategy '{coarse_recall_strategy}'. Must be one of: {CoarseRecallStrategyType.__args__} or 'precise'")
         self.use_function_call = use_function_call
+        self.enable_checkpoint = enable_checkpoint
+        
+        # Initialize checkpoint manager if enabled
+        if self.enable_checkpoint:
+            repo_name = get_repo_id(repo_url)
+            mode = "sec" if hasattr(self, 'enable_secondary_recall') and self.enable_secondary_recall else "pri"
+            self.checkpoint_manager = CheckpointManager(repo_name, coarse_recall_strategy, mode)
 
     def generate_prompts(self, limit: int = 10) -> list[str]:
         all_prompts = []
@@ -72,11 +80,18 @@ class CodeRetriever:
             self,
             subdirs: Optional[list[str]] = None,
             enable_secondary_recall: bool = False,
-            limit: int = 10
+            limit: int = 10,
+            resume: bool = False
     ) -> tuple[list[dict], dict, dict]:
         """Find potential codes in the codebase using the specified coarse_recall_strategy"""
         if subdirs is None:
             subdirs = ["/"]
+
+        # Initialize checkpoint manager with correct mode
+        if self.enable_checkpoint:
+            mode = "sec" if enable_secondary_recall else "pri"
+            repo_name = get_repo_id(self.repo_url)
+            self.checkpoint_manager = CheckpointManager(repo_name, self.coarse_recall_strategy, mode)
 
         start_time = time.time()
         timing_info = {
@@ -93,6 +108,21 @@ class CodeRetriever:
             "average_prompt_cost": 0.0
         }
         
+        # Check for resume state
+        resume_state = None
+        start_prompt_index = 0
+        completed_prompts = set()
+        
+        if resume and self.enable_checkpoint:
+            resume_state = self.checkpoint_manager.get_resume_state()
+            if resume_state:
+                completed_prompts = resume_state["completed_prompts"]
+                timing_info.update(resume_state.get("timing_info", {}))
+                cost_info.update(resume_state.get("cost_info", {}))
+                print(f"\n🔄 Resuming from checkpoint...")
+                print(f"   Completed prompts: {len(completed_prompts)}")
+                print(f"   Accumulated cost: ${resume_state['accumulated_cost']:.6f}")
+        
         prep_start = time.time()
         codebase = self.prepare_codebase()
         prep_end = time.time()
@@ -100,6 +130,12 @@ class CodeRetriever:
         
         code_prompts = self.generate_prompts(limit)
         all_codes = []
+        
+        # Restore completed codes from checkpoint if resuming
+        if resume and self.enable_checkpoint:
+            resume_state = self.checkpoint_manager.get_resume_state()
+            if resume_state:
+                all_codes = resume_state.get("completed_codes", []).copy()
 
         # Determine function call coarse_recall_strategy based on the use_function_call parameter
         llm_call_coarse_recall_strategy: LLMCallMode = "function_call" if self.use_function_call else "traditional"
@@ -107,7 +143,11 @@ class CodeRetriever:
         print(f"\nUsing coarse_recall_strategy: {self.coarse_recall_strategy}")
         print(f"Preparation time: {timing_info['preparation_duration']:.2f} seconds")
         
-        for prompt in code_prompts:
+        for prompt_index, prompt in enumerate(code_prompts):
+            # Skip completed prompts if resuming
+            if prompt_index in completed_prompts:
+                print(f"\n⏭️  Skipping prompt {prompt_index} (already completed)")
+                continue
             print(f"\n{'='*80}")
             print(f"Searching for codes with prompt: {prompt}")
             print(f"{'='*80}")
@@ -236,6 +276,31 @@ class CodeRetriever:
                     })
                 
                 print(f"Prompt cost: ${prompt_cost:.6f} (Input: {prompt_input_tokens}, Output: {prompt_output_tokens})")
+                
+                # Save checkpoint after each prompt if enabled
+                if self.enable_checkpoint:
+                    try:
+                        completed_prompts.add(prompt_index)
+                        total_cost = await calc_llm_costs(llm_settings.get_json_log_path())
+                        total_input_tokens = calc_input_tokens(llm_settings.get_json_log_path())
+                        total_output_tokens = calc_output_tokens(llm_settings.get_json_log_path())
+                        
+                        
+                        self.checkpoint_manager.save_checkpoint(
+                            repository=self.repo_url,
+                            completed_prompts=list(completed_prompts),
+                            accumulated_cost=total_cost,
+                            accumulated_input_tokens=total_input_tokens,
+                            accumulated_output_tokens=total_output_tokens,
+                            timing_info=timing_info,
+                            cost_info=cost_info,
+                            completed_codes=all_codes.copy(),
+                            codebase_state_path=f"{self.repo_path}.json"
+                        )
+                        print(f"💾 Checkpoint saved after prompt {prompt_index}")
+                    except Exception as checkpoint_error:
+                        logger.error(f"Failed to save checkpoint: {checkpoint_error}")
+                        # Continue execution even if checkpoint fails
             
             print(f"{'='*80}\n")
         
@@ -247,7 +312,7 @@ class CodeRetriever:
             durations = [p["duration"] for p in timing_info["prompt_durations"]]
             timing_info["average_prompt_duration"] = sum(durations) / len(durations)
         
-        # Calculate final cost statistics
+        # Calculate final cost statistics from all prompts (including resumed ones)
         if cost_info["prompt_costs"]:
             costs = [p["cost"] for p in cost_info["prompt_costs"]]
             cost_info["total_cost"] = sum(costs)
@@ -257,6 +322,11 @@ class CodeRetriever:
             output_tokens = [p["output_tokens"] for p in cost_info["prompt_costs"]]
             cost_info["total_input_tokens"] = sum(input_tokens)
             cost_info["total_output_tokens"] = sum(output_tokens)
+        
+        # Calculate final timing statistics from all prompts (including resumed ones)
+        if timing_info["prompt_durations"]:
+            durations = [p["duration"] for p in timing_info["prompt_durations"]]
+            timing_info["average_prompt_duration"] = sum(durations) / len(durations)
         
         # Print timing summary
         print(f"\n{'='*60}")
@@ -447,6 +517,12 @@ Available coarse_recall_strategies:
         help="Use function call (default: False, uses traditional LLM calls)"
     )
 
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from checkpoint if available (default: False)"
+    )
+
     return parser.parse_args()
 
 async def main():
@@ -459,10 +535,10 @@ async def main():
     print("-" * 60)
     
     try:
-        # Run the code finder
-        code_finder = CodeRetriever(args.repo, coarse_recall_strategy=args.coarse_recall_strategy, use_function_call=args.use_function_call)
+        # Run the code finder with checkpoint enabled
+        code_finder = CodeRetriever(args.repo, coarse_recall_strategy=args.coarse_recall_strategy, use_function_call=args.use_function_call, enable_checkpoint=True)
         
-        codes, timing_info, cost_info = await code_finder.find_codes(subdirs=args.subdirs, enable_secondary_recall=args.sec, limit=args.limit)
+        codes, timing_info, cost_info = await code_finder.find_codes(subdirs=args.subdirs, enable_secondary_recall=args.sec, limit=args.limit, resume=args.resume)
 
         # Determine secondary recall suffix based on --sec flag
         secondary_recall_suffix = "sec" if args.sec else "pri"
@@ -487,12 +563,14 @@ async def main():
         else:
             print(f"\nNo potential issues found.")
         
-        cost = await calc_llm_costs(llm_settings.get_json_log_path())
-        input_tokens = calc_input_tokens(llm_settings.get_json_log_path())
-        output_tokens = calc_output_tokens(llm_settings.get_json_log_path())
-        print(f"Total LLM cost: ${cost:.6f}")
-        print(f"Input tokens: {input_tokens:,}")
-        print(f"Output tokens: {output_tokens:,}")
+        # Use the cost_info from find_codes() which already handles checkpoint accumulation correctly
+        total_cost = cost_info.get('total_cost', 0.0)
+        total_input_tokens = cost_info.get('total_input_tokens', 0)
+        total_output_tokens = cost_info.get('total_output_tokens', 0)
+        
+        print(f"Total LLM cost: ${total_cost:.6f}")
+        print(f"Input tokens: {total_input_tokens:,}")
+        print(f"Output tokens: {total_output_tokens:,}")
 
     except KeyboardInterrupt:
         print(f"\nAnalysis interrupted by user.")
