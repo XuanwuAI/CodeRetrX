@@ -751,7 +751,9 @@ class SmartCodebase(SmartCodebaseBase):
             task = self.codeline_searcher.asearch_by_vector(
                 query_vector=query_vector,
                 k=top_k,
-                where={"symbol_id": symbol.id},
+                where={
+                    "symbol_ids[]": symbol.id,
+                },
             )
             symbol_tasks.append((symbol, task))
         
