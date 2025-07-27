@@ -29,16 +29,20 @@ class CodeRecallSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8", env_file=".env", extra="allow"
     )
-    llm_secondary_recall_model_id: str = Field(
-        default="anthropic/claude-sonnet-4",
+    default_model_id: str = Field(
+        default="openai/gpt-4.1-mini",
+        description="Default model ID for all LLM operations",
+    )
+    llm_secondary_recall_model_id: Optional[str] = Field(
+        default=None,
         description="Model ID for secondary recall",
     )
     llm_primary_recall_model_id: Optional[str] = Field(
         default=None,
         description="Model ID for primary recall. If not provided will use the SmartCodebase default",
     )
-    llm_selector_strategy_model_id: str = Field(
-        default="anthropic/claude-sonnet-4",
+    llm_selector_strategy_model_id: Optional[str] = Field(
+        default=None,
         description="Model ID for determining the best recall strategy based on the prompt when llm_selector_strategy is enabled",
     )
     llm_call_mode: LLMCallMode = Field(
@@ -169,8 +173,8 @@ IMPORTANT: Try to select only ONE element type if possible. Only select multiple
     try:
         # Use the same model list pattern as other function calls in the codebase
         settings = CodeRecallSettings()
-        effective_model_id = model_id or settings.llm_selector_strategy_model_id
-        model_ids = [effective_model_id, "anthropic/claude-3.7-sonnet"]
+        effective_model_id = model_id or settings.llm_selector_strategy_model_id or settings.default_model_id
+        model_ids = [effective_model_id]
 
         function_args = await call_llm_with_function_call(
             system_prompt=system_prompt,
@@ -253,7 +257,8 @@ async def _perform_secondary_recall(
     logger.info(f"Starting secondary recall on {len(elements)} elements")
 
     # Use a more powerful model for secondary recall
-    secondary_model_id = model_id or "anthropic/claude-4-sonnet"
+    settings = CodeRecallSettings()
+    secondary_model_id = model_id or settings.llm_secondary_recall_model_id or settings.default_model_id
 
     try:
 
@@ -343,7 +348,7 @@ async def _multi_strategy_code_recall(
     elif coarse_recall_strategy == "auto":
         strategies = await _determine_strategy_by_llm(
             prompt=prompt,
-            model_id=settings.llm_selector_strategy_model_id,
+            model_id=settings.llm_selector_strategy_model_id or settings.default_model_id,
         )
         strategy_names = [strategy.value for strategy in strategies]
         print(f"LLM smart strategies selected: {strategy_names}")
@@ -474,7 +479,7 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
             subdirs_or_files=extended_subdirs_or_files,
             additional_code_elements=additional_code_elements,
             llm_call_mode=settings.llm_call_mode,
-            model_id=settings.llm_primary_recall_model_id,
+            model_id=settings.llm_primary_recall_model_id or settings.default_model_id,
         )
 
     # Secondary recall: further filter results if enabled and results exist
@@ -488,7 +493,7 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
             target_type=target_type,
             llm_method=llm_method,
             llm_call_mode=settings.llm_call_mode,
-            model_id=settings.llm_secondary_recall_model_id,
+            model_id=settings.llm_secondary_recall_model_id or settings.default_model_id,
         )
     else:
         final_elements = elements

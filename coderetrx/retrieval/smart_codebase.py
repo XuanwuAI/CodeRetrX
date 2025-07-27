@@ -15,21 +15,26 @@ class SmartCodebaseSettings(BaseSettings):
     )
 
     # LLM Configuration
-    llm_mapfilter_model_id: str = Field(
-        default="mistralai/devstral-small",
+    default_model_id: str = Field(
+        default="openai/gpt-4.1-mini",
+        description="Default model ID for all LLM operations",
+    )
+    llm_mapfilter_model_id: Optional[str] = Field(
+        default=None,
         description="Primary model ID for LLM map/filter operations",
     )
-    llm_function_call_model_id: str = Field(
-        default="mistralai/devstral-small",
-        description="Primary model ID for function call operations",
-    )
-    llm_mapfilter_special_model_id: str = Field(
-        default="openai/gpt-4.1-mini",
+    llm_mapfilter_special_model_id: Optional[str] = Field(
+        default=None,
         description="Special model ID for LLM map/filter operations",
     )
-    llm_fallback_model_id: str = Field(
-        default="anthropic/claude-sonnet-4",
+    llm_fallback_model_id: Optional[str] = Field(
+        default=None,
         description="Fallback model ID for LLM operations",
+    )
+    llm_topic_extraction_model_id: Optional[str] = Field(
+        default=None,
+        description="Model ID for topic extraction operations",
+        alias="LLM_TOPIC_EXTRACTION_MODEL_ID",
     )
 
     # Batch Configuration
@@ -77,6 +82,18 @@ class SmartCodebaseSettings(BaseSettings):
         default="qdrant",
         description="Provider of vector database to use for embeddings",
         alias="VECTOR_DB_PROVIDER",
+    )
+    
+    # Codebase Processing Configuration
+    max_chunks_one_file: int = Field(
+        default=500,
+        description="Maximum number of chunks allowed in one file",
+        alias="MAX_CHUNKS_ONE_FILE",
+    )
+    keyword_sentence_extraction: bool = Field(
+        default=False,
+        description="Enable sentence-based keyword extraction",
+        alias="KEYWORD_SENTENCE_EXTRACTION",
     )
 
 

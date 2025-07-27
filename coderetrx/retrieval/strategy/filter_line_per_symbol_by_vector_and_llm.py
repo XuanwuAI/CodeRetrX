@@ -159,7 +159,6 @@ Call the select_relevant_lines function with your analysis."""
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 function_definition=function_definition,
-                model_ids=["openai/gpt-4.1-mini", "anthropic/claude-sonnet-4"],
             )
 
             selected_indices = function_args.get("selected_indices", [])

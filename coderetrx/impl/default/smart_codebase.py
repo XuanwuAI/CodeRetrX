@@ -222,7 +222,7 @@ class SmartCodebase(SmartCodebaseBase):
             or target_type == "symbol_name"
             or target_type == "dependency_name"
         ):
-            model_id = self.settings.llm_mapfilter_special_model_id
+            model_id = model_id or self.settings.llm_mapfilter_special_model_id or self.settings.default_model_id
         if llm_call_mode == "function_call":
             right_elements, llm_results = (
                 await self._process_elements_with_function_call(
@@ -286,8 +286,8 @@ class SmartCodebase(SmartCodebaseBase):
 
             try:
                 model_ids = [
-                    model_id or self.settings.llm_mapfilter_model_id,
-                    self.settings.llm_fallback_model_id,
+                    model_id or self.settings.llm_mapfilter_model_id or self.settings.default_model_id,
+                    self.settings.llm_fallback_model_id or self.settings.default_model_id,
                 ]
                 llm_results = await call_llm_with_fallback(
                     response_model=List[CodeMapFilterResult],
@@ -437,8 +437,8 @@ class SmartCodebase(SmartCodebaseBase):
             try:
                 # Call LLM with function call
                 model_ids = [
-                    model_id or self.settings.llm_function_call_model_id,
-                    self.settings.llm_fallback_model_id,
+                    model_id or self.settings.default_model_id,
+                    self.settings.llm_fallback_model_id or self.settings.default_model_id,
                 ]
                 function_args = await call_llm_with_function_call(
                     system_prompt=system_prompt,

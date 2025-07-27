@@ -449,7 +449,9 @@ class File:
                     name = _name.decode()
 
             self.chunks.append(CodeChunk.from_ts(node, self, kind, main_tag, name))
-            max_chunk_size: int = int(os.environ.get("MAX_CHUNKS_ONE_FILE", 500))
+            from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
+            settings = SmartCodebaseSettings()
+            max_chunk_size: int = settings.max_chunks_one_file
             if max_chunk_size>0 and len(self.chunks) > max_chunk_size:
                 logger.warning(f"Too many chunks in {self.path}: {len(self.chunks)} > {max_chunk_size}")
                 self.chunks = []
@@ -853,7 +855,9 @@ class Codebase:
         unique_keywords: dict[str, Keyword] = {}
 
         # Check if we should use sentence-based extraction
-        use_sentence_extraction = os.environ.get("KEYWORD_SENTENCE_EXTRACTION", "false").lower() == "true"
+        from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
+        settings = SmartCodebaseSettings()
+        use_sentence_extraction = settings.keyword_sentence_extraction
 
         # Process each source file
         for file_path, file in tqdm(self.source_files.items(), desc="Extracting keywords"):

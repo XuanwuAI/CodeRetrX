@@ -282,10 +282,7 @@ async def call_llm_with_fallback(
     response_model: Type[T],
     input_data: Dict[str, Any],
     prompt_template: Union[str, Sequence[Dict[str, str]]],
-    model_ids: List[str] = [
-        "openai/gpt-4.1-mini",
-        "anthropic/claude-3.7-sonnet",
-    ],
+    model_ids: Optional[List[str]] = None,
     attempt: int = 1,
     settings: Optional[LLMSettings] = None,
 ) -> T: ...
@@ -296,10 +293,7 @@ async def call_llm_with_fallback(
     response_model: Type[List[T]],
     input_data: Dict[str, Any],
     prompt_template: Union[str, Sequence[Dict[str, str]]],
-    model_ids: List[str] = [
-        "openai/gpt-4.1-mini",
-        "anthropic/claude-3.7-sonnet",
-    ],
+    model_ids: Optional[List[str]] = None,
     attempt: int = 1,
     settings: Optional[LLMSettings] = None,
 ) -> List[T]: ...
@@ -314,10 +308,7 @@ async def call_llm_with_fallback(
     response_model: Type[T] | Type[List[T]],
     input_data: Dict[str, Any],
     prompt_template: Union[str, Sequence[Dict[str, str]]],
-    model_ids: List[str] = [
-        "openai/gpt-4.1-mini",
-        "anthropic/claude-3.7-sonnet",
-    ],
+    model_ids: Optional[List[str]] = None,
     attempt: int = 1,
     settings: Optional[LLMSettings] = None,
 ) -> Union[T, List[T]]:
@@ -346,6 +337,14 @@ async def call_llm_with_fallback(
     # Use provided settings or fall back to global settings
     if settings is None:
         settings = llm_settings
+    
+    # Use default model IDs if none provided
+    if model_ids is None:
+        from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
+        settings = SmartCodebaseSettings()
+        default_model = settings.default_model_id
+        fallback_model = settings.llm_fallback_model_id or "openai/gpt-4.1-mini"
+        model_ids = [default_model, fallback_model]
 
     def _validate_list_output(output: Any, item_model: Type[T]) -> List[T]:
         """
@@ -505,10 +504,7 @@ async def call_llm_with_function_call(
     system_prompt: str,
     user_prompt: str,
     function_definition: Dict[str, Any],
-    model_ids: List[str] = [
-        "openai/gpt-4.1-mini",
-        "anthropic/claude-3.7-sonnet"
-    ],
+    model_ids: Optional[List[str]] = None,
     attempt: int = 1,
     settings: Optional[LLMSettings] = None,
 ) -> Dict[str, Any]:
@@ -532,6 +528,14 @@ async def call_llm_with_function_call(
     # Use provided settings or fall back to global settings
     if settings is None:
         settings = llm_settings
+    
+    # Use default model IDs if none provided
+    if model_ids is None:
+        from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
+        settings = SmartCodebaseSettings()
+        default_model = settings.default_model_id
+        fallback_model = settings.llm_fallback_model_id or "openai/gpt-4.1-mini"
+        model_ids = [default_model, fallback_model]
     
     model_id = model_ids[attempt - 1] if attempt <= len(model_ids) else "unknown"
     

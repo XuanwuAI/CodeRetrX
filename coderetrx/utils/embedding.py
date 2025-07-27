@@ -76,7 +76,7 @@ class EmbeddingSettings(BaseSettings):
         description="Base URL for the embedding API",
     )
     api_key: str = Field(
-        default=os.environ.get("EMBEDDING_API_KEY", ""),
+        default="",
         alias="EMBEDDING_API_KEY",
         description="API key for the embedding service",
     )

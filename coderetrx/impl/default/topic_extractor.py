@@ -51,7 +51,11 @@ class TopicExtractor(TopicExtractorBase):
             input_data = {"input": input_text}
 
             # Call LLM with the topic extraction prompt template
-            model_ids = [os.environ.get("LLM_TOPIC_EXTRACTION_MODEL_ID", "openai/gpt-4.1-mini"), "anthropic/claude-3.7-sonnet"]
+            # Use topic extraction model_id from settings
+            from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
+            settings = SmartCodebaseSettings()
+            topic_model_id = settings.llm_topic_extraction_model_id or settings.default_model_id
+            model_ids = [topic_model_id]
             result = await call_llm_with_fallback(
                 response_model=KeywordExtractorResult,
                 input_data=input_data,
@@ -80,7 +84,11 @@ class TopicExtractor(TopicExtractorBase):
             function_definition = get_topic_extraction_function_definition()
 
             # Call LLM with function call
-            model_ids = [os.environ.get("LLM_TOPIC_EXTRACTION_MODEL_ID", "openai/gpt-4.1-mini"), "anthropic/claude-3.7-sonnet"]
+            # Use topic extraction model_id from settings
+            from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
+            settings = SmartCodebaseSettings()
+            topic_model_id = settings.llm_topic_extraction_model_id or settings.default_model_id
+            model_ids = [topic_model_id]
             function_args = await call_llm_with_function_call(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
