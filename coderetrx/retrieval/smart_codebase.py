@@ -83,6 +83,12 @@ class SmartCodebaseSettings(BaseSettings):
         alias="SYMBOL_CODELINE_EMBEDDING_MAXCHARS",
     )
 
+    imports_embedding: bool = Field(
+        default=True,
+        description="Enable imports embeddings",
+        alias="IMPORTS_EMBEDDING",
+    )
+
     vector_db_provider: Literal["chroma", "qdrant"] = Field(
         default="qdrant",
         description="Provider of vector database to use for embeddings",
@@ -124,11 +130,12 @@ LLMMapFilterTargetType = Literal[
     "dependency_name",
     "dependency_reference",
     "dependency",
+    "import",
     "keyword",
 ]
 
 SimilaritySearchTargetType = Literal[
-    "symbol_name", "symbol_content", "keyword", "symbol_codeline"
+    "symbol_name", "symbol_content", "keyword", "symbol_codeline", "import"
 ]
 LLMCallMode = Literal["traditional", "function_call"]
 

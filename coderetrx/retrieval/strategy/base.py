@@ -40,6 +40,7 @@ from coderetrx.static import (
     CodeElementTypeVar,
     Dependency,
     CodeElement,
+    CodeChunk,
 )
 from pathlib import Path
 from pydantic import Field
@@ -57,6 +58,7 @@ class RecallStrategy(Enum):
     FILTER_DEPENDENCY_BY_LLM = "filter_dependency_by_llm"
     FILTER_KEYWORD_BY_VECTOR_AND_LLM = "filter_keyword_by_vector_and_llm"
     FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM = "filter_symbol_by_vector_and_llm"
+    FILTER_IMPORTS_BY_VECTOR_AND_LLM = "filter_imports_by_vector_and_llm"
     ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM = (
         "adaptive_filter_keyword_by_vector_and_llm"
     )
@@ -158,6 +160,10 @@ class RecallStrategyExecutor(ABC):
         for element in elements:
             if isinstance(element, Symbol):
                 file_path = str(element.file.path)
+                if any(file_path.startswith(subdir) for subdir in subdirs_or_files):
+                    filtered_elements.append(element)
+            elif isinstance(element, CodeChunk):
+                file_path = str(element.src.path)
                 if any(file_path.startswith(subdir) for subdir in subdirs_or_files):
                     filtered_elements.append(element)
             elif isinstance(element, Keyword):
@@ -376,7 +382,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         elements: List[Any],
         target_type: LLMMapFilterTargetType = "symbol_content",
         subdirs_or_files: List[str] = [],
-    ) -> List[Union[Keyword, Symbol, File]]:
+    ) -> List[Union[Keyword, Symbol, File, CodeChunk]]:
         """
         Filter and convert elements to the expected type for additional_code_elements.
 

@@ -29,6 +29,7 @@ from .prompt import (
 )
 import asyncio
 from coderetrx.utils.llm import call_llm_with_fallback, call_llm_with_function_call, LLMSettings
+from coderetrx.static import CodeChunk
 
 if TYPE_CHECKING:
     from .factory import SmartCodebaseSettings
@@ -49,6 +50,7 @@ class SmartCodebase(SmartCodebaseBase):
     keyword_searcher: Optional["SimilaritySearcher"] = field(default=None)
     # unified codeline searcher for all symbols with metadata filtering
     codeline_searcher: Optional["SimilaritySearcher"] = field(default=None)
+    import_searcher: Optional["SimilaritySearcher"] = field(default=None)
     settings: "SmartCodebaseSettings" = field(factory=get_smart_codebase_settings)
     llm_settings: Optional["LLMSettings"] = field(default=None)
 
@@ -120,6 +122,8 @@ class SmartCodebase(SmartCodebaseBase):
             elements = [
                 symbol for symbol in self.symbols if symbol.type == "dependency"
             ]
+        elif target_type == "import":
+            elements = [chunk for chunk in self.all_chunks if chunk.type == "import"]
         elif target_type == "keyword":
             elements = [keyword for keyword in self.keywords]
 
@@ -140,6 +144,10 @@ class SmartCodebase(SmartCodebaseBase):
                     if any(str(path).startswith(subdir) for subdir in subdirs_or_files):
                         filtered_elements.append(element)
                         break
+            elif isinstance(element, CodeChunk) and any(
+                str(element.src.path).startswith(subdir) for subdir in subdirs_or_files
+            ):
+                filtered_elements.append(element)
 
         # Add additional elements if provided
         if additional_code_elements:
@@ -274,6 +282,9 @@ class SmartCodebase(SmartCodebaseBase):
                 elif isinstance(element, Keyword):
                     content = element.content
                     element_type = "keyword"
+                elif isinstance(element, CodeChunk):
+                    content = element.code()
+                    element_type = "code_chunk"
                 else:
                     content = str(element)
                     element_type = "unknown"
@@ -411,6 +422,9 @@ class SmartCodebase(SmartCodebaseBase):
                 elif isinstance(element, Keyword):
                     content = element.content
                     element_type = "keyword"
+                elif isinstance(element, CodeChunk):
+                    content = element.code()
+                    element_type = "code_chunk"
                 else:
                     content = str(element)
                     element_type = "unknown"
@@ -676,6 +690,14 @@ class SmartCodebase(SmartCodebaseBase):
                 for doc, score in await self.keyword_searcher.asearch_with_score(query, top_k, threshold):
                     if score >= threshold and doc in keyword_map:
                         results.append(keyword_map[doc])
+            
+            elif search_type == "import":
+                if self.import_searcher is None:
+                    raise ValueError("Import searcher is not initialized")
+                import_map = {chunk.code(): chunk for chunk in self.all_chunks if chunk.type == "import"}
+                for doc, score in await self.import_searcher.asearch_with_score(query, top_k, threshold):
+                    if score >= threshold and doc in import_map:
+                        results.append(import_map[doc])
 
         return results
 

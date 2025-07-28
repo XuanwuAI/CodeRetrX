@@ -168,3 +168,25 @@ class CodebaseFactory:
                 except Exception as e:
                     logger.fatal(f"Failed to initialize unified symbol codeline searcher: {repr(e)}")
                     raise e
+
+        if settings.imports_embedding:
+            all_contents = []
+            all_metadatas = []
+            
+            for chunk in codebase.all_chunks:
+                if chunk.type == "import":
+                    all_contents.append(chunk.code())
+                    all_metadatas.append(chunk.to_json(include_content=True))
+            if all_contents:
+                try:
+                    logger.info(f"Creating imports searcher with {len(all_contents)} total imports")
+                    codebase.import_searcher = get_similarity_searcher(
+                        provider=settings.vector_db_provider,
+                        name=f"{codebase.id}_imports",
+                        texts=all_contents,
+                        metadatas=all_metadatas
+                    )
+                    logger.info("Imports searcher initialized successfully")
+                except Exception as e:
+                    logger.fatal(f"Failed to initialize imports searcher: {repr(e)}")
+                    raise e

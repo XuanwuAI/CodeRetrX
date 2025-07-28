@@ -449,6 +449,7 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
             "class_content",
             "leaf_symbol_content",
             "root_symbol_content",
+            "dependency"
         ]
     ):
         extended_subdirs_or_files = []
@@ -468,6 +469,7 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
             "class_content",
             "leaf_symbol_content",
             "root_symbol_content",
+            "dependency"
         ]
     ):
         elements = strategy_result.elements
