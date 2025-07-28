@@ -784,7 +784,7 @@ class CodeLine(BaseModel):
         return cls(line_content=line_content, symbol=symbol, score=score)
 
 
-CodeElement = Symbol | Keyword | Dependency | File | CallGraphEdge
+CodeElement = Symbol | Keyword | Dependency | File | CallGraphEdge | CodeChunk
 
 CodeElementTypeVar = TypeVar(
     "CodeElementTypeVar", bound=CodeElement

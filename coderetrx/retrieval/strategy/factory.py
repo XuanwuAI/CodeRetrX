@@ -3,6 +3,7 @@ from typing import Optional, Union, List
 
 from coderetrx.retrieval.smart_codebase import LLMCallMode
 
+from coderetrx.retrieval.strategy.filter_imports_by_vector_and_llm import FilterImportsByVectorAndLLMStrategy
 from coderetrx.retrieval.topic_extractor import TopicExtractor
 from coderetrx.retrieval.strategy.base import RecallStrategyExecutor
 from coderetrx.retrieval.strategy.filter_filename_by_llm import (
@@ -65,6 +66,7 @@ class StrategyFactory:
             RecallStrategy.ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM: AdaptiveFilterSymbolContentByVectorAndLLMStrategy,
             RecallStrategy.FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM: FilterLinePerSymbolByVectorAndLLMStrategy,
             RecallStrategy.FILTER_LINE_PER_FILE_BY_VECTOR_AND_LLM: FilterLinePerFileByVectorAndLLMStrategy,
+            RecallStrategy.FILTER_IMPORTS_BY_VECTOR_AND_LLM: FilterImportsByVectorAndLLMStrategy
         }
 
         if strategy not in strategy_map:
