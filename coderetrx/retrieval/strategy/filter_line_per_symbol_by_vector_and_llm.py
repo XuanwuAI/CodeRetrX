@@ -19,7 +19,7 @@ from ..smart_codebase import (
 )
 from coderetrx.static.codebase import CodeLine
 from coderetrx.utils.cost_tracking import calc_llm_costs, calc_input_tokens, calc_output_tokens
-from coderetrx.utils.llm import llm_settings
+from coderetrx.utils.llm import llm_settings as default_llm_settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
             logger.info("Step 2 - LLM processing with dynamic batch evaluation")
             
             # Record initial cost before Step 2
-            log_path = llm_settings.get_json_log_path()
+            log_path = (codebase.llm_settings or default_llm_settings).get_json_log_path()
             initial_step2_cost = await calc_llm_costs(log_path)
             initial_step2_input_tokens = calc_input_tokens(log_path)
             initial_step2_output_tokens = calc_output_tokens(log_path)
