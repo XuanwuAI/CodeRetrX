@@ -6,6 +6,7 @@ from typing import List, Tuple, Union, Optional, override, Any
 from tqdm import tqdm
 
 from coderetrx.retrieval.topic_extractor import TopicExtractor
+from coderetrx.utils.logger import set_span
 from .base import (
     FilterByVectorAndLLMStrategy,
     RecallStrategyExecutor,
@@ -114,6 +115,7 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
         logger.info(
             f"Using {strategy_name} strategy with builtin codeline searcher and target_type: {target_type}"
         )
+        reset = set_span(strategy_name)
 
         try:
             # Extract topic for vector search
@@ -271,3 +273,5 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
+        finally:
+            reset()

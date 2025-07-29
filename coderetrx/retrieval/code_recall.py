@@ -10,6 +10,8 @@ import logging
 
 from pydantic import Field
 
+from coderetrx.utils.logger import use_span, wrap_span
+
 from .smart_codebase import (
     LLMMapFilterTargetType,
     SmartCodebase as Codebase,
@@ -283,6 +285,7 @@ async def _perform_secondary_recall(
         return elements, llm_results
 
 
+@wrap_span("multi_strategy_code_recall")
 async def _multi_strategy_code_recall(
     codebase: Codebase,
     prompt: str,
@@ -475,28 +478,30 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
         elements = strategy_result.elements
         llm_results = strategy_result.llm_results
     else:
-        elements, llm_results = await llm_method(
-            prompt=primary_prompt,
-            target_type=target_type,
-            subdirs_or_files=extended_subdirs_or_files,
-            additional_code_elements=additional_code_elements,
-            llm_call_mode=settings.llm_call_mode,
-            model_id=settings.llm_primary_recall_model_id or settings.default_model_id,
-        )
+        async with use_span("primary_recall"):
+            elements, llm_results = await llm_method(
+                prompt=primary_prompt,
+                target_type=target_type,
+                subdirs_or_files=extended_subdirs_or_files,
+                additional_code_elements=additional_code_elements,
+                llm_call_mode=settings.llm_call_mode,
+                model_id=settings.llm_primary_recall_model_id or settings.default_model_id,
+            )
 
     # Secondary recall: further filter results if enabled and results exist
     if enable_secondary_recall:
         logger.info(f"Performing secondary recall on {len(elements)} elements")
-        final_elements, final_llm_results = await _perform_secondary_recall(
-            codebase=codebase,
-            prompt=prompt,
-            elements=elements,
-            llm_results=llm_results,
-            target_type=target_type,
-            llm_method=llm_method,
-            llm_call_mode=settings.llm_call_mode,
-            model_id=settings.llm_secondary_recall_model_id or settings.default_model_id,
-        )
+        async with use_span("secondary_recall"):
+            final_elements, final_llm_results = await _perform_secondary_recall(
+                codebase=codebase,
+                prompt=prompt,
+                elements=elements,
+                llm_results=llm_results,
+                target_type=target_type,
+                llm_method=llm_method,
+                llm_call_mode=settings.llm_call_mode,
+                model_id=settings.llm_secondary_recall_model_id or settings.default_model_id,
+            )
     else:
         final_elements = elements
         final_llm_results = llm_results

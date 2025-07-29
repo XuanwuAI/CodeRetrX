@@ -31,6 +31,7 @@ from coderetrx.retrieval.smart_codebase import (
     LLMMapFilterTargetType,
 )
 from coderetrx.static.codebase.codebase import CodeLine
+from coderetrx.utils.logger import set_span
 import random
 from ..topic_extractor import TopicExtractor
 from coderetrx.static import (
@@ -243,6 +244,7 @@ class FilterByLLMStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar], A
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
+        reset = set_span(strategy_name)
         try:
             elements, llm_results = await codebase.llm_filter(
                 prompt,
@@ -262,6 +264,8 @@ class FilterByLLMStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar], A
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
+        finally:
+            reset()
 
 
 class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar], ABC):
@@ -298,6 +302,7 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar]
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
+        reset = set_span(strategy_name)
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (
@@ -348,6 +353,8 @@ class FilterByVectorStrategy(RecallStrategyExecutor, Generic[CodeElementTypeVar]
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
+        finally:
+            reset()
 
 
 class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
@@ -415,6 +422,7 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
+        reset = set_span(strategy_name)
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (
@@ -488,6 +496,8 @@ class FilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
+        finally:
+            reset()
 
             # Extract topic from input text
 
@@ -738,6 +748,7 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
     ) -> StrategyExecuteResult:
         strategy_name = self.get_strategy_name()
         logger.info(f"Using {strategy_name} strategy with target_type: {target_type}")
+        reset = set_span(strategy_name)
         try:
             # Extract topic from input text before performing vector similarity search
             topic = (
@@ -771,6 +782,8 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
+        finally:
+            reset()
 
 
 class BaseLLMBatchProcessor(ABC):
