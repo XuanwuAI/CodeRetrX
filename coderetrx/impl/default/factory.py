@@ -84,6 +84,15 @@ class CodebaseFactory:
                 symbol_contents = [
                     symbol.chunk.code() for symbol in codebase.symbols if symbol.chunk
                 ]
+                metadatas = [
+                    {
+                        "symbol_id": symbol.id,
+                        "symbol_name": symbol.name,
+                        "symbol_type": symbol.type,
+                        "symbol_file_path": symbol.file.path,
+                        "chunk_type": symbol.chunk.type
+                    } for symbol in codebase.symbols if symbol.chunk
+                ]
                 logger.info(
                     f"Initializing symbol content similarity searcher with {len(symbol_contents)} symbol contents"
                 )
@@ -91,6 +100,7 @@ class CodebaseFactory:
                     provider=settings.vector_db_provider,
                     name=f"{codebase.id}_symbol_contents",
                     texts=symbol_contents,
+                    metadatas=metadatas
                 )
                 logger.info(
                     "Symbol content similarity searcher initialized successfully"
@@ -128,29 +138,17 @@ class CodebaseFactory:
             # Collect all lines from all symbols with metadata
             all_lines = []
             all_metadatas = []
-            for symbol in codebase.symbols:
-                if symbol.chunk:
-                    try:
-                        logger.debug(
-                            f"Collecting lines for symbol {symbol.id}"
-                        )
-                        lines = symbol.chunk.code().split("\n")
-                        lines = [line.strip() for line in lines if line.strip()]  # Remove empty lines
-                        lines = [line for line in lines if len(line) > 2]  # Remove lines that are too short
-                        lines = list(set(lines))  # Remove duplicates
-                        for line in lines:
-                            all_lines.append(line)
-                            all_metadatas.append({"symbol_id": symbol.id,
-                                                  "file_path": str(symbol.file.path)})
-                        
-                        logger.debug(
-                            f"Collected {len(lines)} lines for symbol {symbol.id}"
-                        )
-                    except Exception as e:
-                        logger.fatal(
-                            f"Failed to collect lines for symbol {symbol.id}: {repr(e)}"
-                        )
-                        raise e
+            for line in codebase.get_all_lines(max_chars=settings.symbol_codeline_embedding_maxchars):
+                if settings.vector_db_provider == "chroma":
+                    # For Chroma, create separate entries for each symbol_id
+                    for symbol_id in line.symbol_ids:
+                        all_lines.append(line.content)
+                        metadata = line.model_dump(mode="json")
+                        metadata["symbol_id"] = symbol_id
+                        all_metadatas.append(metadata)
+                else:
+                    all_lines.append(line.content)
+                    all_metadatas.append(line.model_dump(mode="json"))
             
             # Create single collection for all lines with metadata
             if all_lines:
