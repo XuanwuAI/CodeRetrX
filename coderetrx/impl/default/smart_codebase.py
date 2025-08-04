@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Optional, List, Tuple, Any, Literal, TYPE_CHECKING
 from coderetrx.static import Codebase, Dependency
 from coderetrx.static.codebase import Symbol, Keyword, File, CodeLine
+from coderetrx.static.codebase.languages import IDXSupportedLanguage
 from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
 from coderetrx.retrieval.smart_codebase import (
     CodeMapFilterResult,
@@ -158,12 +159,13 @@ class SmartCodebase(SmartCodebaseBase):
         lazy: bool = False,
         version: str = "v0.0.1",
         ignore_tests: bool = True,
+        languages: Optional[List[IDXSupportedLanguage]] = None,
         settings: Optional["SmartCodebaseSettings"] = None,
         llm_settings: Optional[LLMSettings] = None,
     ) -> "SmartCodebase":
         if settings is None:
             settings = get_smart_codebase_settings()
-        codebase = Codebase.new(id, dir, url, lazy, version, ignore_tests)
+        codebase = Codebase.new(id, dir, url, lazy, version, ignore_tests, languages)
         return cls(
             id=codebase.id,
             dir=codebase.dir,

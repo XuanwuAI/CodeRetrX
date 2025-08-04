@@ -831,6 +831,7 @@ class Codebase:
         lazy: bool = False,
         version: str = "v0.0.1",
         ignore_tests: bool = True,
+        languages: Optional[List[IDXSupportedLanguage]] = None,
     ) -> Self:
         dir = Path(dir)
         res = cls(
@@ -850,6 +851,11 @@ class Codebase:
                 continue
             relative_path = path.relative_to(dir)
             if is_sourcecode(path):
+                # Check if file language is in the allowed languages filter
+                if languages is not None:
+                    file_lang = get_language(path)
+                    if file_lang not in languages:
+                        continue
                 res.source_files[str(relative_path)] = File.new(
                     path=relative_path, codebase=res, file_type="source", lazy=lazy
                 )

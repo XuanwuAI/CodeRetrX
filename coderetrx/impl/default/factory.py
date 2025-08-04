@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from attrs import define
 from collections import defaultdict
 from pathlib import Path
@@ -36,9 +36,9 @@ class CodebaseFactory:
         return smart_codebase
 
     @classmethod
-    def new(cls, id: str, dir: Path, settings: Optional[SmartCodebaseSettings] = None, llm_settings: Optional[LLMSettings] = None) -> SmartCodebase:
+    def new(cls, id: str, dir: Path, settings: Optional[SmartCodebaseSettings] = None, llm_settings: Optional[LLMSettings] = None, languages: Optional[List] = None) -> SmartCodebase:
         settings = settings or SmartCodebaseSettings()
-        smart_codebase = SmartCodebase.new(id, dir, settings=settings, llm_settings=llm_settings)
+        smart_codebase = SmartCodebase.new(id, dir, settings=settings, llm_settings=llm_settings, languages=languages)
         smart_codebase.init_all()
         cls._initialize_similarity_searchers(smart_codebase, settings)
         return smart_codebase
