@@ -85,7 +85,7 @@ def clear_model_costs_cache():
     global _model_costs_cache
     _model_costs_cache = None
 
-async def calc_llm_costs(log_path: PathLike | str, model_costs: Optional[ModelCosts] = None):
+async def calc_llm_costs(log_paths: PathLike | str | list[PathLike | str], model_costs: Optional[ModelCosts] = None):
     from pathlib import Path
     
     # Check if log file exists
@@ -93,52 +93,70 @@ async def calc_llm_costs(log_path: PathLike | str, model_costs: Optional[ModelCo
         return 0.0
         
     model_costs_parsed = model_costs or await load_model_costs()
+    
+    # Normalize log_paths to always be a list
+    if not isinstance(log_paths, list):
+        log_paths = [log_paths]
+    
     total_cost = 0
-    for log_item in read_logs(log_path):
-        if log_item.data.type == "llm_call":
-            log = log_item.data
-            if log.model not in model_costs_parsed:
-                print(f"Model {log.model} not found in model costs")
-                continue
-            cost_info = model_costs_parsed[log.model]
-            total_cost += (
-                log.prompt_tokens * cost_info.prompt
-                + log.completion_tokens * cost_info.completion
-            )
+    for log_path in log_paths:
+        for log_item in read_logs(log_path):
+            if log_item.data.type == "llm_call":
+                log = log_item.data
+                if log.model not in model_costs_parsed:
+                    print(f"Model {log.model} not found in model costs")
+                    continue
+                cost_info = model_costs_parsed[log.model]
+                total_cost += (
+                    log.prompt_tokens * cost_info.prompt
+                    + log.completion_tokens * cost_info.completion
+                )
     return total_cost
 
-def calc_input_tokens(log_path: PathLike | str):
+def calc_input_tokens(log_paths: PathLike | str | list[PathLike | str]):
+    # Normalize log_paths to always be a list
+    if not isinstance(log_paths, list):
+        log_paths = [log_paths]
+    
     from pathlib import Path
     
-    # Check if log file exists
-    if not Path(log_path).exists():
-        return 0
         
     total_input_tokens = 0
-    for log_item in read_logs(log_path):
-        if log_item.data.type == "llm_call":
-            log = log_item.data
-            total_input_tokens += log.prompt_tokens
+    for log_path in log_paths:
+        if not Path(log_path).exists():
+            continue
+        for log_item in read_logs(log_path):
+            if log_item.data.type == "llm_call":
+                log = log_item.data
+                total_input_tokens += log.prompt_tokens
     return total_input_tokens
 
-def calc_output_tokens(log_path: PathLike | str):
+def calc_output_tokens(log_paths: PathLike | str | list[PathLike | str]):
+    # Normalize log_paths to always be a list
+    if not isinstance(log_paths, list):
+        log_paths = [log_paths]
+    
     from pathlib import Path
     
-    # Check if log file exists
-    if not Path(log_path).exists():
-        return 0
         
     total_output_tokens = 0
-    for log_item in read_logs(log_path):
-        if log_item.data.type == "llm_call":
-            log = log_item.data
-            total_output_tokens += log.completion_tokens
+    for log_path in log_paths:
+        if not Path(log_path).exists():
+            continue
+        for log_item in read_logs(log_path):
+            if log_item.data.type == "llm_call":
+                log = log_item.data
+                total_output_tokens += log.completion_tokens
     return total_output_tokens
 
-async def cost_breakdown(log_path: PathLike | str, model_costs: Optional[ModelCosts] = None):
+async def cost_breakdown(log_paths: PathLike | str | list[PathLike | str], model_costs: Optional[ModelCosts] = None):
     """Print a table breakdown of LLM costs and tokens by span."""
     model_costs_parsed = model_costs or await load_model_costs()
     console = Console()
+    
+    # Normalize log_paths to always be a list
+    if not isinstance(log_paths, list):
+        log_paths = [log_paths]
     
     # Group by span
     span_data = defaultdict(lambda: {
@@ -163,43 +181,50 @@ async def cost_breakdown(log_path: PathLike | str, model_costs: Optional[ModelCo
     total_completion_tokens = 0
     total_calls = 0
     
-    for log_item in read_logs(log_path):
-        if log_item.data.type == "llm_call":
-            log = log_item.data
-            span = log_item.span or "(no span)"
-            model = log.model
-            
-            # Calculate cost for this call
-            call_cost = 0.0
-            if log.model in model_costs_parsed:
-                cost_info = model_costs_parsed[log.model]
-                call_cost = (
-                    log.prompt_tokens * cost_info.prompt
-                    + log.completion_tokens * cost_info.completion
-                )
-            
-            # Update span data
-            span_data[span]['prompt_tokens'] += log.prompt_tokens
-            span_data[span]['completion_tokens'] += log.completion_tokens
-            span_data[span]['total_tokens'] += log.total_tokens
-            span_data[span]['cost'] += call_cost
-            span_data[span]['calls'] += 1
-            
-            # Update model data
-            model_data[model]['prompt_tokens'] += log.prompt_tokens
-            model_data[model]['completion_tokens'] += log.completion_tokens
-            model_data[model]['total_tokens'] += log.total_tokens
-            model_data[model]['cost'] += call_cost
-            model_data[model]['calls'] += 1
-            
-            # Update totals
-            total_cost += call_cost
-            total_prompt_tokens += log.prompt_tokens
-            total_completion_tokens += log.completion_tokens
-            total_calls += 1
+    # Process all log files
+    for log_path in log_paths:
+        for log_item in read_logs(log_path):
+            if log_item.data.type == "llm_call":
+                log = log_item.data
+                span = log_item.span or "(no span)"
+                model = log.model
+                
+                # Calculate cost for this call
+                call_cost = 0.0
+                if log.model in model_costs_parsed:
+                    cost_info = model_costs_parsed[log.model]
+                    call_cost = (
+                        log.prompt_tokens * cost_info.prompt
+                        + log.completion_tokens * cost_info.completion
+                    )
+                
+                # Update span data
+                span_data[span]['prompt_tokens'] += log.prompt_tokens
+                span_data[span]['completion_tokens'] += log.completion_tokens
+                span_data[span]['total_tokens'] += log.total_tokens
+                span_data[span]['cost'] += call_cost
+                span_data[span]['calls'] += 1
+                
+                # Update model data
+                model_data[model]['prompt_tokens'] += log.prompt_tokens
+                model_data[model]['completion_tokens'] += log.completion_tokens
+                model_data[model]['total_tokens'] += log.total_tokens
+                model_data[model]['cost'] += call_cost
+                model_data[model]['calls'] += 1
+                
+                # Update totals
+                total_cost += call_cost
+                total_prompt_tokens += log.prompt_tokens
+                total_completion_tokens += log.completion_tokens
+                total_calls += 1
+    
+    # Update table title to reflect if it's aggregated data
+    title = "LLM Cost Breakdown by Span"
+    if len(log_paths) > 1:
+        title += f" (Aggregated from {len(log_paths)} log files)"
     
     # Create the span breakdown table
-    table = Table(title="LLM Cost Breakdown by Span")
+    table = Table(title=title)
     table.add_column("Span", style="cyan", no_wrap=True)
     table.add_column("Calls", justify="right", style="magenta")
     table.add_column("Prompt Tokens", justify="right", style="green")
@@ -236,7 +261,11 @@ async def cost_breakdown(log_path: PathLike | str, model_costs: Optional[ModelCo
     
     # Create the model usage table
     console.print("\n")
-    model_table = Table(title="LLM Model Usage Breakdown")
+    model_title = "LLM Model Usage Breakdown"
+    if len(log_paths) > 1:
+        model_title += f" (Aggregated from {len(log_paths)} log files)"
+    
+    model_table = Table(title=model_title)
     model_table.add_column("Model", style="cyan", no_wrap=True)
     model_table.add_column("Calls", justify="right", style="magenta")
     model_table.add_column("Prompt Tokens", justify="right", style="green")
