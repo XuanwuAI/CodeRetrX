@@ -146,6 +146,8 @@ class CodebaseFactory:
             if all_lines:
                 try:
                     logger.info(f"Creating unified codeline searcher with {len(all_lines)} total lines")
+                    if settings.vector_db_provider == "chroma":
+                        raise NotImplementedError("Chroma is not supported for codeline searcher")
                     codebase.codeline_searcher = get_similarity_searcher(
                         provider=settings.vector_db_provider,
                         name=f"{codebase.id}_symbol_codelines",
