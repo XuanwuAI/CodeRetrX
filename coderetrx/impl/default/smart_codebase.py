@@ -748,12 +748,15 @@ class SmartCodebase(SmartCodebaseBase):
         results = []
         symbol_tasks = []
         for symbol in symbols:
+            if self.settings.vector_db_provider == "chroma":
+                where_filter = {"symbol_id": symbol.id}
+            else:
+                where_filter = {"symbol_ids[]": symbol.id}
+            
             task = self.codeline_searcher.asearch_by_vector(
                 query_vector=query_vector,
                 k=top_k,
-                where={
-                    "symbol_ids[]": symbol.id,
-                },
+                where=where_filter,
             )
             symbol_tasks.append((symbol, task))
         

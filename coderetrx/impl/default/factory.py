@@ -139,15 +139,21 @@ class CodebaseFactory:
             all_lines = []
             all_metadatas = []
             for line in codebase.get_all_lines(max_chars=settings.symbol_codeline_embedding_maxchars):
-                all_lines.append(line.content)
-                all_metadatas.append(line.model_dump(mode="json"))
+                if settings.vector_db_provider == "chroma":
+                    # For Chroma, create separate entries for each symbol_id
+                    for symbol_id in line.symbol_ids:
+                        all_lines.append(line.content)
+                        metadata = line.model_dump(mode="json")
+                        metadata["symbol_id"] = symbol_id
+                        all_metadatas.append(metadata)
+                else:
+                    all_lines.append(line.content)
+                    all_metadatas.append(line.model_dump(mode="json"))
             
             # Create single collection for all lines with metadata
             if all_lines:
                 try:
                     logger.info(f"Creating unified codeline searcher with {len(all_lines)} total lines")
-                    if settings.vector_db_provider == "chroma":
-                        raise NotImplementedError("Chroma is not supported for codeline searcher")
                     codebase.codeline_searcher = get_similarity_searcher(
                         provider=settings.vector_db_provider,
                         name=f"{codebase.id}_symbol_codelines",
