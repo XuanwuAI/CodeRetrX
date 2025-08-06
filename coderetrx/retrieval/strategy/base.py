@@ -762,3 +762,152 @@ class AdaptiveFilterByVectorAndLLMStrategy(RecallStrategyExecutor, ABC):
         except Exception as e:
             logger.error(f"Error in {strategy_name} strategy: {e}")
             raise e
+
+
+class BaseLLMBatchProcessor(ABC):
+    """Base class for LLM batch processing with configurable settings."""
+    
+    def __init__(self, codebase: "Codebase"):
+        self.codebase = codebase
+        self.max_batch_size = codebase.settings.llm_mapfilter_max_batch_size
+        self.max_batch_length = codebase.settings.llm_mapfilter_max_batch_length
+    
+    @abstractmethod
+    def format_candidate(self, index: int, codeline: CodeLine) -> str:
+        """Format a single candidate for display in the batch."""
+        pass
+    
+    @abstractmethod
+    def get_system_prompt(self, query: str) -> str:
+        """Get the system prompt for the LLM."""
+        pass
+    
+    @abstractmethod
+    def get_user_prompt(self, candidates_str: str, query: str) -> str:
+        """Get the user prompt for the LLM."""
+        pass
+    
+    def get_function_definition(self) -> dict:
+        """Get the function definition for LLM function calling."""
+        return {
+            "name": "select_relevant_lines",
+            "description": "Select the relevant code lines based on the query criteria",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "selected_indices": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "List of indices (1-based) of the relevant lines",
+                    },
+                    "reasoning": {
+                        "type": "string",
+                        "description": "Brief explanation for the selection",
+                    },
+                },
+                "required": ["selected_indices", "reasoning"],
+            },
+        }
+    
+    def prepare_batch_text(self, line_candidates: List[CodeLine]) -> Tuple[List[str], int]:
+        """
+        Prepare batch text with length constraints.
+        
+        Returns:
+            Tuple of (candidates_text_list, total_length)
+        """
+        candidates_text = []
+        total_length = 0
+        
+        for i, codeline in enumerate(line_candidates):
+            candidate_text = self.format_candidate(i, codeline)
+            
+            # Check if adding this candidate would exceed max_batch_length
+            if total_length + len(candidate_text) > self.max_batch_length and candidates_text:
+                break
+                
+            candidates_text.append(candidate_text)
+            total_length += len(candidate_text) + 1  # +1 for newline
+        
+        return candidates_text, total_length
+    
+    async def process_candidate_batch(
+        self, line_candidates: List[CodeLine], query: str, retry_cnt: int = 0
+    ) -> List[CodeLine]:
+        """Process a single batch of line candidates."""
+        try:
+            from coderetrx.utils.llm import call_llm_with_function_call
+            
+            candidates_text, _ = self.prepare_batch_text(line_candidates)
+            candidates_str = "\n".join(candidates_text)
+            
+            # Get prompts
+            system_prompt = self.get_system_prompt(query)
+            user_prompt = self.get_user_prompt(candidates_str, query)
+            function_definition = self.get_function_definition()
+            
+            function_args = await call_llm_with_function_call(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                function_definition=function_definition,
+                model_ids=["openai/gpt-4.1-mini", "anthropic/claude-sonnet-4"],
+            )
+            
+            selected_indices = function_args.get("selected_indices", [])
+            reasoning = function_args.get("reasoning", "")
+            
+            logger.debug(
+                f"LLM selected {len(selected_indices)} lines from batch of {len(line_candidates)}. Reasoning: {reasoning}"
+            )
+            
+            # Extract selected lines
+            selected_lines = []
+            for idx in selected_indices:
+                if 1 <= idx <= len(line_candidates):
+                    selected_lines.append(line_candidates[idx - 1])
+            
+            return selected_lines
+            
+        except Exception as e:
+            logger.error(f"Error in LLM recall judgment batch: {e}")
+            # Fallback: return first few candidates from this batch
+            return [candidate for candidate in line_candidates[:10]]
+    
+    async def llm_recall_judgment(
+        self, line_candidates: List[CodeLine], query: str
+    ) -> List[CodeLine]:
+        """
+        Use LLM to judge and select the relevant lines from candidates.
+        
+        Args:
+            line_candidates: List of CodeLine objects
+            query: Original query for relevance judgment
+            
+        Returns:
+            List of selected CodeLine objects
+        """
+        if not line_candidates:
+            return []
+        
+        all_selected_lines = []
+        
+        # Create tasks for all batches
+        tasks = []
+        for i in range(0, len(line_candidates), self.max_batch_size):
+            batch = line_candidates[i : i + self.max_batch_size]
+            task = self.process_candidate_batch(batch, query)
+            tasks.append(task)
+        
+        # Execute all batches concurrently
+        batch_results = await asyncio.gather(*tasks)
+        
+        # Combine results
+        for batch_selected in batch_results:
+            all_selected_lines.extend(batch_selected)
+        
+        if len(line_candidates) > self.max_batch_size:
+            logger.debug(
+                f"Processed {len(tasks)} batches concurrently: Selected {len(all_selected_lines)} total lines"
+            )
+        
+        return all_selected_lines
