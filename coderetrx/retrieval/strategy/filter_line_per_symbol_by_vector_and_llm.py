@@ -11,6 +11,7 @@ from .base import (
     RecallStrategyExecutor,
     StrategyExecuteResult,
     deduplicate_elements,
+    BaseLLMBatchProcessor,
 )
 from ..smart_codebase import (
     SmartCodebase as Codebase,
@@ -24,6 +25,40 @@ import logging
 logger = logging.getLogger(__name__)
 
 import asyncio
+
+
+class LinePerSymbolBatchProcessor(BaseLLMBatchProcessor):
+    """Batch processor for symbol-based line filtering."""
+    
+    def format_candidate(self, index: int, codeline: CodeLine) -> str:
+        """Format a single candidate for display in the batch."""
+        line = codeline.line_content
+        symbol_name = codeline.symbol.name
+        file_path = str(codeline.symbol.file.path)
+        return f"{index + 1}. [{symbol_name} in {file_path}] {line.strip()}"
+    
+    def get_system_prompt(self, query: str) -> str:
+        """Get the system prompt for the LLM."""
+        return f"""You are analyzing code lines to find the relevant ones for a specific query.
+
+Query: {query}
+
+Select the relevant lines from the candidates below. Focus on:
+1. Direct relevance to the query requirements
+2. Functional significance and completeness
+3. Quality and clarity of the code
+
+Be selective and choose only the lines that truly match the query criteria."""
+    
+    def get_user_prompt(self, candidates_str: str, query: str) -> str:
+        """Get the user prompt for the LLM."""
+        return f"""Here are the candidate code lines:
+
+{candidates_str}
+
+Select the relevant lines for the query: "{query}"
+
+Call the select_relevant_lines function with your analysis."""
 
 
 class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
@@ -56,131 +91,8 @@ class FilterLinePerSymbolByVectorAndLLMStrategy(RecallStrategyExecutor):
     def get_strategy_name(self) -> str:
         return "FILTER_LINE_PER_SYMBOL_BY_VECTOR_AND_LLM"
 
-    async def _llm_recall_judgment(
-        self, line_candidates: List[CodeLine], query: str
-    ) -> List[CodeLine]:
-        """
-        Use LLM to judge and select the relevant lines from candidates.
-
-        Args:
-            line_candidates: List of (line_content, symbol_name, file_path) tuples
-            query: Original query for relevance judgment
-
-        Returns:
-            List of selected line contents
-        """
-        if not line_candidates:
-            return []
-
-        max_batch_size = 50
-        all_selected_lines = []
-
-        # Create tasks for all batches
-        tasks = []
-        for i in range(0, len(line_candidates), max_batch_size):
-            batch = line_candidates[i : i + max_batch_size]
-            task = self._process_candidate_batch(batch, query)
-            tasks.append(task)
-
-        # Execute all batches concurrently
-        batch_results = await asyncio.gather(*tasks)
-
-        # Combine results
-        for batch_selected in batch_results:
-            all_selected_lines.extend(batch_selected)
-
-        if len(line_candidates) > max_batch_size:
-            logger.debug(
-                f"Processed {len(tasks)} batches concurrently: Selected {len(all_selected_lines)} total lines"
-            )
-
-        return all_selected_lines
-
-    async def _process_candidate_batch(
-        self, line_candidates: List[CodeLine], query: str, retry_cnt=0
-    ) -> List[CodeLine]:
-        """Process a single batch of line candidates."""
-        try:
-            from coderetrx.utils.llm import call_llm_with_function_call
-
-            # Prepare candidates text
-            candidates_text = []
-            for i, codeline in enumerate(line_candidates):
-                line = codeline.line_content
-                symbol_name = codeline.symbol.name
-                file_path = str(codeline.symbol.file.path)
-                candidates_text.append(
-                    f"{i + 1}. [{symbol_name} in {file_path}] {line.strip()}"
-                )
-
-            candidates_str = "\n".join(candidates_text)
-
-            # Define function for line selection
-            function_definition = {
-                "name": "select_relevant_lines",
-                "description": "Select the relevant code lines based on the query criteria",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "selected_indices": {
-                            "type": "array",
-                            "items": {"type": "integer"},
-                            "description": "List of indices (1-based) of the relevant lines",
-                        },
-                        "reasoning": {
-                            "type": "string",
-                            "description": "Brief explanation for the selection",
-                        },
-                    },
-                    "required": ["selected_indices", "reasoning"],
-                },
-            }
-
-            system_prompt = f"""You are analyzing code lines to find the relevant ones for a specific query.
-
-Query: {query}
-
-Select the relevant lines from the candidates below. Focus on:
-1. Direct relevance to the query requirements
-2. Functional significance and completeness
-3. Quality and clarity of the code
-
-Be selective and choose only the lines that truly match the query criteria."""
-
-            user_prompt = f"""Here are the candidate code lines:
-
-{candidates_str}
-
-Select the relevant lines for the query: "{query}"
-
-Call the select_relevant_lines function with your analysis."""
-
-            function_args = await call_llm_with_function_call(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                function_definition=function_definition,
-                model_ids=["openai/gpt-4.1-mini", "anthropic/claude-sonnet-4"],
-            )
-
-            selected_indices = function_args.get("selected_indices", [])
-            reasoning = function_args.get("reasoning", "")
-
-            logger.debug(
-                f"LLM selected {len(selected_indices)} lines from batch of {len(line_candidates)}. Reasoning: {reasoning}"
-            )
-
-            # Extract selected lines
-            selected_lines = []
-            for idx in selected_indices:
-                if 1 <= idx <= len(line_candidates):
-                    selected_lines.append(line_candidates[idx - 1])
-
-            return selected_lines
-
-        except Exception as e:
-            logger.error(f"Error in LLM recall judgment batch: {e}")
-            # Fallback: return first few candidates from this batch
-            return [candidate for candidate in line_candidates[:10]]
+    # Removed _llm_recall_judgment and _process_candidate_batch methods
+    # Now using BaseLLMBatchProcessor
 
     async def execute(
         self,
@@ -312,8 +224,9 @@ Call the select_relevant_lines function with your analysis."""
                 if not current_round_candidates:
                     break
 
-                # Get LLM judgment on this batch
-                selected_lines = await self._llm_recall_judgment(
+                # Get LLM judgment on this batch using the batch processor
+                batch_processor = LinePerSymbolBatchProcessor(codebase)
+                selected_lines = await batch_processor.llm_recall_judgment(
                     current_round_candidates, prompt
                 )
 
