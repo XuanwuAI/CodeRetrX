@@ -296,13 +296,14 @@ class CodebaseModel(BaseModel):
             call_graph_edges=[],  # TODO: Implement when call graph is built
         )
 
-    def to_codebase(self) -> Codebase:
+    def to_codebase(self, languages: Optional[List] = None) -> Codebase:
         # NOTE: We rely on the fact that the codebase initialization process is deterministic
         codebase = Codebase.new(
             id=self.id,
             dir=Path(self.dir),
             version=self.version,
             ignore_tests=self.ignore_tests,
+            languages=languages,
         )
         has_symbols, has_keywords, has_dependencies = (
             bool(len(self.symbols)),

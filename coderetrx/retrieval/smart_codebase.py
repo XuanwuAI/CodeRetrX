@@ -83,6 +83,12 @@ class SmartCodebaseSettings(BaseSettings):
         description="Provider of vector database to use for embeddings",
         alias="VECTOR_DB_PROVIDER",
     )
+    
+    vector_db_mode: Literal["always_reuse", "never_reuse", "reuse_on_match"] = Field(
+        default="reuse_on_match",
+        description="Vector DB reuse mode: always_reuse (always use existing), never_reuse (always recreate), reuse_on_match (reuse only if collection count matches)",
+        alias="VECTOR_DB_MODE",
+    )
 
 
 LLMMapFilterTargetType = Literal[

@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 @define
 class CodebaseFactory:
     @classmethod
-    def from_json(cls, data: dict, settings: SmartCodebaseSettings = SmartCodebaseSettings()) -> SmartCodebase:
+    def from_json(cls, data: dict, settings: SmartCodebaseSettings = SmartCodebaseSettings(), languages: Optional[List] = None) -> SmartCodebase:
         assert isinstance(data, dict)
-        codebase = Codebase.from_json(data)
+        codebase = Codebase.from_json(data, languages=languages)
         smart_codebase = SmartCodebase(
             id=codebase.id,
             dir=codebase.dir,
@@ -65,6 +65,7 @@ class CodebaseFactory:
                     provider=settings.vector_db_provider,
                     name=f"{codebase.id}_symbol_names",
                     texts=symbol_names,
+                    vector_db_mode=settings.vector_db_mode,
                 )
                 logger.info("Symbol name similarity searcher initialized successfully")
             except Exception as e:
@@ -100,7 +101,8 @@ class CodebaseFactory:
                     provider=settings.vector_db_provider,
                     name=f"{codebase.id}_symbol_contents",
                     texts=symbol_contents,
-                    metadatas=metadatas
+                    metadatas=metadatas,
+                    vector_db_mode=settings.vector_db_mode,
                 )
                 logger.info(
                     "Symbol content similarity searcher initialized successfully"
@@ -126,6 +128,7 @@ class CodebaseFactory:
                     provider=settings.vector_db_provider,
                     name=f"{codebase.id}_keywords",
                     texts=keyword_contents,
+                    vector_db_mode=settings.vector_db_mode,
                 )
                 logger.info("Keyword similarity searcher initialized successfully")
             except Exception as e:
@@ -158,7 +161,8 @@ class CodebaseFactory:
                         provider=settings.vector_db_provider,
                         name=f"{codebase.id}_symbol_codelines",
                         texts=all_lines,
-                        metadatas=all_metadatas
+                        metadatas=all_metadatas,
+                        vector_db_mode=settings.vector_db_mode,
                     )
                     logger.info("Unified symbol codeline searcher initialized successfully")
                 except Exception as e:
