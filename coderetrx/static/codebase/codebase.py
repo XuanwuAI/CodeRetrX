@@ -813,14 +813,14 @@ class Codebase:
     _call_graph_initialized: bool = False
 
     @classmethod
-    def from_json(cls, data: dict) -> "Codebase":
+    def from_json(cls, data: dict, languages: Optional[List[IDXSupportedLanguage]] = None) -> "Codebase":
         """
         Create a Codebase instance from a JSON representation.
         """
         from .models import CodebaseModel
 
         model = CodebaseModel.model_validate(data)
-        return model.to_codebase()
+        return model.to_codebase(languages=languages)
 
     @classmethod
     def new(

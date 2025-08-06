@@ -378,8 +378,8 @@ class SimilaritySearcher(ABC):
         name: str,
         texts: List[str],
         embeddings: Optional[List[List[float]]] = None,
-        use_cache: bool = True,
         metadatas: Optional[List[dict]] = None,
+        vector_db_mode: str = "reuse_on_match",
     ) -> None:
         """
         Initialize the SimilaritySearcher.
@@ -388,12 +388,12 @@ class SimilaritySearcher(ABC):
             name: Name of the collection.
             texts: List of texts to be indexed.
             embeddings: Optional precomputed embeddings corresponding to the texts.
-            use_cache: Whether to use cached collection if available.
             metadatas: Optional metadata list corresponding to each text.
+            vector_db_mode: Vector DB reuse mode ("always_reuse", "never_reuse", "reuse_on_match")
         """
         self.texts = texts
         self.name = name
-        self.use_cache = use_cache
+        self.vector_db_mode = vector_db_mode
         self.metadatas = metadatas
 
     @abstractmethod
@@ -464,15 +464,15 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
         name: str,
         texts: List[str],
         embeddings: Optional[List[List[float]]] = None,
-        use_cache: bool = True,
         metadatas: Optional[List[dict]] = None,
+        vector_db_mode: str = "reuse_on_match",
     ) -> None:
-        super().__init__(name, texts, embeddings, use_cache, metadatas)
+        super().__init__(name, texts, embeddings, metadatas, vector_db_mode)
         self.content_type = determine_content_type(name)
-        self._initialize_vector_store(embeddings, use_cache)
+        self._initialize_vector_store(embeddings)
 
     def _initialize_vector_store(
-        self, embeddings: Optional[List[List[float]]], use_cache: bool
+        self, embeddings: Optional[List[List[float]]]
     ) -> None:
         """Initialize the ChromaDB vector store."""
         if not CHROMADB_AVAILABLE:
@@ -485,30 +485,55 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
         )
 
         # Check or create Chroma collection
+        collection_exists = False
+        collection_count = 0
+        
         try:
             self.collection = self.chromadb_client.get_collection(name=self.name)
-            if self.collection.count() != len(self.texts):
-                logger.info(
-                    f"Collection '{self.name}' exists but has {self.collection.count()} documents instead of {len(self.texts)}. Recreating collection."
+            collection_count = self.collection.count()
+            collection_exists = True
+            
+            if self.vector_db_mode == "always_reuse":
+                logger.debug(
+                    f"Using cached {self.content_type} from ChromaDB collection '{self.name}' ({collection_count} items) - always_reuse mode"
                 )
-                use_cache = False
+            elif self.vector_db_mode == "never_reuse":
+                logger.info(
+                    f"Recreating ChromaDB collection '{self.name}' - never_reuse mode"
+                )
                 self.chromadb_client.delete_collection(self.name)
                 self.collection = self.chromadb_client.create_collection(
                     name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": 1024}
                 )
+                collection_exists = False
+            elif collection_count != len(self.texts):
+                logger.info(
+                    f"Collection '{self.name}' exists but has {collection_count} documents instead of {len(self.texts)}. Recreating collection."
+                )
+                self.chromadb_client.delete_collection(self.name)
+                self.collection = self.chromadb_client.create_collection(
+                    name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": 1024}
+                )
+                collection_exists = False
             else:
                 logger.debug(
-                    f"Using cached {self.content_type} from ChromaDB collection '{self.name}' ({self.collection.count()} items)"
+                    f"Using cached {self.content_type} from ChromaDB collection '{self.name}' ({collection_count} items)"
                 )
         except Exception:
             logger.info(f"Creating new ChromaDB collection: '{self.name}'")
             self.collection = self.chromadb_client.create_collection(
                 name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": 1024}
             )
-            use_cache = False
+            collection_exists = False
 
-        # Add texts and embeddings to collection if not using cache
-        if not use_cache:
+        # Add texts and embeddings to collection based on vector_db_mode
+        should_add_texts = (
+            self.vector_db_mode == "never_reuse" or
+            not collection_exists or
+            (self.vector_db_mode == "reuse_on_match" and collection_count != len(self.texts))
+        )
+        
+        if should_add_texts:
             self._add_texts_in_batches(self.texts, embeddings, self.metadatas)
 
     def _validate_embeddings_match_texts(
@@ -656,8 +681,8 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         name: str,
         texts: List[str],
         embeddings: Optional[List[List[float]]] = None,
-        use_cache: bool = True,
         metadatas: Optional[List[dict]] = None,
+        vector_db_mode: str = "reuse_on_match",
         vector_size: int = 3072,
     ) -> None:
         """
@@ -667,8 +692,8 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             name: Name of the collection.
             texts: List of texts to be indexed.
             embeddings: Optional precomputed embeddings corresponding to the texts.
-            use_cache: Whether to use cached collection if available.
             metadatas: Optional metadata list corresponding to each text.
+            vector_db_mode: Vector DB reuse mode ("always_reuse", "never_reuse", "reuse_on_match")
             vector_size: Size of the vector embeddings.
         """
         if not QDRANT_AVAILABLE:
@@ -676,7 +701,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
                 "Qdrant dependencies not available. Install with: pip install qdrant-client"
             )
 
-        super().__init__(name, texts, embeddings, use_cache, metadatas)
+        super().__init__(name, texts, embeddings, metadatas, vector_db_mode)
         self.vector_size = vector_size
         self.content_type = determine_content_type(name)
 
@@ -686,8 +711,12 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         # Initialize collection
         self._init_collection()
 
-        # Add texts if not using cache or collection is empty
-        if not use_cache or self._get_collection_count() != len(texts):
+        # Add texts based on vector_db_mode
+        should_add_texts = (
+            self.vector_db_mode == "never_reuse" or 
+            (self.vector_db_mode == "reuse_on_match" and self._get_collection_count() != len(texts))
+        )
+        if should_add_texts:
             self._add_texts_to_collection(embeddings)
 
     def _init_clients(self):
@@ -720,7 +749,17 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         try:
             collection_count = self.qdrant_client.count(collection_name=self.name).count
 
-            if collection_count != len(self.texts):
+            if self.vector_db_mode == "always_reuse":
+                logger.debug(
+                    f"Using cached {self.content_type} from Qdrant collection '{self.name}' ({collection_count} items) - always_reuse mode"
+                )
+            elif self.vector_db_mode == "never_reuse":
+                logger.info(
+                    f"Recreating Qdrant collection '{self.name}' - never_reuse mode"
+                )
+                self.qdrant_client.delete_collection(self.name)
+                self._create_collection()
+            elif collection_count != len(self.texts):
                 logger.info(
                     f"Collection '{self.name}' exists but has {collection_count} documents instead of {len(self.texts)}. Recreating collection."
                 )
@@ -950,8 +989,8 @@ def get_similarity_searcher(
     name: str,
     texts: List[str],
     embeddings: Optional[List[List[float]]] = None,
-    use_cache: bool = True,
     metadatas: Optional[List[dict]] = None,
+    vector_db_mode: str = "reuse_on_match",
 ) -> SimilaritySearcher:
     """
     Factory function to create similarity searcher instances based on provider.
@@ -961,8 +1000,8 @@ def get_similarity_searcher(
         name: Name of the collection.
         texts: List of texts to be indexed.
         embeddings: Optional precomputed embeddings corresponding to the texts.
-        use_cache: Whether to use cached collection if available.
         metadatas: Optional metadata list corresponding to each text.
+        vector_db_mode: Vector DB reuse mode ("always_reuse", "never_reuse", "reuse_on_match")
 
     Returns:
         A SimilaritySearcher instance based on the specified provider.
@@ -975,16 +1014,16 @@ def get_similarity_searcher(
             name=name,
             texts=texts,
             embeddings=embeddings,
-            use_cache=use_cache,
             metadatas=metadatas,
+            vector_db_mode=vector_db_mode,
         )
     elif provider.lower() == "qdrant":
         return QdrantSimilaritySearcher(
             name=name,
             texts=texts,
             embeddings=embeddings,
-            use_cache=use_cache,
             metadatas=metadatas,
+            vector_db_mode=vector_db_mode,
         )
     else:
         raise ValueError(f"Unsupported vector database provider: {provider}")
