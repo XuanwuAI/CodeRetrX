@@ -231,18 +231,21 @@ async def cost_breakdown(log_paths: PathLike | str | list[PathLike | str], model
     table.add_column("Completion Tokens", justify="right", style="blue")
     table.add_column("Total Tokens", justify="right", style="yellow")
     table.add_column("Cost ($)", justify="right", style="red")
+    table.add_column("% of Total Cost", justify="right", style="bright_red")
     
     # Sort spans by cost (descending)
     sorted_spans = sorted(span_data.items(), key=lambda x: x[1]['cost'], reverse=True)
     
     for span, data in sorted_spans:
+        cost_percentage = (data['cost'] / total_cost * 100) if total_cost > 0 else 0
         table.add_row(
             span,
             str(data['calls']),
             f"{data['prompt_tokens']:,}",
             f"{data['completion_tokens']:,}",
             f"{data['total_tokens']:,}",
-            f"${data['cost']:.4f}"
+            f"${data['cost']:.4f}",
+            f"{cost_percentage:.1f}%"
         )
     
     # Add totals row
@@ -254,6 +257,7 @@ async def cost_breakdown(log_paths: PathLike | str | list[PathLike | str], model
         f"[bold]{total_completion_tokens:,}[/bold]",
         f"[bold]{total_prompt_tokens + total_completion_tokens:,}[/bold]",
         f"[bold]${total_cost:.4f}[/bold]",
+        f"[bold]100.0%[/bold]",
         style="bold"
     )
     
