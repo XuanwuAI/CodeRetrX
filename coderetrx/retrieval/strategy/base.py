@@ -19,6 +19,7 @@ from typing import (
     Optional,
     override,
 )
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from coderetrx.retrieval.smart_codebase import (
@@ -28,6 +29,7 @@ from coderetrx.retrieval.smart_codebase import (
     LLMCallMode,
     LLMMapFilterTargetType,
 )
+from coderetrx.static.codebase.codebase import CodeLine
 import random
 from ..topic_extractor import TopicExtractor
 from coderetrx.static import (

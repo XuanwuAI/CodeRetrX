@@ -119,6 +119,7 @@ class LLMSettings(BaseSettings):
             kwargs["event_hooks"] = {"response": [hook]}
         if self.proxy:
             kwargs.update({"proxy": self.proxy})
+
         return AsyncClient(
             **kwargs,
         )
