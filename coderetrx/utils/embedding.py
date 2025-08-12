@@ -829,7 +829,14 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             self._add_batch_to_qdrant(
                 text_batch, embedding_batch, metadata_batch, start_idx
             )
-
+            
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(
+            min=30, max=600
+        ),
+        retry=retry_if_exception_type(Exception),
+    )
     def _add_batch_to_qdrant(
         self,
         texts: List[str],
@@ -872,6 +879,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
                     second_texts, second_embeddings, second_metadatas, start_idx + mid
                 )
             else:
+                print("Retrying...")
                 raise
 
     @similarity_search_retry
