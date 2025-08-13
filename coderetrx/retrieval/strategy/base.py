@@ -3,6 +3,7 @@ Base classes and utilities for code retrieval strategies.
 """
 
 from enum import Enum
+from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
 from typing import (
     Callable,
     Coroutine,
@@ -848,11 +849,13 @@ class BaseLLMBatchProcessor(ABC):
             user_prompt = self.get_user_prompt(candidates_str, query)
             function_definition = self.get_function_definition()
             
+            settings = SmartCodebaseSettings()
+            llm_model_ids = [settings.llm_mapfilter_model_id or settings.default_model_id, settings.llm_fallback_model_id or settings.default_model_id]
             function_args = await call_llm_with_function_call(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 function_definition=function_definition,
-                model_ids=["openai/gpt-4.1-mini", "anthropic/claude-sonnet-4"],
+                model_ids=llm_model_ids,
             )
             
             selected_indices = function_args.get("selected_indices", [])
