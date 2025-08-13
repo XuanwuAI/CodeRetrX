@@ -9,6 +9,7 @@ from coderetrx.impl.default.prompt import (
     topic_extraction_function_call_system_prompt,
     get_topic_extraction_function_definition, topic_extraction_function_call_user_prompt_template,
 )
+from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
 from coderetrx.utils.llm import call_llm_with_fallback, call_llm_with_function_call
 from coderetrx.retrieval import (
     TopicExtractor as TopicExtractorBase,
@@ -52,7 +53,6 @@ class TopicExtractor(TopicExtractorBase):
 
             # Call LLM with the topic extraction prompt template
             # Use topic extraction model_id from settings
-            from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
             settings = SmartCodebaseSettings()
             topic_model_id = settings.llm_topic_extraction_model_id or settings.default_model_id
             model_ids = [topic_model_id]
@@ -85,7 +85,6 @@ class TopicExtractor(TopicExtractorBase):
 
             # Call LLM with function call
             # Use topic extraction model_id from settings
-            from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
             settings = SmartCodebaseSettings()
             topic_model_id = settings.llm_topic_extraction_model_id or settings.default_model_id
             model_ids = [topic_model_id]
