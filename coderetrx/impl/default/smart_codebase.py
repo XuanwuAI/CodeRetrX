@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Optional, List, Tuple, Any, Literal, TYPE_CHECKING
 from coderetrx.static import Codebase, Dependency
 from coderetrx.static.codebase import Symbol, Keyword, File, CodeLine
+from coderetrx.static.codebase.languages import IDXSupportedLanguage
 from coderetrx.retrieval import SmartCodebase as SmartCodebaseBase, LLMCallMode
 from coderetrx.retrieval.smart_codebase import (
     CodeMapFilterResult,
@@ -158,12 +159,13 @@ class SmartCodebase(SmartCodebaseBase):
         lazy: bool = False,
         version: str = "v0.0.1",
         ignore_tests: bool = True,
+        languages: Optional[List[IDXSupportedLanguage]] = None,
         settings: Optional["SmartCodebaseSettings"] = None,
         llm_settings: Optional[LLMSettings] = None,
     ) -> "SmartCodebase":
         if settings is None:
             settings = get_smart_codebase_settings()
-        codebase = Codebase.new(id, dir, url, lazy, version, ignore_tests)
+        codebase = Codebase.new(id, dir, url, lazy, version, ignore_tests, languages)
         return cls(
             id=codebase.id,
             dir=codebase.dir,
@@ -748,10 +750,15 @@ class SmartCodebase(SmartCodebaseBase):
         results = []
         symbol_tasks = []
         for symbol in symbols:
+            if self.settings.vector_db_provider == "chroma":
+                where_filter = {"symbol_id": symbol.id}
+            else:
+                where_filter = {"symbol_ids[]": symbol.id}
+            
             task = self.codeline_searcher.asearch_by_vector(
                 query_vector=query_vector,
                 k=top_k,
-                where={"symbol_id": symbol.id},
+                where=where_filter,
             )
             symbol_tasks.append((symbol, task))
         

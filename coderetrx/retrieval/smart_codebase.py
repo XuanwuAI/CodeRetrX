@@ -77,6 +77,11 @@ class SmartCodebaseSettings(BaseSettings):
         description="Enable symbol codeline embeddings",
         alias="SYMBOL_CODELINE_EMBEDDING",
     )
+    symbol_codeline_embedding_maxchars: int = Field(
+        default=100,
+        description="Maximum number of characters to embed for symbol codelines. Set to 0 to embed 1 line at a time.",
+        alias="SYMBOL_CODELINE_EMBEDDING_MAXCHARS",
+    )
 
     vector_db_provider: Literal["chroma", "qdrant"] = Field(
         default="qdrant",
@@ -94,6 +99,12 @@ class SmartCodebaseSettings(BaseSettings):
         default=False,
         description="Enable sentence-based keyword extraction",
         alias="KEYWORD_SENTENCE_EXTRACTION",
+    )
+      
+    vector_db_mode: Literal["always_reuse", "never_reuse", "reuse_on_match"] = Field(
+        default="reuse_on_match",
+        description="Vector DB reuse mode: always_reuse (always use existing), never_reuse (always recreate), reuse_on_match (reuse only if collection count matches)",
+        alias="VECTOR_DB_MODE",
     )
 
 

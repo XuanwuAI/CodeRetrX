@@ -571,6 +571,54 @@ class File:
 
     def primary_chunks(self) -> List[CodeChunk]:
         return [chunk for chunk in self.chunks if chunk.type == ChunkType.PRIMARY]
+    
+    def get_lines(self, max_chars = 0):
+        chunks = self.primary_chunks()  # Already sorted by start_line
+        active_chunks = []  # List of chunks that currently contain the line
+        chunk_idx = 0  # Index of next chunk to consider
+        results: List[CodelineDocument] = []
+        
+        for i, line in enumerate(self.lines):
+            # Remove chunks that end before the current line
+            active_chunks = [chunk for chunk in active_chunks if chunk.end_line >= i]
+            
+            # Add chunks that start at or before the current line and haven't been processed yet
+            while chunk_idx < len(chunks) and chunks[chunk_idx].start_line <= i:
+                chunk = chunks[chunk_idx]
+                # Only add chunks that actually contain the current line
+                if chunk.end_line >= i:
+                    active_chunks.append(chunk)
+                chunk_idx += 1
+            
+            # Collect IDs of all chunks that contain the current line
+            symbol_ids = [chunk.id for chunk in active_chunks]
+            
+            if len(line):
+                results.append(CodelineDocument(file_path=str(self.path), start_line=i, content=line, symbol_ids=symbol_ids))
+        
+        cur_buf = []
+        cur_symbol_ids = []
+        cur_buf_len = 0
+
+        def get_new_doc():
+            nonlocal cur_buf, cur_buf_len, cur_symbol_ids
+            content = "\n".join([doc.content for doc in cur_buf])
+            new_doc = CodelineDocument(file_path=str(self.path), start_line=cur_buf[0].start_line, end_line=cur_buf[-1].start_line, content=content, symbol_ids=cur_buf[0].symbol_ids)
+            cur_buf = []
+            cur_buf_len = 0
+            return new_doc
+
+        for doc in results:
+            if len(cur_buf) and (
+                cur_buf_len > max_chars or 
+                cur_symbol_ids != doc.symbol_ids
+            ):
+                yield get_new_doc()
+            cur_buf.append(doc)
+            cur_buf_len += len(doc.content)
+            cur_symbol_ids = doc.symbol_ids
+        if len(cur_buf):
+            yield get_new_doc()
 
     @classmethod
     def jit_for_testing(cls, filename: str, content: str) -> Self:
@@ -714,6 +762,15 @@ class CallGraphEdge:
         return model.to_edge(codebase)
 
 
+
+class CodelineDocument(BaseModel):
+    file_path: str
+    # Range is inclusive [start_line, end_line]
+    start_line: int = Field(description="0-indexed line number of the code line")
+    end_line: Optional[int] = Field(default=None, description="0-indexed end line number of the code line")
+    content: str
+    symbol_ids: List[str]
+
 class CodeLine(BaseModel):
     """Pydantic model representing a code line entry with metadata."""
     model_config = {"arbitrary_types_allowed": True}
@@ -758,14 +815,14 @@ class Codebase:
     _call_graph_initialized: bool = False
 
     @classmethod
-    def from_json(cls, data: dict) -> "Codebase":
+    def from_json(cls, data: dict, languages: Optional[List[IDXSupportedLanguage]] = None) -> "Codebase":
         """
         Create a Codebase instance from a JSON representation.
         """
         from .models import CodebaseModel
 
         model = CodebaseModel.model_validate(data)
-        return model.to_codebase()
+        return model.to_codebase(languages=languages)
 
     @classmethod
     def new(
@@ -776,6 +833,7 @@ class Codebase:
         lazy: bool = False,
         version: str = "v0.0.1",
         ignore_tests: bool = True,
+        languages: Optional[List[IDXSupportedLanguage]] = None,
     ) -> Self:
         dir = Path(dir)
         res = cls(
@@ -795,6 +853,11 @@ class Codebase:
                 continue
             relative_path = path.relative_to(dir)
             if is_sourcecode(path):
+                # Check if file language is in the allowed languages filter
+                if languages is not None:
+                    file_lang = get_language(path)
+                    if file_lang not in languages:
+                        continue
                 res.source_files[str(relative_path)] = File.new(
                     path=relative_path, codebase=res, file_type="source", lazy=lazy
                 )
@@ -1071,6 +1134,11 @@ class Codebase:
 
     def get_file(self, path: PathLike | str) -> File | None:
         return self.source_files.get(str(path)) or self.dependency_files.get(str(path))
+    
+    def get_all_lines(self, max_chars: int = 0):
+        for file in self.source_files.values():
+            for line in file.get_lines(max_chars=max_chars):
+                yield line
 
     @classmethod
     def jit_for_testing(cls) -> Self:
