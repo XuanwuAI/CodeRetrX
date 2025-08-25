@@ -9,8 +9,8 @@ from coderetrx.utils.llm_cache import (
 
 import os
 import asyncio
+import json
 import logging
-from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple, Union
 from pydantic import BaseModel, Field
 from pydantic_settings import SettingsConfigDict, BaseSettings
@@ -28,6 +28,7 @@ from openai import AsyncOpenAI
 from openai.types import CreateEmbeddingResponse
 import httpx
 from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
@@ -97,6 +98,11 @@ class EmbeddingSettings(BaseSettings):
         description="Proxy URL for HTTP requests, support socks5 and http(s) proxies",
         alias="EMBEDDING_PROXY",
     )
+    is_local_embedding: bool = Field(
+        default=True,
+        description="Whether to use local embedding model instead of API",
+        alias="IS_LOCAL_EMBEDDING",
+    )
 
     def get_httpx_client(self) -> AsyncClient:
         if self.proxy:
@@ -150,7 +156,7 @@ async def _create_embeddings_with_cache(
     texts: List[str], settings: Optional[EmbeddingSettings] = None
 ) -> List[List[float]]:
     """
-    Create embeddings for texts using OpenAI API with individual text caching.
+    Create embeddings for texts using OpenAI API or local model with individual text caching.
 
     Args:
         texts: List of texts to embed
@@ -161,7 +167,7 @@ async def _create_embeddings_with_cache(
     """
     if settings is None:
         settings = embedding_settings
-        
+    
     # Truncate texts based on max_trunc_chars setting
     truncated_texts = [truncate_text(text, settings.max_trunc_chars) for text in texts]
     
@@ -187,8 +193,6 @@ async def _create_embeddings_with_cache(
 
         if cached_response:
             # Cache hit for this text
-            import json
-
             response_data = json.loads(cached_response)
             embedding = response_data["embedding"]
             cached_embeddings.append(embedding)
@@ -208,31 +212,15 @@ async def _create_embeddings_with_cache(
         assert len(result) == len(truncated_texts), "Cached embeddings count mismatch"
         return result
 
-    # Make API call for uncached texts
-    logger.debug(f"Making API call for {len(uncached_texts)} uncached texts")
-
-    httpx_client = settings.get_httpx_client()
-    client = AsyncOpenAI(
-        base_url=settings.base_url,
-        api_key=settings.api_key,
-        timeout=300.0,
-        max_retries=0,
-        http_client=httpx_client,
-    )
-
-    try:
-        # Create request for uncached texts
-        api_request = {
-            "model": settings.model_id,
-            "input": uncached_texts,
-        }
-
-        response: CreateEmbeddingResponse = await client.embeddings.create(
-            **api_request
-        )
-
+    # Generate embeddings for uncached texts
+    if settings.is_local_embedding:
+        # Use local model
+        logger.debug(f"Using local model for {len(uncached_texts)} uncached texts")
+        model = SentenceTransformer(settings.model_id)
+        embeddings = await asyncio.to_thread(model.encode, uncached_texts)
+        
         # Cache each individual text embedding
-        for i, (text, embedding_data) in enumerate(zip(uncached_texts, response.data)):
+        for i, (text, embedding) in enumerate(zip(uncached_texts, embeddings)):
             individual_request = {
                 "model": settings.model_id,
                 "input": text,
@@ -240,12 +228,12 @@ async def _create_embeddings_with_cache(
             cache_key = cache_provider.hash_params(individual_request)
 
             # Store individual embedding in cache
-            individual_response = {"embedding": embedding_data.embedding}
+            individual_response = {"embedding": embedding.tolist()}
             cache_provider.insert(cache_key, individual_request, individual_response)
 
         # Combine cached and new embeddings in correct order
         result_embeddings: List[List[float]] = []
-        uncached_iter = iter(response.data)
+        uncached_iter = iter(embeddings)
 
         for i, cached_embedding in enumerate(cached_embeddings):
             if cached_embedding is not None:
@@ -254,15 +242,66 @@ async def _create_embeddings_with_cache(
             else:
                 # Use newly computed embedding
                 new_embedding = next(uncached_iter)
-                result_embeddings.append(new_embedding.embedding)
+                result_embeddings.append(new_embedding.tolist())
 
         return result_embeddings
+    
+    else:
+        # Make API call for uncached texts
+        logger.debug(f"Making API call for {len(uncached_texts)} uncached texts")
 
-    finally:
+        httpx_client = settings.get_httpx_client()
+        client = AsyncOpenAI(
+            base_url=settings.base_url,
+            api_key=settings.api_key,
+            timeout=300.0,
+            max_retries=0,
+            http_client=httpx_client,
+        )
+
         try:
-            await client.close()
-        except Exception as close_error:
-            logger.warning(f"Error closing embedding client: {close_error}")
+            # Create request for uncached texts
+            api_request = {
+                "model": settings.model_id,
+                "input": uncached_texts,
+            }
+
+            response: CreateEmbeddingResponse = await client.embeddings.create(
+                **api_request
+            )
+
+            # Cache each individual text embedding
+            for i, (text, embedding_data) in enumerate(zip(uncached_texts, response.data)):
+                individual_request = {
+                    "model": settings.model_id,
+                    "input": text,
+                }
+                cache_key = cache_provider.hash_params(individual_request)
+
+                # Store individual embedding in cache
+                individual_response = {"embedding": embedding_data.embedding}
+                cache_provider.insert(cache_key, individual_request, individual_response)
+
+            # Combine cached and new embeddings in correct order
+            result_embeddings: List[List[float]] = []
+            uncached_iter = iter(response.data)
+
+            for i, cached_embedding in enumerate(cached_embeddings):
+                if cached_embedding is not None:
+                    # Use cached embedding
+                    result_embeddings.append(cached_embedding)
+                else:
+                    # Use newly computed embedding
+                    new_embedding = next(uncached_iter)
+                    result_embeddings.append(new_embedding.embedding)
+
+            return result_embeddings
+
+        finally:
+            try:
+                await client.close()
+            except Exception as close_error:
+                logger.warning(f"Error closing embedding client: {close_error}")
 
 
 # Common retry decorator for similarity search operations
@@ -831,11 +870,9 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             )
             
     @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_exponential(
-            min=30, max=600
-        ),
-        retry=retry_if_exception_type(Exception),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(min=1, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError)),
     )
     def _add_batch_to_qdrant(
         self,
@@ -879,7 +916,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
                     second_texts, second_embeddings, second_metadatas, start_idx + mid
                 )
             else:
-                print("Retrying...")
+                logger.error(f"Failed to add batch to Qdrant: {str(e)}")
                 raise
 
     @similarity_search_retry
@@ -992,6 +1029,12 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         return Filter(must=conditions) if conditions else None
 
 
+def get_embedding_dimension() -> int:
+    """Get the dimension of the current embedding model."""
+    test_embedding = run_coroutine_sync(_create_embeddings_with_cache(["test"]))
+    return len(test_embedding[0])
+
+
 def get_similarity_searcher(
     provider: str,
     name: str,
@@ -1026,12 +1069,17 @@ def get_similarity_searcher(
             vector_db_mode=vector_db_mode,
         )
     elif provider.lower() == "qdrant":
+        # Get the actual embedding dimension
+        vector_size = get_embedding_dimension()
+        # Include dimension in collection name to avoid conflicts
+        dimension_aware_name = f"{name}_{vector_size}d"
         return QdrantSimilaritySearcher(
-            name=name,
+            name=dimension_aware_name,
             texts=texts,
             embeddings=embeddings,
             metadatas=metadatas,
             vector_db_mode=vector_db_mode,
+            vector_size=vector_size,
         )
     else:
         raise ValueError(f"Unsupported vector database provider: {provider}")
