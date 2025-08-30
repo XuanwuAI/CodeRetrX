@@ -721,28 +721,41 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
 
     def _init_clients(self):
         """Initialize Qdrant clients with connection pooling."""
-        QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
-        QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
-        logger.info(f"Connecting to Qdrant at {QDRANT_HOST}:{QDRANT_PORT}")
+        # Check for base URL override
+        QDRANT_BASE_URL = os.getenv("QDRANT_BASE_URL")
+        QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+
         connection_limits = httpx.Limits(
             max_connections=50,
             max_keepalive_connections=20,
             keepalive_expiry=30.0,
         )
 
-        self.qdrant_client = QdrantClient(
-            host=QDRANT_HOST,
-            port=QDRANT_PORT,
-            timeout=30,
-            limits=connection_limits,
-        )
+        # Build common client configuration
+        client_kwargs = {
+            "timeout": 30,
+            "limits": connection_limits,
+        }
 
-        self.async_qdrant_client = AsyncQdrantClient(
-            host=QDRANT_HOST,
-            port=QDRANT_PORT,
-            timeout=30,
-            limits=connection_limits,
-        )
+        if QDRANT_BASE_URL:
+            # Use URL-based configuration
+            logger.info(f"Connecting to Qdrant at {QDRANT_BASE_URL}")
+            client_kwargs["url"] = QDRANT_BASE_URL
+        else:
+            # Use host/port configuration (legacy)
+            QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
+            QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
+            logger.info(f"Connecting to Qdrant at {QDRANT_HOST}:{QDRANT_PORT}")
+            client_kwargs["host"] = QDRANT_HOST
+            client_kwargs["port"] = QDRANT_PORT
+
+        # Add API key if provided
+        if QDRANT_API_KEY:
+            client_kwargs["api_key"] = QDRANT_API_KEY
+
+        # Initialize both clients with the same configuration
+        self.qdrant_client = QdrantClient(**client_kwargs)
+        self.async_qdrant_client = AsyncQdrantClient(**client_kwargs)
 
     def _init_collection(self):
         """Initialize or create Qdrant collection."""
