@@ -13,11 +13,11 @@ TEST_REPO = "https://github.com/apache/flink.git"
 class TestGetReferenceTool:
     def test(self):
         """Test finding references to a symbol"""
-
         logger.info("Testing GetReferenceTool...")
         tool = GetReferenceTool(TEST_REPO)
         result = asyncio.run(tool._run(symbol_name="upload"))
         logger.info(f"GetReferenceTool result: {result}")
+        assert isinstance(result, (list, dict)), "Result should be a list or dict"
 
 
 class TestViewFileTool:
@@ -27,6 +27,8 @@ class TestViewFileTool:
         tool = ViewFileTool(TEST_REPO)
         result = asyncio.run(tool._run(file_path="./README.md", start_line=0, end_line=10))
         logger.info(f"ViewFileTool result: {result}")
+        assert isinstance(result, str), "Result should be a string (file content)"
+        assert len(result) > 0, "File content should not be empty"
 
 
 class TestFindFileByNameTool:
@@ -36,6 +38,7 @@ class TestFindFileByNameTool:
         tool = FindFileByNameTool(TEST_REPO)
         results = asyncio.run(tool._run(dir_path="/", pattern="*.md"))
         logger.info(f"FindFileByNameTool result: {results}")
+        assert isinstance(results, list), "Result should be a list of file paths"
 
 
 class TestKeywordSearchTool:
@@ -52,6 +55,7 @@ class TestKeywordSearchTool:
             )
         )
         logger.info(f"KeywordSearchTool result: {result}")
+        assert isinstance(result, list), "Result should be a list of matches"
 
 
 class TestListDirTool:
@@ -61,6 +65,7 @@ class TestListDirTool:
         tool = ListDirTool(TEST_REPO)
         result = asyncio.run(tool._run(directory_path="."))
         logger.info(f"ListDirTool result: {result}")
+        assert isinstance(result, list), "Result should be a list of directory entries"
 
 def test_all_tools():
     """Test all tools"""
@@ -73,5 +78,6 @@ def test_all_tools():
     ]
     for tester in tool_testers:
         tester.test()
+
 if __name__ == "__main__":
     test_all_tools()
