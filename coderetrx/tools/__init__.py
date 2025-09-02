@@ -1,10 +1,7 @@
 """
-Local tools for coderetrx agents.
-
-This module contains both the original CrewAI-based tools and the new smolagents-based tools.
+This module contains tools exposed by mcp server.
 """
 
-# New smolagents-based tools
 from .base import BaseTool
 from .find_file_by_name import FindFileByNameTool
 from .find_references import GetReferenceTool
