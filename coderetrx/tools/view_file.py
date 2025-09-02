@@ -1,11 +1,28 @@
 import asyncio
 import os
-from typing import Optional
+from typing import Optional, Type, ClassVar
 from pathlib import Path
 from pydantic import BaseModel, Field
 from coderetrx.tools.base import BaseTool
 import aiofiles
 from coderetrx.utils.path import safe_join
+
+
+class ViewFileArgs(BaseModel):
+    """Parameters for file viewing operation"""
+
+    file_path: str = Field(
+        ...,
+        description="Absolute path of file to view",
+    )
+    start_line: Optional[int] = Field(
+        None, description="Starting line number. Optional, default to be 0.", ge=0
+    )
+    end_line: Optional[int] = Field(
+        None,
+        description="Ending line number. Optional, default to be the last line.",
+        ge=0,
+    )
 
 
 class ViewFileTool(BaseTool):
@@ -18,21 +35,7 @@ class ViewFileTool(BaseTool):
         "3) If the file contents you have viewed are insufficient, and you suspect they may be in lines not shown, proactively call the tool again to view those lines.\n"
         "4) When in doubt, call this tool again to gather more information. Remember that partial file views may miss critical dependencies, imports, or functionality."
     )
-    inputs = {
-        "file_path": {
-            "description": "Absolute path of file to view",
-            "type": "string",
-        },
-        "start_line": {
-            "description": "Starting line number. Optional, default to be 0.",
-            "type": "integer",
-        },
-        "end_line": {
-            "description": "Ending line number. Optional, default to be the last line.",
-            "type": "integer",
-        },
-    }
-    output_type = "string"
+    args_schema: ClassVar[Type[ViewFileArgs]] = ViewFileArgs
 
     def forward(self, file_path: str, start_line: int, end_line: int) -> str:
         """Synchronous wrapper for async _run method."""

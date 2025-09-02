@@ -1,12 +1,18 @@
 import asyncio
 import os
-from typing import List
+from typing import List, ClassVar, Type
 from pathlib import Path
 from pydantic import BaseModel, Field
 from coderetrx.static.ripgrep import ripgrep_search  # type: ignore
 from coderetrx.tools.base import BaseTool
 from coderetrx.utils.llm import count_tokens_openai
 from coderetrx.tools.keyword_search import KeywordSearchResult
+
+
+class GetReferenceArgs(BaseModel):
+    symbol_name: str = Field(
+        description="The symbolic name whose reference is to be retrieved."
+    )
 
 
 class GetReferenceResult(KeywordSearchResult):
@@ -81,13 +87,7 @@ class GetReferenceTool(BaseTool):
         "Used to find symbol direct references in the codebase, should be used when tracking code usage. "
         "Finding multiple levels of references requires multiple calls."
     )
-    inputs = {
-        "symbol_name": {
-            "description": "The symbolic name whose reference is to be retrieved.",
-            "type": "string",
-        },
-    }
-    output_type = "string"
+    args_schema: ClassVar[Type[GetReferenceArgs]] = GetReferenceArgs
 
     def forward(self, symbol_name: str) -> str:
         """Synchronous wrapper for async _run method."""

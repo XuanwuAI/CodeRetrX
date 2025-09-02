@@ -1,12 +1,36 @@
 import asyncio
 import os
-from typing import List
+from typing import List, ClassVar, Type
 from pathlib import Path
 from pydantic import BaseModel, Field
 from coderetrx.static.ripgrep import ripgrep_search  # type: ignore
 from coderetrx.tools.base import BaseTool
 from coderetrx.utils.llm import count_tokens_openai
 from coderetrx.utils.path import safe_join
+
+
+class KeywordSearchArgs(BaseModel):
+    dir_path: str = Field(
+        description="The directory from which to run the ripgrep command. This path must be a directory, not a file."
+    )
+    query: str = Field(
+        description="The search term or pattern to look for within files."
+    )
+    query_with_regexp: bool = Field(
+        description="If true, query accept a REGULAR expressions as a input."
+    )
+    glob_pattern_includes: str = Field(
+        description="Defines glob patterns for file name filtering to include files in the search (e.g., *\\.java). Leave empty if no filtering is required."
+    )
+    glob_pattern_excludes: str = Field(
+        description="Defines glob patterns for file name filtering to include files in the search (e.g., *\\.java). Leave empty if no filtering is required."
+    )
+    case_insensitive: bool = Field(
+        description="If true, performs a case-insensitive search."
+    )
+    include_content: bool = Field(
+        description="Whether to return the content of the code snippets. If set to `False`, only the location information of the code snippets will be returned."
+    )
 
 
 class KeywordSearchResult(BaseModel):
@@ -71,37 +95,7 @@ class KeywordSearchTool(BaseTool):
         "- Precise search: Use regex for complex pattern matching\n"
         "- File filtering: Specify included file types with glob_pattern_includes (e.g. .*\\.java)"
     )
-    inputs = {
-        "dir_path": {
-            "description": "The directory from which to run the ripgrep command. This path must be a directory, not a file.",
-            "type": "string",
-        },
-        "query": {
-            "description": "The search term or pattern to look for within files.",
-            "type": "string",
-        },
-        "query_with_regexp": {
-            "description": "If true, query accept a REGULAR expressions as a input.",
-            "type": "boolean",
-        },
-        "glob_pattern_includes": {
-            "description": "Defines glob patterns for file name filtering to include files in the search (e.g., *\\.java). Leave empty if no filtering is required.",
-            "type": "string",
-        },
-        "glob_pattern_excludes": {
-            "description": "Defines glob patterns for file name filtering to exclude files in the search (e.g., *\\.java). Leave empty if no filtering is required.",
-            "type": "string",
-        },
-        "case_insensitive": {
-            "description": "If true, performs a case-insensitive search.",
-            "type": "boolean",
-        },
-        "include_content": {
-            "description": "Whether to return the content of the code snippets. If set to `False`, only the location information of the code snippets will be returned.",
-            "type": "boolean",
-        },
-    }
-    output_type = "string"
+    args_schema: ClassVar[Type[KeywordSearchArgs]] = KeywordSearchArgs
 
     def forward(
         self,
@@ -140,15 +134,15 @@ class KeywordSearchTool(BaseTool):
 
         if not full_dir_path.exists():
             return [
-                    KeywordSearchResult(
-                        **{
-                            "path": "",
-                            "start_line": 0,
-                            "end_line": 0,
-                            "content": "Directory Not Exists",
-                        }
-                    )
-                ]
+                KeywordSearchResult(
+                    **{
+                        "path": "",
+                        "start_line": 0,
+                        "end_line": 0,
+                        "content": "Directory Not Exists",
+                    }
+                )
+            ]
 
         # Call ripgrep_search with the appropriate parameters
         rg_results = await ripgrep_search(

@@ -22,7 +22,13 @@ __all__ = [
     "ListDirTool",
     "ViewFileTool",
 ]
-tool_classes = [FindFileByNameTool, GetReferenceTool, KeywordSearchTool, ListDirTool, ViewFileTool]
+tool_classes = [
+    FindFileByNameTool,
+    GetReferenceTool,
+    KeywordSearchTool,
+    ListDirTool,
+    ViewFileTool,
+]
 tool_map: dict[str, dict[str, BaseTool]] = {}
 
 
@@ -33,6 +39,7 @@ def get_tool_class(name: str) -> Type[BaseTool]:
         raise ValueError(f"{name} is not a valid tool")
     return cls
 
+
 def get_tool(repo_url: str, name: str) -> BaseTool:
     if tool_map.get(repo_url) is None:
         tool_map[repo_url] = {}
@@ -40,5 +47,6 @@ def get_tool(repo_url: str, name: str) -> BaseTool:
         tool_map[repo_url][name] = get_tool_class(name)(repo_url)
     return tool_map[repo_url][name]
 
-def list_tool_class()-> list[BaseTool]:
-    return tool_classes 
+
+def list_tool_class() -> list[BaseTool]:
+    return tool_classes

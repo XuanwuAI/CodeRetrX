@@ -1,11 +1,12 @@
 import asyncio
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import ClassVar, Optional
 
 from coderetrx.utils.path import get_data_dir, get_repo_path
 from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
-from typing import Any
+from typing import Any, Type
+from pydantic import BaseModel
 from abc import abstractmethod
 
 logger = logging.getLogger(__name__)
@@ -13,10 +14,10 @@ logger = logging.getLogger(__name__)
 
 class BaseTool:
     """Base class for smolagents tools that work with repositories."""
+
     name: str
     description: str
-    inputs: dict[str, Any]
-
+    args_schema: ClassVar[Type[BaseModel]]
 
     def __init__(self, repo_url: str, uuid: Optional[str] = None):
         super().__init__()
@@ -25,7 +26,7 @@ class BaseTool:
         self.repo_url = repo_url
         self.repo_id = get_repo_id(repo_url)
         self.uuid = uuid
-        self.repo_path = get_repo_path(repo_url) 
+        self.repo_path = get_repo_path(repo_url)
 
         clone_repo_if_not_exists(repo_url, str(self.repo_path))
 
@@ -74,6 +75,7 @@ class BaseTool:
     ) -> Any:
         """Async implementation to be overridden by subclasses."""
         raise NotImplementedError("Subclasses must implement _run method")
+
     async def run(
         self,
         *args: Any,
@@ -84,4 +86,3 @@ class BaseTool:
             return await self._run_repr(*args, **kwargs)
         else:
             return await self._run(*args, **kwargs)
-

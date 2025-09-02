@@ -9,6 +9,13 @@ from coderetrx.tools.base import BaseTool
 import filetype
 
 
+class FindFileByNameArgs(BaseModel):
+    dir_path: str = Field(description="The directory to search within")
+    pattern: str = Field(
+        description="pattern to search for. Based on keyword matching, wildcards are not supported and are not required."
+    )
+
+
 class FindFileByNameResult(BaseModel):
     path: str = Field(description="The path of matched file name")
     type: str = Field(description="The type of the file")
@@ -35,17 +42,7 @@ class FindFileByNameTool(BaseTool):
         "This tool searches for files and directories within a specified directory, similar to the Linux `find` command. "
         "The returned result paths are relative to the root path."
     )
-    inputs = {
-        "dir_path": {
-            "description": "The directory to search within",
-            "type": "string",
-        },
-        "pattern": {
-            "description": "pattern to search for. Based on keyword matching, wildcards are not supported and are not required.",
-            "type": "string",
-        },
-    }
-    output_type = "string"
+    args_schema: ClassVar[Type[FindFileByNameArgs]] = FindFileByNameArgs
 
     def _get_file_type(self, path: str) -> str:
         type = filetype.guess(path)
@@ -64,7 +61,6 @@ class FindFileByNameTool(BaseTool):
 
         if not os.path.exists(full_dir_path):
             return [FindFileByNameResult(path="", type="Directory Not Exists")]
-            
 
         matched_files = await ripgrep_glob(
             full_dir_path, pattern, extra_argv=["-g", "!.git"]

@@ -23,7 +23,7 @@ from coderetrx.tools import list_tool_class, get_tool
 import logging
 
 
-logger = logging.getLogger("mcp") 
+logger = logging.getLogger("mcp")
 
 # Create MCP server instance
 server = Server("code_tool")
@@ -152,7 +152,7 @@ def get_json_type(python_type) -> str:
 
 @server.list_resources()
 async def handle_list_resources() -> list[types.Resource]:
-    return [] 
+    return []
 
 
 @server.read_resource()
@@ -175,7 +175,7 @@ async def handle_list_tools() -> List[types.Tool]:
                 types.Tool(
                     name=tool_class.name,
                     description=tool_class.description,
-                    inputSchema=tool_class.inputs
+                    inputSchema=model_to_json_schema(tool_class.args_schema),
                 )
             )
         return mcp_tools
