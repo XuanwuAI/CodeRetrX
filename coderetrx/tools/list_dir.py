@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import List
+from typing import List, ClassVar, Type
 from pathlib import Path
 from pydantic import BaseModel, Field
 from coderetrx.static.ripgrep import ripgrep_glob  # type: ignore
@@ -92,6 +92,17 @@ class ListDirResult(BaseModel):
         return result
 
 
+class ListDirArgs(BaseModel):
+    """Parameters for directory listing"""
+
+    directory_path: str = Field(
+        ...,
+        description="path of directory to list\nExample: 'src/main/resources'",
+    )
+
+    limit: int = Field(..., description="Maximum number of items to return")
+
+
 class ListDirTool(BaseTool):
     name = "list_dir"
     description = (
@@ -105,29 +116,23 @@ class ListDirTool(BaseTool):
         "- Requires absolute path\n"
         "- Directory must exist and be readable\n"
     )
-    inputs = {
-        "directory_path": {
-            "description": "path of directory to list\nExample: 'src/main/resources'",
-            "type": "string",
-        },
-        "limit": {
-            "description": "Maximum number of items to return",
-            "type": "integer",
-        },
-    }
-    output_type = "string"
+    args_schema: ClassVar[Type[ListDirArgs]] = ListDirArgs
 
     def forward(self, directory_path: str, limit: int) -> str:
         """Synchronous wrapper for async _run method."""
         return self.run_sync(directory_path=directory_path, limit=limit)
 
-    async def _run(self, directory_path: str = "/", limit: int = 100) -> list[ListDirResult]:
+    async def _run(
+        self, directory_path: str = "/", limit: int = 100
+    ) -> list[ListDirResult]:
         results = []
         directory_path = directory_path.lstrip("/")
         full_directory_path: Path = safe_join(self.repo_path, directory_path)
 
         if not full_directory_path.exists():
-            return [ListDirResult(path="Path Not Exists", is_dir=True, size=0, parent="")]
+            return [
+                ListDirResult(path="Path Not Exists", is_dir=True, size=0, parent="")
+            ]
 
         file_entries = await ripgrep_glob(
             full_directory_path, "*", extra_argv=["-g", "!.git"]
@@ -151,7 +156,7 @@ class ListDirTool(BaseTool):
         )
         # Handle empty directory case
         if not full_entry_paths:
-            return results 
+            return results
         # calculate the number of entries in the first layer
         min_len = len(
             full_directory_path.parts
