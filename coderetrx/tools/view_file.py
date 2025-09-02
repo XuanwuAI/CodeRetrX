@@ -87,10 +87,3 @@ class ViewFileTool(BaseTool):
             result += f"\n\n(This file has total {total_lines} lines.)"
 
         return result
-
-
-if __name__ == "__main__":
-    # Example usage
-    tool = ViewFileTool("https://github.com/apache/flink.git")
-    result = asyncio.run(tool._run(file_path="./README.md", start_line=0, end_line=10))
-    print(result)

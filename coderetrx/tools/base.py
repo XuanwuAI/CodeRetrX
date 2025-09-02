@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from coderetrx.utils.path import get_data_dir
+from coderetrx.utils.path import get_data_dir, get_repo_path
 from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
 from typing import Any
 from abc import abstractmethod
@@ -23,10 +23,9 @@ class BaseTool:
         logger.info(f"Init base repo tool {self.name} with uuid: {uuid} ...")
 
         self.repo_url = repo_url
+        self.repo_id = get_repo_id(repo_url)
         self.uuid = uuid
-
-        repo_id = get_repo_id(repo_url)
-        self.repo_path = get_data_dir() / "repos" / repo_id
+        self.repo_path = get_repo_path(repo_url) 
 
         clone_repo_if_not_exists(repo_url, str(self.repo_path))
 

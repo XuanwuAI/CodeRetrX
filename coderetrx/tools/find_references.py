@@ -117,11 +117,4 @@ class GetReferenceTool(BaseTool):
             )
             results.append(search_result)
 
-        return results 
-
-
-if __name__ == "__main__":
-    # Example usage
-    tool = GetReferenceTool("https://github.com/apache/flink.git")
-    result = asyncio.run(tool._run(symbol_name="upload"))
-    print(result)
+        return results

@@ -196,11 +196,4 @@ class ListDirTool(BaseTool):
             else:
                 break
 
-        return results 
-
-
-if __name__ == "__main__":
-    # Example usage
-    tool = ListDirTool("https://github.com/apache/flink.git")
-    result = asyncio.run(tool._run(directory_path="."))
-    print(result)
+        return results

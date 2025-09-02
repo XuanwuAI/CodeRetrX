@@ -178,18 +178,4 @@ class KeywordSearchTool(BaseTool):
             )
             results.append(search_result)
 
-        return results 
-
-
-if __name__ == "__main__":
-    # Example usage
-    tool = KeywordSearchTool("https://github.com/apache/flink.git")
-    result = asyncio.run(
-        tool._run(
-            query="README",
-            dir_path="/",
-            case_insensitive=False,
-            include_content=False,
-        )
-    )
-    print(result)
+        return results
