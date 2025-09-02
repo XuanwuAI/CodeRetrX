@@ -1,4 +1,5 @@
 from pathlib import Path
+from coderetrx.utils.git import get_repo_id
 import os
 
 
@@ -12,6 +13,9 @@ def get_data_dir():
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
 
+def get_repo_path(repo_url):
+    repo_path = get_data_dir() / "repos" / get_repo_id(repo_url)
+    return repo_path
 
 def get_cache_dir():
     cache_dir = os.getenv("CACHE_DIR")

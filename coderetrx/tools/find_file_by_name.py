@@ -76,11 +76,4 @@ class FindFileByNameTool(BaseTool):
             file_type = self._get_file_type(str(full_file_path))
             results.append(FindFileByNameResult(path=file_path, type=file_type))
 
-        return results 
-
-
-if __name__ == "__main__":
-    # Example usage
-    tool = FindFileByNameTool("https://github.com/apache/flink.git")
-    results = asyncio.run(tool._run(dir_path="/", pattern="*.md"))
-    print(results)
+        return results
