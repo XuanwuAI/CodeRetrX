@@ -1,6 +1,7 @@
 from coderetrx.utils.path import get_cache_dir
 
 import asyncio
+import tiktoken
 import json
 import logging
 import os
@@ -52,7 +53,6 @@ class LLMSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8", env_file=".env", extra="allow"
     )
-    
     # OpenAI Configuration
     openai_base_url: str = Field(
         default="https://openrouter.ai/api/v1",
@@ -342,9 +342,9 @@ async def call_llm_with_fallback(
     # Use default model IDs if none provided
     if model_ids is None:
         from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
-        settings = SmartCodebaseSettings()
-        default_model = settings.default_model_id
-        fallback_model = settings.llm_fallback_model_id or "openai/gpt-4.1-mini"
+        codebase_settings = SmartCodebaseSettings()
+        default_model = codebase_settings.default_model_id
+        fallback_model = codebase_settings.llm_fallback_model_id or "openai/gpt-4.1-mini"
         model_ids = [default_model, fallback_model]
 
     def _validate_list_output(output: Any, item_model: Type[T]) -> List[T]:
@@ -533,9 +533,9 @@ async def call_llm_with_function_call(
     # Use default model IDs if none provided
     if model_ids is None:
         from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
-        settings = SmartCodebaseSettings()
-        default_model = settings.default_model_id
-        fallback_model = settings.llm_fallback_model_id or "openai/gpt-4.1-mini"
+        codebase_settings = SmartCodebaseSettings()
+        default_model = codebase_settings.default_model_id
+        fallback_model = codebase_settings.llm_fallback_model_id or "openai/gpt-4.1-mini"
         model_ids = [default_model, fallback_model]
     
     model_id = model_ids[attempt - 1] if attempt <= len(model_ids) else "unknown"
@@ -631,3 +631,8 @@ async def call_llm_with_function_call(
             )
         else:
             raise
+
+def count_tokens_openai(text, model="gpt-4"):
+    encoding = tiktoken.encoding_for_model(model)
+    tokens = encoding.encode(text)
+    return len(tokens)

@@ -23,3 +23,13 @@ def get_cache_dir():
     (cache_dir / "embedding").mkdir(parents=True, exist_ok=True)
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir
+
+def safe_join(path1: str | Path, path2: str | Path) -> Path:
+    if isinstance(path1, str):
+        path1 = Path(path1)
+    if isinstance(path2, str):
+        path2 = Path(path2)
+    result = path1 / path2
+    if not result.is_relative_to(path1):
+        raise ValueError(f"Path {path2} is not relative to the base directory {path1}")
+    return result
