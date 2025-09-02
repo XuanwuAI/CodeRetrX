@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseTool:
-    """Base class for smolagents tools that work with repositories."""
+    """Base class for tools that work with repositories."""
 
     name: str
     description: str
