@@ -4,7 +4,7 @@ This module contains tools exposed by mcp server.
 
 from .base import BaseTool
 from .find_file_by_name import FindFileByNameTool
-from .find_references import GetReferenceTool
+from .get_references import GetReferenceTool
 from .keyword_search import KeywordSearchTool
 from .list_dir import ListDirTool
 from .view_file import ViewFileTool

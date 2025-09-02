@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from coderetrx.tools.find_references import GetReferenceTool
+from coderetrx.tools.get_references import GetReferenceTool
 from coderetrx.tools.view_file import ViewFileTool
 from coderetrx.tools.find_file_by_name import FindFileByNameTool
 from coderetrx.tools.keyword_search import KeywordSearchTool
