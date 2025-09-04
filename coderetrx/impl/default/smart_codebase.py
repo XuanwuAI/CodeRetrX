@@ -1,3 +1,4 @@
+
 # Compatibility import stub for backwards compatibility
 # SmartCodebase has been moved to coderetrx.retrieval.smart_codebase
 # Will be removed in future versions
