@@ -41,6 +41,7 @@ try:
         Filter,
         FieldCondition,
         MatchValue,
+        HnswConfigDiff,
     )
 
     QDRANT_AVAILABLE = True
@@ -97,6 +98,12 @@ class EmbeddingSettings(BaseSettings):
         description="Proxy URL for HTTP requests, support socks5 and http(s) proxies",
         alias="EMBEDDING_PROXY",
     )
+    embedding_dimension: int = Field(
+        default=1024,
+        description="Dimensionality of the embedding vectors",
+        alias="EMBEDDING_DIMENSION"
+    )
+
 
     def get_httpx_client(self) -> AsyncClient:
         if self.proxy:
@@ -380,6 +387,7 @@ class SimilaritySearcher(ABC):
         embeddings: Optional[List[List[float]]] = None,
         metadatas: Optional[List[dict]] = None,
         vector_db_mode: str = "reuse_on_match",
+        hnsw_m: Optional[int] = None,
     ) -> None:
         """
         Initialize the SimilaritySearcher.
@@ -466,13 +474,16 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
         embeddings: Optional[List[List[float]]] = None,
         metadatas: Optional[List[dict]] = None,
         vector_db_mode: str = "reuse_on_match",
+        hnsw_m: Optional[int] = None,
     ) -> None:
+        if not hnsw_m:
+            hnsw_m = 1024
         super().__init__(name, texts, embeddings, metadatas, vector_db_mode)
         self.content_type = determine_content_type(name)
-        self._initialize_vector_store(embeddings)
+        self._initialize_vector_store(embeddings, hnsw_m)
 
     def _initialize_vector_store(
-        self, embeddings: Optional[List[List[float]]]
+        self, embeddings: Optional[List[List[float]]], hnsw_m: int
     ) -> None:
         """Initialize the ChromaDB vector store."""
         if not CHROMADB_AVAILABLE:
@@ -503,7 +514,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
                 )
                 self.chromadb_client.delete_collection(self.name)
                 self.collection = self.chromadb_client.create_collection(
-                    name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": 1024}
+                    name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": hnsw_m}
                 )
                 collection_exists = False
             elif collection_count != len(self.texts):
@@ -512,7 +523,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
                 )
                 self.chromadb_client.delete_collection(self.name)
                 self.collection = self.chromadb_client.create_collection(
-                    name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": 1024}
+                    name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": hnsw_m}
                 )
                 collection_exists = False
             else:
@@ -522,7 +533,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
         except Exception:
             logger.info(f"Creating new ChromaDB collection: '{self.name}'")
             self.collection = self.chromadb_client.create_collection(
-                name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": 1024}
+                name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": hnsw_m}
             )
             collection_exists = False
 
@@ -683,7 +694,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         embeddings: Optional[List[List[float]]] = None,
         metadatas: Optional[List[dict]] = None,
         vector_db_mode: str = "reuse_on_match",
-        vector_size: int = 3072,
+        hnsw_m: Optional[int] = None
     ) -> None:
         """
         Initialize the QdrantSimilaritySearcher.
@@ -700,16 +711,17 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             raise ImportError(
                 "Qdrant dependencies not available. Install with: pip install qdrant-client"
             )
-
+        if not hnsw_m:
+            hnsw_m = 16
         super().__init__(name, texts, embeddings, metadatas, vector_db_mode)
-        self.vector_size = vector_size
+        self.vector_size = get_embedding_settings().embedding_dimension
         self.content_type = determine_content_type(name)
 
         # Initialize Qdrant clients
         self._init_clients()
 
         # Initialize collection
-        self._init_collection()
+        self._init_collection(hnsw_m)
 
         # Add texts based on vector_db_mode
         should_add_texts = (
@@ -744,7 +756,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             limits=connection_limits,
         )
 
-    def _init_collection(self):
+    def _init_collection(self, hnsw_m: int):
         """Initialize or create Qdrant collection."""
         try:
             collection_count = self.qdrant_client.count(collection_name=self.name).count
@@ -758,13 +770,13 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
                     f"Recreating Qdrant collection '{self.name}' - never_reuse mode"
                 )
                 self.qdrant_client.delete_collection(self.name)
-                self._create_collection()
+                self._create_collection(hnsw_m)
             elif collection_count != len(self.texts):
                 logger.info(
                     f"Collection '{self.name}' exists but has {collection_count} documents instead of {len(self.texts)}. Recreating collection."
                 )
                 self.qdrant_client.delete_collection(self.name)
-                self._create_collection()
+                self._create_collection(hnsw_m)
             else:
                 logger.info(
                     f"Using cached {self.content_type} from Qdrant collection '{self.name}' ({collection_count} items)"
@@ -772,15 +784,18 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
 
         except Exception:
             logger.info(f"Creating new Qdrant collection: '{self.name}'")
-            self._create_collection()
+            self._create_collection(hnsw_m)
 
-    def _create_collection(self):
+    def _create_collection(self, hnsw_m: int):
         """Create a new Qdrant collection."""
         self.qdrant_client.create_collection(
             collection_name=self.name,
             vectors_config=VectorParams(
                 size=self.vector_size, distance=Distance.COSINE
             ),
+            hnsw_config = HnswConfigDiff(
+                m=hnsw_m,
+            )
         )
 
     def _get_collection_count(self) -> int:
@@ -879,7 +894,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
                     second_texts, second_embeddings, second_metadatas, start_idx + mid
                 )
             else:
-                print("Retrying...")
+                logger.warning(f"Retrying due to {e}...")
                 raise
 
     @similarity_search_retry
@@ -999,6 +1014,7 @@ def get_similarity_searcher(
     embeddings: Optional[List[List[float]]] = None,
     metadatas: Optional[List[dict]] = None,
     vector_db_mode: str = "reuse_on_match",
+    hnsw_m: Optional[int] = None,
 ) -> SimilaritySearcher:
     """
     Factory function to create similarity searcher instances based on provider.
@@ -1024,6 +1040,7 @@ def get_similarity_searcher(
             embeddings=embeddings,
             metadatas=metadatas,
             vector_db_mode=vector_db_mode,
+            hnsw_m=hnsw_m,
         )
     elif provider.lower() == "qdrant":
         return QdrantSimilaritySearcher(
@@ -1032,6 +1049,7 @@ def get_similarity_searcher(
             embeddings=embeddings,
             metadatas=metadatas,
             vector_db_mode=vector_db_mode,
+            hnsw_m=hnsw_m,
         )
     else:
         raise ValueError(f"Unsupported vector database provider: {provider}")

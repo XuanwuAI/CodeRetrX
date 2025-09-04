@@ -1,6 +1,6 @@
 [project]
 name = "coderetrx"
-version = "0.1.17"
+version = "0.1.18"
 description = "Library for Code Analysis via Static Analysis and LLMs"
 readme = "README.md"
 requires-python = ">=3.12"
