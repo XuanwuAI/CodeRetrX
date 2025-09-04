@@ -9,11 +9,14 @@ from .strategy import (
 )
 from .smart_codebase import (
     SmartCodebase,
+    SmartCodebaseSettings,
     LLMMapFilterTargetType,
     SimilaritySearchTargetType,
     LLMCallMode,
+    CodeMapFilterResult,
 )
 from .topic_extractor import TopicExtractor
+from .factory import CodebaseFactory
 
 __all__ = [
     "coderetrx_filter",
@@ -22,8 +25,11 @@ __all__ = [
     "llm_traversal_mapping",
     "RecallStrategy",
     "SmartCodebase",
+    "SmartCodebaseSettings",
     "LLMMapFilterTargetType",
     "SimilaritySearchTargetType",
     "LLMCallMode",
+    "CodeMapFilterResult",
     "TopicExtractor",
+    "CodebaseFactory",
 ]

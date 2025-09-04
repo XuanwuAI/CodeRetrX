@@ -51,7 +51,7 @@ try:
 except ImportError:
     QDRANT_AVAILABLE = False
 try:
-    import chromadb
+    import chromadb #type:ignore
 
     CHROMADB_AVAILABLE = True
 except ImportError:
@@ -902,7 +902,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             # Extract content and scores from results
             results = []
             for point in search_result:
-                content = point.payload.get("content", "")
+                content = point.payload.get("content", "") #type: ignore
                 score = point.score
                 results.append((content, score))
             return results
