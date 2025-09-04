@@ -12,9 +12,9 @@ from coderetrx.retrieval.smart_codebase import (
 from attrs import define, field
 from coderetrx.utils.embedding import (
     embed_batch_with_retry,
-    SimilaritySearcher,
     embedding_settings
 )
+from coderetrx.utils.similarity_searcher import SimilaritySearcher
 import logging
 from pathlib import Path
 from tqdm.asyncio import tqdm

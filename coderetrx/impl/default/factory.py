@@ -6,7 +6,7 @@ from pydantic import Field
 
 from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
 from coderetrx.utils.llm import LLMSettings
-from coderetrx.utils.embedding import get_similarity_searcher
+from coderetrx.utils.similarity_searcher import get_similarity_searcher
 from coderetrx.static.codebase import Codebase
 from .smart_codebase import SmartCodebase
 
@@ -18,7 +18,12 @@ logger = logging.getLogger(__name__)
 @define
 class CodebaseFactory:
     @classmethod
-    def from_json(cls, data: dict, settings: SmartCodebaseSettings = SmartCodebaseSettings(), languages: Optional[List] = None) -> SmartCodebase:
+    def from_json(
+        cls,
+        data: dict,
+        settings: SmartCodebaseSettings = SmartCodebaseSettings(),
+        languages: Optional[List] = None,
+    ) -> SmartCodebase:
         assert isinstance(data, dict)
         codebase = Codebase.from_json(data, languages=languages)
         smart_codebase = SmartCodebase(
@@ -36,9 +41,18 @@ class CodebaseFactory:
         return smart_codebase
 
     @classmethod
-    def new(cls, id: str, dir: Path, settings: Optional[SmartCodebaseSettings] = None, llm_settings: Optional[LLMSettings] = None, languages: Optional[List] = None) -> SmartCodebase:
+    def new(
+        cls,
+        id: str,
+        dir: Path,
+        settings: Optional[SmartCodebaseSettings] = None,
+        llm_settings: Optional[LLMSettings] = None,
+        languages: Optional[List] = None,
+    ) -> SmartCodebase:
         settings = settings or SmartCodebaseSettings()
-        smart_codebase = SmartCodebase.new(id, dir, settings=settings, llm_settings=llm_settings, languages=languages)
+        smart_codebase = SmartCodebase.new(
+            id, dir, settings=settings, llm_settings=llm_settings, languages=languages
+        )
         smart_codebase.init_all()
         cls._initialize_similarity_searchers(smart_codebase, settings)
         return smart_codebase
@@ -91,8 +105,10 @@ class CodebaseFactory:
                         "symbol_name": symbol.name,
                         "symbol_type": symbol.type,
                         "symbol_file_path": symbol.file.path,
-                        "chunk_type": symbol.chunk.type
-                    } for symbol in codebase.symbols if symbol.chunk
+                        "chunk_type": symbol.chunk.type,
+                    }
+                    for symbol in codebase.symbols
+                    if symbol.chunk
                 ]
                 logger.info(
                     f"Initializing symbol content similarity searcher with {len(symbol_contents)} symbol contents"
@@ -102,6 +118,12 @@ class CodebaseFactory:
                     name=f"{codebase.id}_symbol_contents",
                     texts=symbol_contents,
                     metadatas=metadatas,
+                    indexed_metadata_fields=[
+                        "symbol_id",
+                        "symbol_name",
+                        "symbol_type",
+                        "symbol_file_path",
+                    ],
                     vector_db_mode=settings.vector_db_mode,
                 )
                 logger.info(
@@ -132,7 +154,9 @@ class CodebaseFactory:
                 )
                 logger.info("Keyword similarity searcher initialized successfully")
             except Exception as e:
-                logger.fatal(f"Failed to initialize keyword similarity searcher: {repr(e)}")
+                logger.fatal(
+                    f"Failed to initialize keyword similarity searcher: {repr(e)}"
+                )
         else:
             logger.info(
                 "Keyword embeddings feature is not enabled (KEYWORD_EMBEDDING not set), keyword searcher not initialized"
@@ -141,7 +165,9 @@ class CodebaseFactory:
             # Collect all lines from all symbols with metadata
             all_lines = []
             all_metadatas = []
-            for line in codebase.get_all_lines(max_chars=settings.symbol_codeline_embedding_maxchars):
+            for line in codebase.get_all_lines(
+                max_chars=settings.symbol_codeline_embedding_maxchars
+            ):
                 if settings.vector_db_provider == "chroma":
                     # For Chroma, create separate entries for each symbol_id
                     for symbol_id in line.symbol_ids:
@@ -152,20 +178,27 @@ class CodebaseFactory:
                 else:
                     all_lines.append(line.content)
                     all_metadatas.append(line.model_dump(mode="json"))
-            
+
             # Create single collection for all lines with metadata
             if all_lines:
                 try:
-                    logger.info(f"Creating unified codeline searcher with {len(all_lines)} total lines")
+                    logger.info(
+                        f"Creating unified codeline searcher with {len(all_lines)} total lines"
+                    )
                     codebase.codeline_searcher = get_similarity_searcher(
                         provider=settings.vector_db_provider,
                         name=f"{codebase.id}_symbol_codelines",
                         texts=all_lines,
                         metadatas=all_metadatas,
+                        indexed_metadata_fields=["symbol_ids", "file_path"],
                         vector_db_mode=settings.vector_db_mode,
-                        hnsw_m=0
+                        hnsw_m=0,
                     )
-                    logger.info("Unified symbol codeline searcher initialized successfully")
+                    logger.info(
+                        "Unified symbol codeline searcher initialized successfully"
+                    )
                 except Exception as e:
-                    logger.fatal(f"Failed to initialize unified symbol codeline searcher: {repr(e)}")
+                    logger.fatal(
+                        f"Failed to initialize unified symbol codeline searcher: {repr(e)}"
+                    )
                     raise e

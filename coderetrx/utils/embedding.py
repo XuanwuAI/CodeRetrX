@@ -31,28 +31,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Qdrant imports (conditional import to handle optional dependency)
-try:
-    from qdrant_client import QdrantClient, AsyncQdrantClient
-    from qdrant_client.models import (
-        Distance,
-        VectorParams,
-        PointStruct,
-        Filter,
-        FieldCondition,
-        MatchValue,
-        HnswConfigDiff,
-    )
-
-    QDRANT_AVAILABLE = True
-except ImportError:
-    QDRANT_AVAILABLE = False
-try:
-    import chromadb
-    CHROMADB_AVAILABLE = True
-except ImportError:
-    CHROMADB_AVAILABLE = False
-
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +38,30 @@ cache_path = get_cache_dir()
 
 
 class EmbeddingSettings(BaseSettings):
-    """Settings for embedding configuration."""
+    """Configuration settings for text embedding operations.
+
+    This class manages all configuration parameters for embedding generation,
+    including API settings, performance tuning, and caching behavior.
+    Settings can be loaded from environment variables or .env files.
+
+    Attributes:
+        model_id: The embedding model identifier (e.g., 'text-embedding-3-large').
+        base_url: Base URL for the embedding API endpoint.
+        api_key: Authentication key for the embedding service.
+        batch_size: Number of texts to process in a single API request.
+        max_concurrency: Maximum number of concurrent embedding requests.
+        max_trunc_chars: Maximum characters per text before truncation (-1 to disable).
+        proxy: Optional proxy URL for HTTP requests (supports socks5 and http(s)).
+        embedding_dimension: Dimensionality of the generated embedding vectors.
+
+    Example:
+        >>> settings = EmbeddingSettings(
+        ...     model_id="text-embedding-3-small",
+        ...     batch_size=50,
+        ...     max_concurrency=10
+        ... )
+        >>> set_embedding_settings(settings)
+    """
 
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8", env_file=".env", extra="allow"
@@ -101,11 +102,19 @@ class EmbeddingSettings(BaseSettings):
     embedding_dimension: int = Field(
         default=1024,
         description="Dimensionality of the embedding vectors",
-        alias="EMBEDDING_DIMENSION"
+        alias="EMBEDDING_DIMENSION",
     )
 
-
     def get_httpx_client(self) -> AsyncClient:
+        """Create an async HTTP client with optional proxy configuration.
+
+        Returns:
+            AsyncClient: Configured HTTP client for making API requests.
+
+        Example:
+            >>> settings = EmbeddingSettings(proxy="http://proxy.example.com:8080")
+            >>> client = settings.get_httpx_client()
+        """
         if self.proxy:
             return AsyncClient(proxy=self.proxy)
         return AsyncClient()
@@ -116,21 +125,28 @@ embedding_settings = EmbeddingSettings()
 
 
 def get_embedding_settings() -> EmbeddingSettings:
-    """
-    Get the global embedding settings.
+    """Get the global embedding settings instance.
 
     Returns:
-        EmbeddingSettings instance with current configuration.
+        EmbeddingSettings: The current global embedding configuration.
+
+    Example:
+        >>> settings = get_embedding_settings()
+        >>> print(settings.model_id)
+        'text-embedding-3-large'
     """
     return embedding_settings
 
 
 def set_embedding_settings(settings: EmbeddingSettings) -> None:
-    """
-    Set the global embedding settings.
+    """Set the global embedding settings.
 
     Args:
         settings: EmbeddingSettings instance with new configuration.
+
+    Example:
+        >>> new_settings = EmbeddingSettings(batch_size=50)
+        >>> set_embedding_settings(new_settings)
     """
     global embedding_settings
     embedding_settings = settings
@@ -138,40 +154,57 @@ def set_embedding_settings(settings: EmbeddingSettings) -> None:
 
 
 def truncate_text(text: str, max_chars: int) -> str:
-    """
-    Truncate text to a maximum number of characters.
-    
+    """Truncate text to a maximum number of characters.
+
     Args:
         text: The input text to truncate.
         max_chars: Maximum number of characters to keep. Use -1 to disable truncation.
-        
+
     Returns:
-        Truncated text or original text if max_chars is -1.
+        str: Truncated text or original text if max_chars is -1.
+
+    Example:
+        >>> truncate_text("Hello world", 5)
+        'Hello'
+        >>> truncate_text("Hello world", -1)
+        'Hello world'
     """
     if max_chars == -1:
         return text
     return text[:max_chars]
 
 
-async def _create_embeddings_with_cache(
+async def create_embeddings_with_cache(
     texts: List[str], settings: Optional[EmbeddingSettings] = None
 ) -> List[List[float]]:
-    """
-    Create embeddings for texts using OpenAI API with individual text caching.
+    """Create embeddings for texts using OpenAI API with individual text caching.
+
+    This function implements intelligent caching at the individual text level,
+    checking cache for each text separately and only making API calls for
+    uncached texts. This maximizes cache efficiency and minimizes API costs.
 
     Args:
-        texts: List of texts to embed
-        settings: Optional embedding settings, defaults to global settings
+        texts: List of texts to embed.
+        settings: Optional embedding settings, defaults to global settings.
 
     Returns:
-        List of embedding vectors
+        List[List[float]]: List of embedding vectors corresponding to input texts.
+
+    Raises:
+        Exception: If API call fails after retries or if there are authentication issues.
+
+    Example:
+        >>> texts = ["Hello world", "How are you?"]
+        >>> embeddings = await _create_embeddings_with_cache(texts)
+        >>> len(embeddings)
+        2
     """
     if settings is None:
         settings = embedding_settings
-        
+
     # Truncate texts based on max_trunc_chars setting
     truncated_texts = [truncate_text(text, settings.max_trunc_chars) for text in texts]
-    
+
     cache_settings = SqliteCacheSettings(
         SQLITE_DB_PATH=str(get_cache_dir() / "embedding" / "cache.db"),
     )
@@ -272,9 +305,25 @@ async def _create_embeddings_with_cache(
             logger.warning(f"Error closing embedding client: {close_error}")
 
 
-# Common retry decorator for similarity search operations
 def similarity_search_retry(func):
-    """Decorator for retry logic on similarity search operations."""
+    """Decorator for retry logic on similarity search operations.
+
+    Applies exponential backoff retry strategy to handle transient failures
+    in similarity search operations, such as network timeouts or temporary
+    database unavailability.
+
+    Args:
+        func: The async function to decorate with retry logic.
+
+    Returns:
+        Decorated function with retry capabilities.
+
+    Example:
+        >>> @similarity_search_retry
+        ... async def search_function():
+        ...     # Function that might fail transiently
+        ...     pass
+    """
 
     @retry(
         stop=stop_after_attempt(5),
@@ -288,7 +337,6 @@ def similarity_search_retry(func):
     return wrapper
 
 
-# Define a retry-decorated function for embedding documents
 @retry(
     stop=stop_after_attempt(5),  # Retry up to 5 times
     wait=wait_exponential(
@@ -297,10 +345,30 @@ def similarity_search_retry(func):
     retry=retry_if_exception_type(Exception),  # Retry only if an exception is raised
 )
 async def embed_batch_with_retry(batch: List[str]) -> List[List[float]]:
-    """Embed a batch of documents with retry logic."""
+    """Embed a batch of documents with retry logic.
+
+    This function processes a batch of texts through the embedding pipeline
+    with automatic retry on failures. It's designed to be used in concurrent
+    processing scenarios where individual batches might fail due to transient issues.
+
+    Args:
+        batch: List of text strings to embed.
+
+    Returns:
+        List[List[float]]: List of embedding vectors for the input batch.
+
+    Raises:
+        Exception: If all retry attempts are exhausted.
+
+    Example:
+        >>> batch = ["text1", "text2", "text3"]
+        >>> embeddings = await embed_batch_with_retry(batch)
+        >>> len(embeddings) == len(batch)
+        True
+    """
     try:
         logger.debug(f"Embedding batch of {len(batch)} documents")
-        return await _create_embeddings_with_cache(batch)
+        return await create_embeddings_with_cache(batch)
     except Exception as e:
         logger.warning(
             f"Embedding batch failed, will retry: {str(e)}, batch is {batch}"
@@ -311,7 +379,31 @@ async def embed_batch_with_retry(batch: List[str]) -> List[List[float]]:
 def create_documents_embedding(
     docs: List[str], batch_size: int = 100, max_concurrency: int = 5
 ) -> List[List[float]]:
-    """Create embeddings for a list of documents with batching and concurrency."""
+    """Create embeddings for a list of documents with batching and concurrency.
+
+    This function efficiently processes large document collections by:
+    1. Splitting documents into manageable batches
+    2. Processing batches concurrently with configurable limits
+    3. Applying retry logic for robust operation
+    4. Flattening results into a single list
+
+    Args:
+        docs: List of document strings to embed.
+        batch_size: Number of documents to process in each batch.
+        max_concurrency: Maximum number of concurrent batch operations.
+
+    Returns:
+        List[List[float]]: List of embedding vectors, one per input document.
+
+    Raises:
+        Exception: If embedding process fails after retries.
+
+    Example:
+        >>> docs = ["doc1", "doc2", "doc3", "doc4"]
+        >>> embeddings = create_documents_embedding(docs, batch_size=2, max_concurrency=2)
+        >>> len(embeddings) == len(docs)
+        True
+    """
     # Prepare batches
     kwargs_list = [
         {"batch": docs[i : i + batch_size]} for i in range(0, len(docs), batch_size)
@@ -340,716 +432,3 @@ def create_documents_embedding(
         logger.error(f"Failed to embed documents: {str(e)}", exc_info=True)
         raise  # Re-raise the exception for the caller to handle
 
-
-def determine_content_type(name: str) -> str:
-    """Determine content type based on collection name."""
-    if "symbol_names" in name:
-        return "symbol names"
-    elif "symbol_contents" in name:
-        return "symbol contents"
-    elif "symbol_codelines" in name:
-        return "code lines"
-    elif "keywords" in name:
-        return "keywords"
-    else:
-        return "documents"
-
-
-def process_search_results(results: List[Tuple[Any, float]]) -> List[Tuple[str, float]]:
-    """Process search results to extract page content and scores."""
-    return [(result[0].page_content, result[1]) for result in results]
-
-
-class SearchConfig(BaseModel):
-    """Configuration for similarity search operations."""
-
-    k: int = 10
-    threshold: Optional[float] = None
-    where: Optional[Dict[str, Any]] = None
-
-
-class CollectionInfo(BaseModel):
-    """Information about a vector database collection."""
-
-    name: str
-    exists: bool
-    document_count: int
-    needs_recreation: bool = False
-
-
-class SimilaritySearcher(ABC):
-    """Abstract base class for similarity search implementations."""
-
-    def __init__(
-        self,
-        name: str,
-        texts: List[str],
-        embeddings: Optional[List[List[float]]] = None,
-        metadatas: Optional[List[dict]] = None,
-        vector_db_mode: str = "reuse_on_match",
-        hnsw_m: Optional[int] = None,
-    ) -> None:
-        """
-        Initialize the SimilaritySearcher.
-
-        Args:
-            name: Name of the collection.
-            texts: List of texts to be indexed.
-            embeddings: Optional precomputed embeddings corresponding to the texts.
-            metadatas: Optional metadata list corresponding to each text.
-            vector_db_mode: Vector DB reuse mode ("always_reuse", "never_reuse", "reuse_on_match")
-        """
-        self.texts = texts
-        self.name = name
-        self.vector_db_mode = vector_db_mode
-        self.metadatas = metadatas
-
-    @abstractmethod
-    async def asearch_with_score(
-        self,
-        query: str,
-        k: int = 10,
-        threshold: float = 0.0,
-        where: Optional[dict] = None,
-    ) -> List[Tuple[str, float]]:
-        """
-        Search for the most similar documents to the query.
-
-        Args:
-            query: Query string.
-            k: Number of top results to return.
-            threshold: Minimum score threshold.
-            where: Filter conditions.
-
-        Returns:
-            A list of tuples (document, score).
-        """
-        pass
-
-    @abstractmethod
-    async def asearch_by_vector(
-        self, query_vector: List[float], k: int = 10, where: Optional[dict] = None
-    ) -> List[Tuple[str, float]]:
-        """
-        Search for the most similar documents to the query vector.
-
-        Args:
-            query_vector: Query vector.
-            k: Number of top results to return.
-            where: Filter conditions.
-
-        Returns:
-            A list of tuples (document, score).
-        """
-        pass
-
-    def search_with_score(
-        self,
-        query: str,
-        k: int = 10,
-        threshold: float = 0.0,
-        where: Optional[dict] = None,
-    ):
-        """Synchronous wrapper for asearch_with_score."""
-        from coderetrx.utils.concurrency import run_coroutine_sync
-
-        return run_coroutine_sync(self.asearch_with_score(query, k, threshold, where))
-
-    def search_by_vector(
-        self, query_vector: List[float], k: int = 10, where: Optional[dict] = None
-    ):
-        """Synchronous wrapper for asearch_by_vector."""
-        from coderetrx.utils.concurrency import run_coroutine_sync
-
-        return run_coroutine_sync(self.asearch_by_vector(query_vector, k, where))
-
-
-class ChromaSimilaritySearcher(SimilaritySearcher):
-    """ChromaDB-based implementation of SimilaritySearcher without langchain dependencies."""
-
-    def __init__(
-        self,
-        name: str,
-        texts: List[str],
-        embeddings: Optional[List[List[float]]] = None,
-        metadatas: Optional[List[dict]] = None,
-        vector_db_mode: str = "reuse_on_match",
-        hnsw_m: Optional[int] = None,
-    ) -> None:
-        if not hnsw_m:
-            hnsw_m = 1024
-        super().__init__(name, texts, embeddings, metadatas, vector_db_mode)
-        self.content_type = determine_content_type(name)
-        self._initialize_vector_store(embeddings, hnsw_m)
-
-    def _initialize_vector_store(
-        self, embeddings: Optional[List[List[float]]], hnsw_m: int
-    ) -> None:
-        """Initialize the ChromaDB vector store."""
-        if not CHROMADB_AVAILABLE:
-            raise ImportError(
-                "ChromaDB dependencies not available. Install with: pip install chromadb"
-            )
-        # Initialize ChromaDB client
-        self.chromadb_client = chromadb.PersistentClient(
-            path=str(cache_path / "chroma")
-        )
-
-        # Check or create Chroma collection
-        collection_exists = False
-        collection_count = 0
-        
-        try:
-            self.collection = self.chromadb_client.get_collection(name=self.name)
-            collection_count = self.collection.count()
-            collection_exists = True
-            
-            if self.vector_db_mode == "always_reuse":
-                logger.debug(
-                    f"Using cached {self.content_type} from ChromaDB collection '{self.name}' ({collection_count} items) - always_reuse mode"
-                )
-            elif self.vector_db_mode == "never_reuse":
-                logger.info(
-                    f"Recreating ChromaDB collection '{self.name}' - never_reuse mode"
-                )
-                self.chromadb_client.delete_collection(self.name)
-                self.collection = self.chromadb_client.create_collection(
-                    name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": hnsw_m}
-                )
-                collection_exists = False
-            elif collection_count != len(self.texts):
-                logger.info(
-                    f"Collection '{self.name}' exists but has {collection_count} documents instead of {len(self.texts)}. Recreating collection."
-                )
-                self.chromadb_client.delete_collection(self.name)
-                self.collection = self.chromadb_client.create_collection(
-                    name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": hnsw_m}
-                )
-                collection_exists = False
-            else:
-                logger.debug(
-                    f"Using cached {self.content_type} from ChromaDB collection '{self.name}' ({collection_count} items)"
-                )
-        except Exception:
-            logger.info(f"Creating new ChromaDB collection: '{self.name}'")
-            self.collection = self.chromadb_client.create_collection(
-                name=self.name, metadata={"hnsw:space": "cosine", "hnsw:M": hnsw_m}
-            )
-            collection_exists = False
-
-        # Add texts and embeddings to collection based on vector_db_mode
-        should_add_texts = (
-            self.vector_db_mode == "never_reuse" or
-            not collection_exists or
-            (self.vector_db_mode == "reuse_on_match" and collection_count != len(self.texts))
-        )
-        
-        if should_add_texts:
-            self._add_texts_in_batches(self.texts, embeddings, self.metadatas)
-
-    def _validate_embeddings_match_texts(
-        self, texts: List[str], embeddings: List[List[float]]
-    ) -> None:
-        """Validate that embeddings match texts count."""
-        if len(texts) != len(embeddings):
-            raise ValueError("Number of texts must match number of embeddings")
-
-    def _validate_metadatas_match_texts(
-        self, texts: List[str], metadatas: List[dict]
-    ) -> None:
-        """Validate that metadatas match texts count."""
-        if len(texts) != len(metadatas):
-            raise ValueError("Number of texts must match number of metadatas")
-
-    def _add_texts_in_batches(
-        self,
-        texts: List[str],
-        embeddings: Optional[List[List[float]]] = None,
-        metadatas: Optional[List[dict]] = None,
-        batch_size: int = 1000,
-    ) -> None:
-        """Add texts to vector store in batches with progress tracking."""
-        logger.info(
-            f"Adding {len(texts)} documents to {self.__class__.__name__} collection '{self.name}'"
-        )
-
-        for idx in tqdm(
-            range(0, len(texts), batch_size),
-            desc=f"Adding {self.content_type} to {self.__class__.__name__.replace('SimilaritySearcher', '')}",
-        ):
-            text_batch = texts[idx : idx + batch_size]
-            metadata_batch = metadatas[idx : idx + batch_size] if metadatas else None
-
-            if embeddings:
-                embedding_batch = embeddings[idx : idx + batch_size]
-                self._add_texts_with_embeddings(
-                    text_batch, embedding_batch, metadata_batch, idx
-                )
-            else:
-                embedding_batch = create_documents_embedding(text_batch)
-                self._add_texts_with_embeddings(
-                    text_batch, embedding_batch, metadata_batch, idx
-                )
-
-    def _add_texts_with_embeddings(
-        self,
-        texts: List[str],
-        embeddings: List[List[float]],
-        metadatas: Optional[List[dict]] = None,
-        start_idx: int = 0,
-    ) -> None:
-        """Add texts with precomputed embeddings to the collection."""
-        self._validate_embeddings_match_texts(texts, embeddings)
-        if metadatas:
-            self._validate_metadatas_match_texts(texts, metadatas)
-
-        # Prepare data for ChromaDB
-        ids = [str(start_idx + i) for i in range(len(texts))]
-        documents = texts
-
-        # Add to ChromaDB collection
-        if metadatas:
-            self.collection.add(
-                ids=ids,
-                documents=documents,
-                embeddings=embeddings,  # type: ignore
-                metadatas=metadatas,  # type: ignore
-            )
-        else:
-            self.collection.add(
-                ids=ids, documents=documents, embeddings=embeddings  # type: ignore
-            )
-
-    @similarity_search_retry
-    async def asearch_with_score(
-        self,
-        query: str,
-        k: int = 10,
-        threshold: float = 0.0,
-        where: Optional[dict] = None,
-    ) -> List[Tuple[str, float]]:
-        """
-        Search for the most similar documents to the query.
-        """
-        logger.debug(
-            f"Performing similarity search in collection '{self.name}' with k={k}"
-        )
-
-        # Get query embedding
-        try:
-            query_embedding = await _create_embeddings_with_cache([query])
-            query_vector = query_embedding[0]
-        except Exception as e:
-            logger.error(f"Error creating embedding for query '{query}': {repr(e)}")
-            return []
-        # Perform search using ChromaDB
-        return await self.asearch_by_vector(query_vector=query_vector, k=k, where=where)
-
-    @similarity_search_retry
-    async def asearch_by_vector(
-        self, query_vector: List[float], k: int = 10, where: Optional[dict] = None
-    ) -> List[Tuple[str, float]]:
-        """
-        Search for the most similar documents to the query vector.
-        """
-        logger.debug(
-            f"Performing vector similarity search in collection '{self.name}' with k={k}"
-        )
-
-        try:
-            # Perform search using ChromaDB
-            results = await asyncio.to_thread(
-                self.collection.query,
-                query_embeddings=[query_vector],
-                n_results=k,
-                where=where,
-                include=["documents", "distances"],
-            )
-
-            # Convert ChromaDB results to our format
-            search_results = []
-            if results and results.get("documents") and results.get("distances"):
-                documents = results["documents"][0] if results["documents"] else []
-                distances = results["distances"][0] if results["distances"] else []
-
-                for doc, distance in zip(documents, distances):
-                    # Convert distance to similarity score (1 - distance for cosine)
-                    score = 1.0 - distance
-                    search_results.append((doc, score))
-
-            return search_results
-
-        except Exception as e:
-            logger.error(f"Error during vector similarity search: {repr(e)}")
-            return []
-
-
-class QdrantSimilaritySearcher(SimilaritySearcher):
-    """High-performance Qdrant-based implementation using direct Qdrant API."""
-
-    def __init__(
-        self,
-        name: str,
-        texts: List[str],
-        embeddings: Optional[List[List[float]]] = None,
-        metadatas: Optional[List[dict]] = None,
-        vector_db_mode: str = "reuse_on_match",
-        hnsw_m: Optional[int] = None
-    ) -> None:
-        """
-        Initialize the QdrantSimilaritySearcher.
-
-        Args:
-            name: Name of the collection.
-            texts: List of texts to be indexed.
-            embeddings: Optional precomputed embeddings corresponding to the texts.
-            metadatas: Optional metadata list corresponding to each text.
-            vector_db_mode: Vector DB reuse mode ("always_reuse", "never_reuse", "reuse_on_match")
-            vector_size: Size of the vector embeddings.
-        """
-        if not QDRANT_AVAILABLE:
-            raise ImportError(
-                "Qdrant dependencies not available. Install with: pip install qdrant-client"
-            )
-        if not hnsw_m:
-            hnsw_m = 16
-        super().__init__(name, texts, embeddings, metadatas, vector_db_mode)
-        self.vector_size = get_embedding_settings().embedding_dimension
-        self.content_type = determine_content_type(name)
-
-        # Initialize Qdrant clients
-        self._init_clients()
-
-        # Initialize collection
-        self._init_collection(hnsw_m)
-
-        # Add texts based on vector_db_mode
-        should_add_texts = (
-            self.vector_db_mode == "never_reuse" or 
-            (self.vector_db_mode == "reuse_on_match" and self._get_collection_count() != len(texts))
-        )
-        if should_add_texts:
-            self._add_texts_to_collection(embeddings)
-
-    def _init_clients(self):
-        """Initialize Qdrant clients with connection pooling."""
-        QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
-        QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
-        logger.info(f"Connecting to Qdrant at {QDRANT_HOST}:{QDRANT_PORT}")
-        connection_limits = httpx.Limits(
-            max_connections=50,
-            max_keepalive_connections=20,
-            keepalive_expiry=30.0,
-        )
-
-        self.qdrant_client = QdrantClient(
-            host=QDRANT_HOST,
-            port=QDRANT_PORT,
-            timeout=30,
-            limits=connection_limits,
-        )
-
-        self.async_qdrant_client = AsyncQdrantClient(
-            host=QDRANT_HOST,
-            port=QDRANT_PORT,
-            timeout=30,
-            limits=connection_limits,
-        )
-
-    def _init_collection(self, hnsw_m: int):
-        """Initialize or create Qdrant collection."""
-        try:
-            collection_count = self.qdrant_client.count(collection_name=self.name).count
-
-            if self.vector_db_mode == "always_reuse":
-                logger.debug(
-                    f"Using cached {self.content_type} from Qdrant collection '{self.name}' ({collection_count} items) - always_reuse mode"
-                )
-            elif self.vector_db_mode == "never_reuse":
-                logger.info(
-                    f"Recreating Qdrant collection '{self.name}' - never_reuse mode"
-                )
-                self.qdrant_client.delete_collection(self.name)
-                self._create_collection(hnsw_m)
-            elif collection_count != len(self.texts):
-                logger.info(
-                    f"Collection '{self.name}' exists but has {collection_count} documents instead of {len(self.texts)}. Recreating collection."
-                )
-                self.qdrant_client.delete_collection(self.name)
-                self._create_collection(hnsw_m)
-            else:
-                logger.info(
-                    f"Using cached {self.content_type} from Qdrant collection '{self.name}' ({collection_count} items)"
-                )
-
-        except Exception:
-            logger.info(f"Creating new Qdrant collection: '{self.name}'")
-            self._create_collection(hnsw_m)
-
-    def _create_collection(self, hnsw_m: int):
-        """Create a new Qdrant collection."""
-        self.qdrant_client.create_collection(
-            collection_name=self.name,
-            vectors_config=VectorParams(
-                size=self.vector_size, distance=Distance.COSINE
-            ),
-            hnsw_config = HnswConfigDiff(
-                m=hnsw_m,
-            )
-        )
-
-    def _get_collection_count(self) -> int:
-        """Get the number of documents in the collection."""
-        try:
-            return self.qdrant_client.count(collection_name=self.name).count
-        except:
-            return 0
-
-    def _add_texts_to_collection(self, embeddings: Optional[List[List[float]]] = None):
-        """Add texts and embeddings to the Qdrant collection."""
-        logger.info(
-            f"Adding {len(self.texts)} documents to Qdrant collection '{self.name}'"
-        )
-
-        # Calculate adaptive batch size based on content
-        avg_text_length = sum(len(text) for text in self.texts[:100]) / min(
-            100, len(self.texts)
-        )
-        estimated_point_size = avg_text_length + self.vector_size * 4 + 1000
-        max_payload_size = 30 * 1024 * 1024
-        batch_size = max(1, min(300, int(max_payload_size // estimated_point_size)))
-
-        logger.info(
-            f"Using adaptive batch size: {batch_size} (avg text length: {avg_text_length:.0f} chars)"
-        )
-
-        total_batches = (len(self.texts) + batch_size - 1) // batch_size
-
-        for batch_idx in tqdm(
-            range(total_batches), desc=f"Adding {self.content_type} to Qdrant"
-        ):
-            start_idx = batch_idx * batch_size
-            end_idx = min(start_idx + batch_size, len(self.texts))
-
-            text_batch = self.texts[start_idx:end_idx]
-            metadata_batch = (
-                self.metadatas[start_idx:end_idx] if self.metadatas else None
-            )
-
-            if embeddings:
-                embedding_batch = embeddings[start_idx:end_idx]
-            else:
-                embedding_batch = create_documents_embedding(text_batch)
-
-            self._add_batch_to_qdrant(
-                text_batch, embedding_batch, metadata_batch, start_idx
-            )
-            
-    @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_exponential(
-            min=30, max=600
-        ),
-        retry=retry_if_exception_type(Exception),
-    )
-    def _add_batch_to_qdrant(
-        self,
-        texts: List[str],
-        embeddings: List[List[float]],
-        metadatas: Optional[List[dict]] = None,
-        start_idx: int = 0,
-    ):
-        """Add a batch of texts with embeddings to Qdrant."""
-        points = []
-
-        for i, (text, embedding) in enumerate(zip(texts, embeddings)):
-            payload = {"content": text}
-            if metadatas and i < len(metadatas):
-                payload.update(metadatas[i])
-
-            points.append(
-                PointStruct(id=start_idx + i, vector=embedding, payload=payload)
-            )
-
-        try:
-            self.qdrant_client.upsert(collection_name=self.name, points=points)
-        except Exception as e:
-            if "larger than allowed" in str(e) and len(points) > 1:
-                logger.warning(
-                    f"Batch too large ({len(points)} points), splitting into smaller batches"
-                )
-                mid = len(points) // 2
-
-                first_texts = texts[:mid]
-                first_embeddings = embeddings[:mid]
-                first_metadatas = metadatas[:mid] if metadatas else None
-                self._add_batch_to_qdrant(
-                    first_texts, first_embeddings, first_metadatas, start_idx
-                )
-
-                second_texts = texts[mid:]
-                second_embeddings = embeddings[mid:]
-                second_metadatas = metadatas[mid:] if metadatas else None
-                self._add_batch_to_qdrant(
-                    second_texts, second_embeddings, second_metadatas, start_idx + mid
-                )
-            else:
-                logger.warning(f"Retrying due to {e}...")
-                raise
-
-    @similarity_search_retry
-    async def asearch_with_score(
-        self,
-        query: str,
-        k: int = 10,
-        threshold: float = 0.0,
-        where: Optional[dict] = None,
-    ) -> List[Tuple[str, float]]:
-        """
-        Search for the most similar documents to the query.
-        """
-        logger.info(
-            f"Performing similarity search in collection '{self.name}' with k={k}"
-        )
-
-        try:
-            # Get query embedding
-            query_embedding = await _create_embeddings_with_cache([query])
-            query_vector = query_embedding[0]
-
-            # Build filter if provided
-            query_filter = None
-            if where:
-                logger.debug(f"Applying filter: {where}")
-                query_filter = self._build_filter(where)
-
-            # Perform search
-            search_result = await self.async_qdrant_client.search(
-                collection_name=self.name,
-                query_vector=query_vector,
-                limit=k,
-                score_threshold=threshold,
-                query_filter=query_filter,
-            )
-
-            # Format results
-            results = []
-            for point in search_result:
-                content = point.payload.get("content", "") if point.payload else ""
-                score = point.score
-                results.append((content, score))
-
-            return results
-
-        except Exception as e:
-            logger.error(f"Error during similarity search: {repr(e)}")
-            # Return empty results on connection failure instead of crashing
-            if "ConnectError" in str(e) or "ConnectTimeout" in str(e):
-                logger.warning(
-                    f"Connection error in search, returning empty results: {e}"
-                )
-                return []
-            raise
-
-    @similarity_search_retry
-    async def asearch_by_vector(
-        self, query_vector: List[float], k: int = 10, where: Optional[dict] = None
-    ) -> List[Tuple[str, float]]:
-        """
-        Search for the most similar documents to the query vector.
-        """
-        logger.debug(
-            f"Performing vector similarity search in collection '{self.name}' with k={k}"
-        )
-
-        # Build filter if provided
-        query_filter = None
-        if where:
-            logger.debug(f"Applying filter: {where}")
-            query_filter = self._build_filter(where)
-
-        try:
-            search_result = await self.async_qdrant_client.search(
-                collection_name=self.name,
-                query_vector=query_vector,
-                limit=k,
-                query_filter=query_filter,
-            )
-
-            # Extract content and scores from results
-            results = []
-            for point in search_result:
-                content = point.payload.get("content", "")
-                score = point.score
-                results.append((content, score))
-            return results
-
-        except Exception as e:
-            logger.error(f"Error during similarity search: {repr(e)}")
-            # Return empty results on connection failure instead of crashing
-            if "ConnectError" in str(e) or "ConnectTimeout" in str(e):
-                logger.warning(
-                    f"Connection error in search, returning empty results: {e}"
-                )
-                return []
-            raise
-
-    def _build_filter(self, where: dict) -> Filter:
-        """Build Qdrant filter from dictionary conditions."""
-        conditions = []
-
-        for key, value in where.items():
-            if isinstance(value, (str, int, bool)):
-                conditions.append(
-                    FieldCondition(key=key, match=MatchValue(value=value))
-                )
-
-        return Filter(must=conditions) if conditions else None
-
-
-def get_similarity_searcher(
-    provider: str,
-    name: str,
-    texts: List[str],
-    embeddings: Optional[List[List[float]]] = None,
-    metadatas: Optional[List[dict]] = None,
-    vector_db_mode: str = "reuse_on_match",
-    hnsw_m: Optional[int] = None,
-) -> SimilaritySearcher:
-    """
-    Factory function to create similarity searcher instances based on provider.
-
-    Args:
-        provider: The vector database provider to use (e.g., "chroma", "qdrant")
-        name: Name of the collection.
-        texts: List of texts to be indexed.
-        embeddings: Optional precomputed embeddings corresponding to the texts.
-        metadatas: Optional metadata list corresponding to each text.
-        vector_db_mode: Vector DB reuse mode ("always_reuse", "never_reuse", "reuse_on_match")
-
-    Returns:
-        A SimilaritySearcher instance based on the specified provider.
-
-    Raises:
-        ValueError: If the provider is not supported.
-    """
-    if provider.lower() == "chroma":
-        return ChromaSimilaritySearcher(
-            name=name,
-            texts=texts,
-            embeddings=embeddings,
-            metadatas=metadatas,
-            vector_db_mode=vector_db_mode,
-            hnsw_m=hnsw_m,
-        )
-    elif provider.lower() == "qdrant":
-        return QdrantSimilaritySearcher(
-            name=name,
-            texts=texts,
-            embeddings=embeddings,
-            metadatas=metadatas,
-            vector_db_mode=vector_db_mode,
-            hnsw_m=hnsw_m,
-        )
-    else:
-        raise ValueError(f"Unsupported vector database provider: {provider}")
