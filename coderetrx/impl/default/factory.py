@@ -163,6 +163,7 @@ class CodebaseFactory:
                         texts=all_lines,
                         metadatas=all_metadatas,
                         vector_db_mode=settings.vector_db_mode,
+                        hnsw_m=0
                     )
                     logger.info("Unified symbol codeline searcher initialized successfully")
                 except Exception as e:
