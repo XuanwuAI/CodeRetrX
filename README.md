@@ -75,8 +75,7 @@ The llm_traversal_filter provides the most comprehensive and accurate analysis, 
 
 ```python
 from pathlib import Path
-from coderetrx.retrieval import coderetrx_filter
-from coderetrx.impl.default import CodebaseFactory
+from coderetrx.retrieval import coderetrx_filter, CodebaseFactory
 
 # Initialize codebase
 codebase = CodebaseFactory.new("repo_name", Path("/path/to/your/repo"))
