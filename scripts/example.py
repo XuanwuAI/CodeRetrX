@@ -1,8 +1,6 @@
 import asyncio
-from coderetrx.impl.default import CodebaseFactory, TopicExtractor
-from coderetrx.retrieval import coderetrx_filter
+from coderetrx.retrieval import coderetrx_filter, CodebaseFactory, TopicExtractor, SmartCodebaseSettings
 from coderetrx.retrieval.code_recall import CodeRecallSettings
-from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
 from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
 from coderetrx.utils.path import get_data_dir
 

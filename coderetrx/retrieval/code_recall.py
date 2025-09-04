@@ -499,7 +499,7 @@ Note: This is the primary filtering stage - we prefer to include potentially rel
         final_elements = elements
         final_llm_results = llm_results
 
-    return final_elements, final_llm_results
+    return final_elements, final_llm_results #type: ignore
 
 
 async def llm_traversal_mapping(

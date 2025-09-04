@@ -6,7 +6,7 @@ load_dotenv()
 import asyncio
 import json
 from pathlib import Path
-from coderetrx.impl.default import CodebaseFactory, TopicExtractor
+from coderetrx.retrieval import CodebaseFactory, TopicExtractor
 from coderetrx.retrieval import coderetrx_filter, llm_traversal_filter
 from coderetrx.retrieval.code_recall import CodeRecallSettings, CoarseRecallStrategyType
 from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
