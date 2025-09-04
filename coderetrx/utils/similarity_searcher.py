@@ -58,35 +58,6 @@ except ImportError:
     CHROMADB_AVAILABLE = False
 logger = logging.getLogger(__name__)
 cache_path = get_cache_dir()
-def determine_content_type(name: str) -> str:
-    """Determine content type based on collection name patterns.
-
-    Analyzes collection names to infer the type of content being stored,
-    which helps with logging and user feedback.
-
-    Args:
-        name: Collection name to analyze.
-
-    Returns:
-        str: Human-readable content type description.
-
-    Example:
-        >>> determine_content_type("my_symbol_names_collection")
-        'symbol names'
-        >>> determine_content_type("general_docs")
-        'documents'
-    """
-    if "symbol_names" in name:
-        return "symbol names"
-    elif "symbol_contents" in name:
-        return "symbol contents"
-    elif "symbol_codelines" in name:
-        return "code lines"
-    elif "keywords" in name:
-        return "keywords"
-    else:
-        return "documents"
-
 
 class SimilaritySearcher(ABC):
     """Abstract base class for similarity search implementations.
@@ -281,7 +252,6 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
             logger.warning(
                 "ChromaDB does not support indexed metadata fields, ignoring."
             )
-        self.content_type = determine_content_type(name)
         self._initialize_vector_store(embeddings, hnsw_m)
 
     def _initialize_vector_store(
@@ -316,7 +286,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
 
             if self.vector_db_mode == "always_reuse":
                 logger.debug(
-                    f"Using cached {self.content_type} from ChromaDB collection '{self.name}' ({collection_count} items) - always_reuse mode"
+                    f"Using cached {self.name} from ChromaDB collection '{self.name}' ({collection_count} items) - always_reuse mode"
                 )
             elif self.vector_db_mode == "never_reuse":
                 logger.info(
@@ -338,7 +308,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
                 collection_exists = False
             else:
                 logger.debug(
-                    f"Using cached {self.content_type} from ChromaDB collection '{self.name}' ({collection_count} items)"
+                    f"Using cached {self.name} from ChromaDB collection '{self.name}' ({collection_count} items)"
                 )
         except Exception:
             logger.info(f"Creating new ChromaDB collection: '{self.name}'")
@@ -411,7 +381,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
 
         for idx in tqdm(
             range(0, len(texts), batch_size),
-            desc=f"Adding {self.content_type} to {self.__class__.__name__.replace('SimilaritySearcher', '')}",
+            desc=f"Adding {self.name} to {self.__class__.__name__.replace('SimilaritySearcher', '')}",
         ):
             text_batch = texts[idx : idx + batch_size]
             metadata_batch = metadatas[idx : idx + batch_size] if metadatas else None
@@ -590,7 +560,6 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             hnsw_m = 16
         super().__init__(name, texts, embeddings, metadatas, vector_db_mode)
         self.vector_size = get_embedding_settings().embedding_dimension
-        self.content_type = determine_content_type(name)
 
         # Initialize Qdrant clients
         self._init_clients()
@@ -681,7 +650,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
 
             if self.vector_db_mode == "always_reuse":
                 logger.debug(
-                    f"Using cached {self.content_type} from Qdrant collection '{self.name}' ({collection_count} items) - always_reuse mode"
+                    f"Using cached {self.name} from Qdrant collection '{self.name}' ({collection_count} items) - always_reuse mode"
                 )
             elif self.vector_db_mode == "never_reuse":
                 logger.info(
@@ -697,7 +666,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
                 self._create_collection(hnsw_m)
             else:
                 logger.info(
-                    f"Using cached {self.content_type} from Qdrant collection '{self.name}' ({collection_count} items)"
+                    f"Using cached {self.name} from Qdrant collection '{self.name}' ({collection_count} items)"
                 )
 
         except Exception:
@@ -758,7 +727,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         total_batches = (len(self.texts) + batch_size - 1) // batch_size
 
         for batch_idx in tqdm(
-            range(total_batches), desc=f"Adding {self.content_type} to Qdrant"
+            range(total_batches), desc=f"Adding {self.name} to Qdrant"
         ):
             start_idx = batch_idx * batch_size
             end_idx = min(start_idx + batch_size, len(self.texts))
