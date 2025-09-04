@@ -82,6 +82,7 @@ class SimilaritySearcher(ABC):
         texts: List[str],
         embeddings: Optional[List[List[float]]] = None,
         metadatas: Optional[List[dict]] = None,
+        indexed_metadata_fields: List[str] = [],
         vector_db_mode: str = "reuse_on_match",
         hnsw_m: Optional[int] = None,
     ) -> None:
@@ -92,6 +93,7 @@ class SimilaritySearcher(ABC):
             texts: List of texts to be indexed.
             embeddings: Optional precomputed embeddings corresponding to the texts.
             metadatas: Optional metadata list corresponding to each text.
+            indexed_metadata_fields: Metadata fields to index (ignored for ChromaDB).
             vector_db_mode: Vector DB reuse mode ("always_reuse", "never_reuse", "reuse_on_match").
             hnsw_m: HNSW algorithm parameter for index construction.
 
@@ -247,7 +249,7 @@ class ChromaSimilaritySearcher(SimilaritySearcher):
         """
         if not hnsw_m:
             hnsw_m = 1024
-        super().__init__(name, texts, embeddings, metadatas, vector_db_mode)
+        super().__init__(name, texts, embeddings, metadatas,indexed_metadata_fields, vector_db_mode)
         if indexed_metadata_fields:
             logger.warning(
                 "ChromaDB does not support indexed metadata fields, ignoring."
@@ -558,7 +560,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             )
         if not hnsw_m:
             hnsw_m = 16
-        super().__init__(name, texts, embeddings, metadatas, vector_db_mode)
+        super().__init__(name, texts, embeddings, metadatas,indexed_metadata_fields, vector_db_mode)
         self.vector_size = get_embedding_settings().embedding_dimension
 
         # Initialize Qdrant clients
