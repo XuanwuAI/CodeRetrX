@@ -100,7 +100,7 @@ class EmbeddingSettings(BaseSettings):
         alias="EMBEDDING_PROXY",
     )
     embedding_dimension: int = Field(
-        default=1024,
+        default=3072,
         description="Dimensionality of the embedding vectors",
         alias="EMBEDDING_DIMENSION",
     )
