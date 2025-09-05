@@ -618,9 +618,21 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
 
     def _init_clients(self) -> None:
         """Initialize Qdrant clients with connection pooling."""
+        QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+        QDRANT_BASE_URL = os.getenv("QDRANT_BASE_URL")
         QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
         QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
-        logger.info(f"Connecting to Qdrant at {QDRANT_HOST}:{QDRANT_PORT}")
+        if QDRANT_BASE_URL:
+            logger.info(f"Connecting to Qdrant at {QDRANT_BASE_URL}")
+            connection_params = {
+                "url": QDRANT_BASE_URL
+            }
+        else:
+            logger.info(f"Connecting to Qdrant at {QDRANT_HOST}:{QDRANT_PORT}")
+            connection_params = {
+                "host": QDRANT_HOST,
+                "port": QDRANT_PORT
+            }
         connection_limits = httpx.Limits(
             max_connections=50,
             max_keepalive_connections=20,
@@ -628,17 +640,17 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         )
 
         self.qdrant_client = QdrantClient(
-            host=QDRANT_HOST,
-            port=QDRANT_PORT,
+            **connection_params,
             timeout=30,
             limits=connection_limits,
+            api_key=QDRANT_API_KEY,
         )
 
         self.async_qdrant_client = AsyncQdrantClient(
-            host=QDRANT_HOST,
-            port=QDRANT_PORT,
+            **connection_params,
             timeout=30,
             limits=connection_limits,
+            api_key=QDRANT_API_KEY,
         )
 
     def _init_collection(self, hnsw_m: int) -> None:
