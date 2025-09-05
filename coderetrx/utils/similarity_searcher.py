@@ -589,21 +589,18 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             indexed_metadata_fields: List of field names to index.
         """
         for field in indexed_metadata_fields:
-            if metadatas is None or len(metadatas) == 0 or field not in metadatas[0]:
-                logger.warning(
-                    f"Cannot create index for field '{field}' - field not found in metadata"
-                )
+            if not metadatas or field not in metadatas[0]:
+                logger.warning(f"Cannot create index for field '{field}' - field not found in metadata")
                 continue
-            field_sample = metadatas[0][field]
-            field_type = ""
-            if type(field_sample) == list and len(field_sample) > 0:
+            field_sample = next((metadata[field] for metadata in metadatas if metadata and field in metadata and metadata[field]),None)
+            if isinstance(field_sample, list):
                 field_sample = field_sample[0]
-            if isinstance(field_sample, float):
-                field_type = PayloadSchemaType.FLOAT
+            if isinstance(field_sample, bool):
+                field_type = PayloadSchemaType.BOOL
             elif isinstance(field_sample, int):
                 field_type = PayloadSchemaType.INTEGER
-            elif isinstance(field_sample, bool):
-                field_type = PayloadSchemaType.BOOL
+            elif isinstance(field_sample, float):
+                field_type = PayloadSchemaType.FLOAT
             elif isinstance(field_sample, str):
                 field_type = PayloadSchemaType.KEYWORD
             else:
@@ -618,21 +615,9 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
 
     def _init_clients(self) -> None:
         """Initialize Qdrant clients with connection pooling."""
-        QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-        QDRANT_BASE_URL = os.getenv("QDRANT_BASE_URL")
         QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
         QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
-        if QDRANT_BASE_URL:
-            logger.info(f"Connecting to Qdrant at {QDRANT_BASE_URL}")
-            connection_params = {
-                "url": QDRANT_BASE_URL
-            }
-        else:
-            logger.info(f"Connecting to Qdrant at {QDRANT_HOST}:{QDRANT_PORT}")
-            connection_params = {
-                "host": QDRANT_HOST,
-                "port": QDRANT_PORT
-            }
+        logger.info(f"Connecting to Qdrant at {QDRANT_HOST}:{QDRANT_PORT}")
         connection_limits = httpx.Limits(
             max_connections=50,
             max_keepalive_connections=20,
@@ -640,17 +625,17 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
         )
 
         self.qdrant_client = QdrantClient(
-            **connection_params,
+            host=QDRANT_HOST,
+            port=QDRANT_PORT,
             timeout=30,
             limits=connection_limits,
-            api_key=QDRANT_API_KEY,
         )
 
         self.async_qdrant_client = AsyncQdrantClient(
-            **connection_params,
+            host=QDRANT_HOST,
+            port=QDRANT_PORT,
             timeout=30,
             limits=connection_limits,
-            api_key=QDRANT_API_KEY,
         )
 
     def _init_collection(self, hnsw_m: int) -> None:
