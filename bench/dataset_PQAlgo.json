@@ -1,0 +1,1450 @@
+{
+  "repo_url": "https://github.com/cloudflare/boringtun",
+  "commit": "unknown",
+  "queries": [
+    {
+      "name": "Cryptographic Functionality",
+      "filter_prompt": "The code snippet implements, references, or uses cryptographic functionality (encryption, digital signatures, etc.)",
+      "subdirs_or_files": [
+        "/"
+      ],
+      "snippets": [
+        {
+          "name": "Device",
+          "type": "class",
+          "file_path": "boringtun/src/device/mod.rs",
+          "start_line": 132,
+          "end_line": 161
+        },
+        {
+          "name": "Device",
+          "type": "class",
+          "file_path": "boringtun/src/device/mod.rs",
+          "start_line": 282,
+          "end_line": 835
+        },
+        {
+          "name": "Device.update_peer",
+          "type": "function",
+          "file_path": "boringtun/src/device/mod.rs",
+          "start_line": 303,
+          "end_line": 351
+        },
+        {
+          "name": "Device.set_key",
+          "type": "function",
+          "file_path": "boringtun/src/device/mod.rs",
+          "start_line": 454,
+          "end_line": 476
+        },
+        {
+          "name": "Device.register_udp_handler",
+          "type": "function",
+          "file_path": "boringtun/src/device/mod.rs",
+          "start_line": 593,
+          "end_line": 698
+        },
+        {
+          "name": "IndexLfsr.random_index",
+          "type": "function",
+          "file_path": "boringtun/src/device/mod.rs",
+          "start_line": 852,
+          "end_line": 861
+        },
+        {
+          "name": "Default",
+          "type": "class",
+          "file_path": "boringtun/src/device/mod.rs",
+          "start_line": 875,
+          "end_line": 884
+        },
+        {
+          "name": "Default.default",
+          "type": "function",
+          "file_path": "boringtun/src/device/mod.rs",
+          "start_line": 876,
+          "end_line": 883
+        },
+        {
+          "name": "api_get",
+          "type": "function",
+          "file_path": "boringtun/src/device/api.rs",
+          "start_line": 157,
+          "end_line": 202
+        },
+        {
+          "name": "api_set",
+          "type": "function",
+          "file_path": "boringtun/src/device/api.rs",
+          "start_line": 204,
+          "end_line": 277
+        },
+        {
+          "name": "api_set_peer",
+          "type": "function",
+          "file_path": "boringtun/src/device/api.rs",
+          "start_line": 279,
+          "end_line": 368
+        },
+        {
+          "name": "Peer",
+          "type": "class",
+          "file_path": "boringtun/src/device/peer.rs",
+          "start_line": 19,
+          "end_line": 27
+        },
+        {
+          "name": "Peer",
+          "type": "class",
+          "file_path": "boringtun/src/device/peer.rs",
+          "start_line": 53,
+          "end_line": 170
+        },
+        {
+          "name": "Peer.new",
+          "type": "function",
+          "file_path": "boringtun/src/device/peer.rs",
+          "start_line": 54,
+          "end_line": 71
+        },
+        {
+          "name": "Peer.preshared_key",
+          "type": "function",
+          "file_path": "boringtun/src/device/peer.rs",
+          "start_line": 163,
+          "end_line": 165
+        },
+        {
+          "name": "x25519_key",
+          "type": "class",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 41,
+          "end_line": 44
+        },
+        {
+          "name": "x25519_secret_key",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 47,
+          "end_line": 47
+        },
+        {
+          "name": "x25519_public_key",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 49,
+          "end_line": 49
+        },
+        {
+          "name": "x25519_key_to_base64",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 51,
+          "end_line": 51
+        },
+        {
+          "name": "x25519_key_to_hex",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 53,
+          "end_line": 53
+        },
+        {
+          "name": "x25519_key_to_str_free",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 55,
+          "end_line": 55
+        },
+        {
+          "name": "check_base64_encoded_x25519_key",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 58,
+          "end_line": 58
+        },
+        {
+          "name": "new_tunnel",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 77,
+          "end_line": 81
+        },
+        {
+          "name": "wireguard_write",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 86,
+          "end_line": 90
+        },
+        {
+          "name": "wireguard_read",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 92,
+          "end_line": 96
+        },
+        {
+          "name": "wireguard_tick",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 98,
+          "end_line": 100
+        },
+        {
+          "name": "wireguard_force_handshake",
+          "type": "function",
+          "file_path": "boringtun/src/wireguard_ffi.h",
+          "start_line": 102,
+          "end_line": 104
+        },
+        {
+          "name": "Session",
+          "type": "class",
+          "file_path": "boringtun/src/noise/session.rs",
+          "start_line": 10,
+          "end_line": 17
+        },
+        {
+          "name": "ReceivingKeyCounterValidator",
+          "type": "class",
+          "file_path": "boringtun/src/noise/session.rs",
+          "start_line": 40,
+          "end_line": 47
+        },
+        {
+          "name": "Session",
+          "type": "class",
+          "file_path": "boringtun/src/noise/session.rs",
+          "start_line": 154,
+          "end_line": 275
+        },
+        {
+          "name": "Session.new",
+          "type": "function",
+          "file_path": "boringtun/src/noise/session.rs",
+          "start_line": 155,
+          "end_line": 171
+        },
+        {
+          "name": "Session.format_packet_data",
+          "type": "function",
+          "file_path": "boringtun/src/noise/session.rs",
+          "start_line": 196,
+          "end_line": 230
+        },
+        {
+          "name": "Tunn",
+          "type": "class",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 126,
+          "end_line": 586
+        },
+        {
+          "name": "Session.receive_packet_data",
+          "type": "function",
+          "file_path": "boringtun/src/noise/session.rs",
+          "start_line": 236,
+          "end_line": 268
+        },
+        {
+          "name": "HandshakeInit",
+          "type": "class",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 88,
+          "end_line": 93
+        },
+        {
+          "name": "HandshakeResponse",
+          "type": "class",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 96,
+          "end_line": 101
+        },
+        {
+          "name": "PacketCookieReply",
+          "type": "class",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 104,
+          "end_line": 108
+        },
+        {
+          "name": "PacketData",
+          "type": "class",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 111,
+          "end_line": 115
+        },
+        {
+          "name": "Packet",
+          "type": "class",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 119,
+          "end_line": 124
+        },
+        {
+          "name": "Tunn.parse_incoming_packet",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 128,
+          "end_line": 163
+        },
+        {
+          "name": "Tunn.is_expired",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 165,
+          "end_line": 167
+        },
+        {
+          "name": "Tunn.new",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 194,
+          "end_line": 224
+        },
+        {
+          "name": "Tunn.set_static_private",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 227,
+          "end_line": 242
+        },
+        {
+          "name": "Tunn.decapsulate",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 276,
+          "end_line": 302
+        },
+        {
+          "name": "Tunn.handle_verified_packet",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 304,
+          "end_line": 316
+        },
+        {
+          "name": "Tunn.handle_handshake_init",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 318,
+          "end_line": 341
+        },
+        {
+          "name": "Tunn.handle_handshake_response",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 343,
+          "end_line": 369
+        },
+        {
+          "name": "Tunn.handle_cookie_reply",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 371,
+          "end_line": 387
+        },
+        {
+          "name": "Tunn.handle_data",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 406,
+          "end_line": 429
+        },
+        {
+          "name": "Tunn.format_handshake_initiation",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 433,
+          "end_line": 460
+        },
+        {
+          "name": "Tunn.send_queued_packet",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 510,
+          "end_line": 521
+        },
+        {
+          "name": "b2s_hash",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 40,
+          "end_line": 45
+        },
+        {
+          "name": "b2s_hmac",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 49,
+          "end_line": 55
+        },
+        {
+          "name": "HmacBlake2s",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 51,
+          "end_line": 51
+        },
+        {
+          "name": "b2s_hmac2",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 59,
+          "end_line": 66
+        },
+        {
+          "name": "HmacBlake2s",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 61,
+          "end_line": 61
+        },
+        {
+          "name": "b2s_keyed_mac_16",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 69,
+          "end_line": 73
+        },
+        {
+          "name": "b2s_keyed_mac_16_2",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 76,
+          "end_line": 81
+        },
+        {
+          "name": "b2s_mac_24",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 83,
+          "end_line": 87
+        },
+        {
+          "name": "aead_chacha20_seal",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 91,
+          "end_line": 96
+        },
+        {
+          "name": "aead_chacha20_seal_inner",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 99,
+          "end_line": 119
+        },
+        {
+          "name": "aead_chacha20_open",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 123,
+          "end_line": 136
+        },
+        {
+          "name": "aead_chacha20_open_inner",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 139,
+          "end_line": 159
+        },
+        {
+          "name": "Handshake",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 410,
+          "end_line": 881
+        },
+        {
+          "name": "NoiseParams",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 232,
+          "end_line": 245
+        },
+        {
+          "name": "fmt",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 248,
+          "end_line": 257
+        },
+        {
+          "name": "HandshakeInitSentState",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 260,
+          "end_line": 266
+        },
+        {
+          "name": "fmt",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 269,
+          "end_line": 277
+        },
+        {
+          "name": "HandshakeState",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 281,
+          "end_line": 295
+        },
+        {
+          "name": "Handshake",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 297,
+          "end_line": 311
+        },
+        {
+          "name": "HalfHandshake",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 321,
+          "end_line": 324
+        },
+        {
+          "name": "parse_handshake_anon",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 326,
+          "end_line": 369
+        },
+        {
+          "name": "NoiseParams",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 371,
+          "end_line": 408
+        },
+        {
+          "name": "NoiseParams.new",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 373,
+          "end_line": 391
+        },
+        {
+          "name": "NoiseParams.set_static_private",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 394,
+          "end_line": 407
+        },
+        {
+          "name": "Handshake.new",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 411,
+          "end_line": 435
+        },
+        {
+          "name": "Handshake.set_static_private",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 473,
+          "end_line": 479
+        },
+        {
+          "name": "Handshake.receive_handshake_initialization",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 481,
+          "end_line": 563
+        },
+        {
+          "name": "Handshake.receive_handshake_response",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 565,
+          "end_line": 645
+        },
+        {
+          "name": "Handshake.receive_cookie_reply",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 647,
+          "end_line": 679
+        },
+        {
+          "name": "Handshake.append_mac1_and_mac2",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 682,
+          "end_line": 707
+        },
+        {
+          "name": "Handshake.format_handshake_initiation",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 709,
+          "end_line": 787
+        },
+        {
+          "name": "Handshake.format_handshake_response",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 789,
+          "end_line": 880
+        },
+        {
+          "name": "RateLimiter",
+          "type": "class",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 37,
+          "end_line": 52
+        },
+        {
+          "name": "RateLimiter",
+          "type": "class",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 54,
+          "end_line": 193
+        },
+        {
+          "name": "RateLimiter.new",
+          "type": "function",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 55,
+          "end_line": 69
+        },
+        {
+          "name": "RateLimiter.rand_bytes",
+          "type": "function",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 71,
+          "end_line": 75
+        },
+        {
+          "name": "Tunn",
+          "type": "class",
+          "file_path": "boringtun/src/noise/timers.rs",
+          "start_line": 111,
+          "end_line": 335
+        },
+        {
+          "name": "RateLimiter.current_cookie",
+          "type": "function",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 89,
+          "end_line": 103
+        },
+        {
+          "name": "RateLimiter.nonce",
+          "type": "function",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 105,
+          "end_line": 109
+        },
+        {
+          "name": "RateLimiter.format_cookie_reply",
+          "type": "function",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 115,
+          "end_line": 150
+        },
+        {
+          "name": "RateLimiter.verify_packet",
+          "type": "function",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 153,
+          "end_line": 192
+        },
+        {
+          "name": "from_str",
+          "type": "function",
+          "file_path": "boringtun/src/serialization.rs",
+          "start_line": 7,
+          "end_line": 32
+        },
+        {
+          "name": "generate_secret_key",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 40,
+          "end_line": 45
+        },
+        {
+          "name": "generate_public_key1",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 50,
+          "end_line": 72
+        },
+        {
+          "name": "convert_x25519_key_to_hex",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 77,
+          "end_line": 98
+        },
+        {
+          "name": "convert_x25519_key_to_base64",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 103,
+          "end_line": 125
+        },
+        {
+          "name": "create_new_tunnel",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 130,
+          "end_line": 171
+        },
+        {
+          "name": "encrypt_raw_packet",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 176,
+          "end_line": 206
+        },
+        {
+          "name": "decrypt_to_raw_packet",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 211,
+          "end_line": 242
+        },
+        {
+          "name": "run_periodic_task",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 247,
+          "end_line": 271
+        },
+        {
+          "name": "x25519",
+          "type": "class",
+          "file_path": "boringtun/src/lib.rs",
+          "start_line": 23,
+          "end_line": 27
+        },
+        {
+          "name": "result_type",
+          "type": "class",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 34,
+          "end_line": 45
+        },
+        {
+          "name": "wireguard_result",
+          "type": "class",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 49,
+          "end_line": 54
+        },
+        {
+          "name": "from",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 67,
+          "end_line": 90
+        },
+        {
+          "name": "x25519_key",
+          "type": "class",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 94,
+          "end_line": 96
+        },
+        {
+          "name": "x25519_secret_key",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 100,
+          "end_line": 104
+        },
+        {
+          "name": "x25519_public_key",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 108,
+          "end_line": 114
+        },
+        {
+          "name": "x25519_key_to_base64",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 120,
+          "end_line": 123
+        },
+        {
+          "name": "x25519_key_to_hex",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 129,
+          "end_line": 132
+        },
+        {
+          "name": "check_base64_encoded_x25519_key",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 143,
+          "end_line": 164
+        },
+        {
+          "name": "new_tunnel",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 244,
+          "end_line": 312
+        },
+        {
+          "name": "wireguard_write",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 323,
+          "end_line": 335
+        },
+        {
+          "name": "wireguard_read",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 340,
+          "end_line": 352
+        },
+        {
+          "name": "wireguard_tick",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 357,
+          "end_line": 366
+        },
+        {
+          "name": "wireguard_force_handshake",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 370,
+          "end_line": 379
+        },
+        {
+          "name": "wireguard_stats",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 386,
+          "end_line": 397
+        },
+        {
+          "name": "bench_x25519_shared_key",
+          "type": "function",
+          "file_path": "boringtun/benches/crypto_benches/x25519_shared_key_benching.rs",
+          "start_line": 4,
+          "end_line": 48
+        },
+        {
+          "name": "chacha20poly1305_ring",
+          "type": "function",
+          "file_path": "boringtun/benches/crypto_benches/chacha20poly1305_benching.rs",
+          "start_line": 6,
+          "end_line": 21
+        },
+        {
+          "name": "chacha20poly1305_non_ring",
+          "type": "function",
+          "file_path": "boringtun/benches/crypto_benches/chacha20poly1305_benching.rs",
+          "start_line": 23,
+          "end_line": 35
+        },
+        {
+          "name": "bench_chacha20poly1305",
+          "type": "function",
+          "file_path": "boringtun/benches/crypto_benches/chacha20poly1305_benching.rs",
+          "start_line": 37,
+          "end_line": 79
+        },
+        {
+          "name": "bench_x25519_public_key",
+          "type": "function",
+          "file_path": "boringtun/benches/crypto_benches/x25519_public_key_benching.rs",
+          "start_line": 4,
+          "end_line": 30
+        },
+        {
+          "name": "bench_blake2s_hash",
+          "type": "function",
+          "file_path": "boringtun/benches/crypto_benches/blake2s_benching.rs",
+          "start_line": 6,
+          "end_line": 26
+        },
+        {
+          "name": "bench_blake2s_hmac",
+          "type": "function",
+          "file_path": "boringtun/benches/crypto_benches/blake2s_benching.rs",
+          "start_line": 28,
+          "end_line": 59
+        },
+        {
+          "name": "HmacBlake2s",
+          "type": "class",
+          "file_path": "boringtun/benches/crypto_benches/blake2s_benching.rs",
+          "start_line": 48,
+          "end_line": 48
+        },
+        {
+          "name": "bench_blake2s_keyed",
+          "type": "function",
+          "file_path": "boringtun/benches/crypto_benches/blake2s_benching.rs",
+          "start_line": 61,
+          "end_line": 90
+        },
+        {
+          "name": "chacha20poly1305",
+          "type": "dependency",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 13,
+          "end_line": 13
+        },
+        {
+          "name": "blake2",
+          "type": "dependency",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 12,
+          "end_line": 12
+        },
+        {
+          "name": "aead",
+          "type": "dependency",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 10,
+          "end_line": 10
+        },
+        {
+          "name": "aead",
+          "type": "dependency",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 14,
+          "end_line": 14
+        },
+        {
+          "name": "chacha20poly1305",
+          "type": "dependency",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 15,
+          "end_line": 15
+        },
+        {
+          "name": "x25519_dalek",
+          "type": "dependency",
+          "file_path": "boringtun/src/lib.rs",
+          "start_line": 24,
+          "end_line": 24
+        },
+        {
+          "name": "aead",
+          "type": "dependency",
+          "file_path": "boringtun/benches/crypto_benches/chacha20poly1305_benching.rs",
+          "start_line": 1,
+          "end_line": 1
+        },
+        {
+          "name": "blake2",
+          "type": "dependency",
+          "file_path": "boringtun/benches/crypto_benches/blake2s_benching.rs",
+          "start_line": 2,
+          "end_line": 2
+        },
+        {
+          "name": "blake2s_benching",
+          "type": "dependency",
+          "file_path": "boringtun/benches/crypto_benches/main.rs",
+          "start_line": 1,
+          "end_line": 1
+        },
+        {
+          "name": "x25519_shared_key_benching",
+          "type": "dependency",
+          "file_path": "boringtun/benches/crypto_benches/main.rs",
+          "start_line": 4,
+          "end_line": 4
+        },
+        {
+          "name": "x25519_public_key_benching",
+          "type": "dependency",
+          "file_path": "boringtun/benches/crypto_benches/main.rs",
+          "start_line": 3,
+          "end_line": 3
+        },
+        {
+          "name": "chacha20poly1305_benching",
+          "type": "dependency",
+          "file_path": "boringtun/benches/crypto_benches/main.rs",
+          "start_line": 2,
+          "end_line": 2
+        }
+      ],
+      "cost": 0.06643280000000001
+    },
+    {
+      "name": "Quantum-Weakened Asymmetric Cryptography",
+      "filter_prompt": "The code snippet implements, references, or uses asymmetric cryptographic algorithms that are fundamentally broken by quantum computers using Shor's algorithm (RSA, DSA, ECDSA, ECDH, DH, classic elliptic curve cryptography based on discrete logarithm or integer factorization problems).",
+      "subdirs_or_files": [
+        "/"
+      ],
+      "snippets": [
+        {
+          "name": "Device",
+          "type": "class",
+          "file_path": "boringtun/src/device/mod.rs",
+          "start_line": 282,
+          "end_line": 835
+        },
+        {
+          "name": "api_get",
+          "type": "function",
+          "file_path": "boringtun/src/device/api.rs",
+          "start_line": 157,
+          "end_line": 202
+        },
+        {
+          "name": "api_set",
+          "type": "function",
+          "file_path": "boringtun/src/device/api.rs",
+          "start_line": 204,
+          "end_line": 277
+        },
+        {
+          "name": "api_set_peer",
+          "type": "function",
+          "file_path": "boringtun/src/device/api.rs",
+          "start_line": 279,
+          "end_line": 368
+        },
+        {
+          "name": "Tunn",
+          "type": "class",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 126,
+          "end_line": 586
+        },
+        {
+          "name": "HandshakeInit",
+          "type": "class",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 88,
+          "end_line": 93
+        },
+        {
+          "name": "HandshakeResponse",
+          "type": "class",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 96,
+          "end_line": 101
+        },
+        {
+          "name": "Packet",
+          "type": "class",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 119,
+          "end_line": 124
+        },
+        {
+          "name": "Tunn.parse_incoming_packet",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 128,
+          "end_line": 163
+        },
+        {
+          "name": "Tunn.new",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 194,
+          "end_line": 224
+        },
+        {
+          "name": "Tunn.set_static_private",
+          "type": "function",
+          "file_path": "boringtun/src/noise/mod.rs",
+          "start_line": 227,
+          "end_line": 242
+        },
+        {
+          "name": "Handshake",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 410,
+          "end_line": 881
+        },
+        {
+          "name": "NoiseParams",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 232,
+          "end_line": 245
+        },
+        {
+          "name": "fmt",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 248,
+          "end_line": 257
+        },
+        {
+          "name": "HandshakeInitSentState",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 260,
+          "end_line": 266
+        },
+        {
+          "name": "fmt",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 269,
+          "end_line": 277
+        },
+        {
+          "name": "HandshakeState",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 281,
+          "end_line": 295
+        },
+        {
+          "name": "Handshake",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 297,
+          "end_line": 311
+        },
+        {
+          "name": "parse_handshake_anon",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 326,
+          "end_line": 369
+        },
+        {
+          "name": "NoiseParams",
+          "type": "class",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 371,
+          "end_line": 408
+        },
+        {
+          "name": "NoiseParams.new",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 373,
+          "end_line": 391
+        },
+        {
+          "name": "NoiseParams.set_static_private",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 394,
+          "end_line": 407
+        },
+        {
+          "name": "Handshake.new",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 411,
+          "end_line": 435
+        },
+        {
+          "name": "Handshake.set_static_private",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 473,
+          "end_line": 479
+        },
+        {
+          "name": "Handshake.receive_handshake_initialization",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 481,
+          "end_line": 563
+        },
+        {
+          "name": "Handshake.receive_handshake_response",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 565,
+          "end_line": 645
+        },
+        {
+          "name": "Handshake.format_handshake_initiation",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 709,
+          "end_line": 787
+        },
+        {
+          "name": "Handshake.format_handshake_response",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 789,
+          "end_line": 880
+        },
+        {
+          "name": "RateLimiter",
+          "type": "class",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 54,
+          "end_line": 193
+        },
+        {
+          "name": "RateLimiter.new",
+          "type": "function",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 55,
+          "end_line": 69
+        },
+        {
+          "name": "generate_secret_key",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 40,
+          "end_line": 45
+        },
+        {
+          "name": "generate_public_key1",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 50,
+          "end_line": 72
+        },
+        {
+          "name": "convert_x25519_key_to_hex",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 77,
+          "end_line": 98
+        },
+        {
+          "name": "convert_x25519_key_to_base64",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 103,
+          "end_line": 125
+        },
+        {
+          "name": "create_new_tunnel",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 130,
+          "end_line": 171
+        },
+        {
+          "name": "encrypt_raw_packet",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 176,
+          "end_line": 206
+        },
+        {
+          "name": "decrypt_to_raw_packet",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 211,
+          "end_line": 242
+        },
+        {
+          "name": "run_periodic_task",
+          "type": "function",
+          "file_path": "boringtun/src/jni.rs",
+          "start_line": 247,
+          "end_line": 271
+        },
+        {
+          "name": "x25519",
+          "type": "class",
+          "file_path": "boringtun/src/lib.rs",
+          "start_line": 23,
+          "end_line": 27
+        },
+        {
+          "name": "x25519_key",
+          "type": "class",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 94,
+          "end_line": 96
+        },
+        {
+          "name": "x25519_secret_key",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 100,
+          "end_line": 104
+        },
+        {
+          "name": "x25519_public_key",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 108,
+          "end_line": 114
+        },
+        {
+          "name": "x25519_key_to_base64",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 120,
+          "end_line": 123
+        },
+        {
+          "name": "x25519_key_to_hex",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 129,
+          "end_line": 132
+        },
+        {
+          "name": "check_base64_encoded_x25519_key",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 143,
+          "end_line": 164
+        },
+        {
+          "name": "new_tunnel",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 244,
+          "end_line": 312
+        },
+        {
+          "name": "wireguard_write",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 323,
+          "end_line": 335
+        },
+        {
+          "name": "wireguard_read",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 340,
+          "end_line": 352
+        },
+        {
+          "name": "wireguard_tick",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 357,
+          "end_line": 366
+        },
+        {
+          "name": "wireguard_force_handshake",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 370,
+          "end_line": 379
+        },
+        {
+          "name": "wireguard_stats",
+          "type": "function",
+          "file_path": "boringtun/src/ffi/mod.rs",
+          "start_line": 386,
+          "end_line": 397
+        },
+        {
+          "name": "bench_x25519_shared_key",
+          "type": "function",
+          "file_path": "boringtun/benches/crypto_benches/x25519_shared_key_benching.rs",
+          "start_line": 4,
+          "end_line": 48
+        },
+        {
+          "name": "bench_x25519_public_key",
+          "type": "function",
+          "file_path": "boringtun/benches/crypto_benches/x25519_public_key_benching.rs",
+          "start_line": 4,
+          "end_line": 30
+        },
+        {
+          "name": "x25519_public_key_benching",
+          "type": "class",
+          "file_path": "boringtun/benches/crypto_benches/main.rs",
+          "start_line": 8,
+          "end_line": 8
+        },
+        {
+          "name": "x25519_shared_key_benching",
+          "type": "class",
+          "file_path": "boringtun/benches/crypto_benches/main.rs",
+          "start_line": 9,
+          "end_line": 9
+        },
+        {
+          "name": "x25519_dalek",
+          "type": "dependency",
+          "file_path": "boringtun/src/lib.rs",
+          "start_line": 24,
+          "end_line": 24
+        },
+        {
+          "name": "x25519_shared_key_benching",
+          "type": "dependency",
+          "file_path": "boringtun/benches/crypto_benches/main.rs",
+          "start_line": 4,
+          "end_line": 4
+        },
+        {
+          "name": "x25519_public_key_benching",
+          "type": "dependency",
+          "file_path": "boringtun/benches/crypto_benches/main.rs",
+          "start_line": 3,
+          "end_line": 3
+        }
+      ],
+      "cost": 0.06994760000000003
+    },
+    {
+      "name": "Non-Quantum-Resistant Symmetric Cryptography",
+      "filter_prompt": "The code snippet implements, references, or uses symmetric cryptographic algorithms that have reduced security against quantum attacks (AES-128, DES, 3DES, hash functions like SHA-1, SHA-256, MD5).",
+      "subdirs_or_files": [
+        "/"
+      ],
+      "snippets": [
+        {
+          "name": "Handshake.receive_handshake_response",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 565,
+          "end_line": 645
+        },
+        {
+          "name": "Handshake.receive_cookie_reply",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 647,
+          "end_line": 679
+        },
+        {
+          "name": "Handshake.append_mac1_and_mac2",
+          "type": "function",
+          "file_path": "boringtun/src/noise/handshake.rs",
+          "start_line": 682,
+          "end_line": 707
+        },
+        {
+          "name": "RateLimiter.current_cookie",
+          "type": "function",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 89,
+          "end_line": 103
+        },
+        {
+          "name": "RateLimiter.nonce",
+          "type": "function",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 105,
+          "end_line": 109
+        },
+        {
+          "name": "RateLimiter.verify_packet",
+          "type": "function",
+          "file_path": "boringtun/src/noise/rate_limiter.rs",
+          "start_line": 153,
+          "end_line": 192
+        }
+      ],
+      "cost": 0.07077360000000002
+    }
+  ]
+}
