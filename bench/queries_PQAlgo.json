@@ -1,7 +1,5 @@
 [
-    
     {
-      "id": "1",
       "name": "Cryptographic Functionality",
       "filter_prompt": "The code snippet implements, references, or uses cryptographic functionality (encryption, digital signatures, etc.)",
       "subdirs_or_files": [
@@ -9,7 +7,6 @@
       ]
     },
     {
-      "id": "2",
       "name": "Quantum-Weakened Asymmetric Cryptography",
       "filter_prompt": "The code snippet implements, references, or uses asymmetric cryptographic algorithms that are fundamentally broken by quantum computers using Shor's algorithm (RSA, DSA, ECDSA, ECDH, DH, classic elliptic curve cryptography based on discrete logarithm or integer factorization problems).",
       "subdirs_or_files": [
@@ -17,7 +14,6 @@
       ]
     },
     {
-      "id": "3",
       "name": "Non-Quantum-Resistant Symmetric Cryptography",
       "filter_prompt": "The code snippet implements, references, or uses symmetric cryptographic algorithms that have reduced security against quantum attacks (AES-128, DES, 3DES, hash functions like SHA-1, SHA-256, MD5).",
       "subdirs_or_files": [
