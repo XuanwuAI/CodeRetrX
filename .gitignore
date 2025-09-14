@@ -24,3 +24,5 @@ rg.exe
 code_reports/
 logs/
 qdrant_storage/
+
+checkpoint/
