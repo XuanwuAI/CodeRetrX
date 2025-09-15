@@ -12882,5 +12882,2771 @@
         "cost": 0.24488680000000035
       }
     ]
+  },
+  "cryptomator_cryptomator": {
+    "repo_url": "https://github.com/cryptomator/cryptomator",
+    "commit": "682e762a5aa3890de1f403d6bde12f5ff9c67afb",
+    "queries": [
+      {
+        "name": "Cryptographic Functionality",
+        "filter_prompt": "The code snippet implements, references, or uses cryptographic functionality (encryption, digital signatures, etc.)",
+        "subdirs_or_files": [
+          "/"
+        ],
+        "snippets": [
+          {
+            "name": "Vault",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/Vault.java",
+            "start_line": 57,
+            "end_line": 473
+          },
+          {
+            "name": "Vault.createCryptoFileSystem",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/Vault.java",
+            "start_line": 120,
+            "end_line": 156
+          },
+          {
+            "name": "Vault.destroyCryptoFileSystem",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/Vault.java",
+            "start_line": 158,
+            "end_line": 168
+          },
+          {
+            "name": "Vault.unlock",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/Vault.java",
+            "start_line": 170,
+            "end_line": 189
+          },
+          {
+            "name": "Vault.lock",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/Vault.java",
+            "start_line": 191,
+            "end_line": 214
+          },
+          {
+            "name": "Vault.getCiphertextPath",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/Vault.java",
+            "start_line": 408,
+            "end_line": 426
+          },
+          {
+            "name": "Vault.getCleartextName",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/Vault.java",
+            "start_line": 431,
+            "end_line": 437
+          },
+          {
+            "name": "VaultModule",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultModule.java",
+            "start_line": 20,
+            "end_line": 38
+          },
+          {
+            "name": "VaultModule.provideCryptoFileSystemReference",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultModule.java",
+            "start_line": 25,
+            "end_line": 29
+          },
+          {
+            "name": "VaultStats",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 25,
+            "end_line": 215
+          },
+          {
+            "name": "VaultStats.updateStats",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 73,
+            "end_line": 95
+          },
+          {
+            "name": "VaultStats.getCacheHitRate",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 97,
+            "end_line": 105
+          },
+          {
+            "name": "VaultStats.UpdateStatsService",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 107,
+            "end_line": 129
+          },
+          {
+            "name": "VaultStats.UpdateStatsService.createTask",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 113,
+            "end_line": 121
+          },
+          {
+            "name": "VaultStats.UpdateStatsService.call",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 116,
+            "end_line": 119
+          },
+          {
+            "name": "VaultStats.UpdateStatsService.succeeded",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 123,
+            "end_line": 128
+          },
+          {
+            "name": "VaultStats.bytesPerSecondReadProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 133,
+            "end_line": 135
+          },
+          {
+            "name": "VaultStats.getBytesPerSecondRead",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 137,
+            "end_line": 139
+          },
+          {
+            "name": "VaultStats.bytesPerSecondWrittenProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 141,
+            "end_line": 143
+          },
+          {
+            "name": "VaultStats.getBytesPerSecondWritten",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 145,
+            "end_line": 147
+          },
+          {
+            "name": "VaultStats.bytesPerSecondEncryptedProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 149,
+            "end_line": 151
+          },
+          {
+            "name": "VaultStats.getBytesPerSecondEncrypted",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 153,
+            "end_line": 155
+          },
+          {
+            "name": "VaultStats.bytesPerSecondDecryptedProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 157,
+            "end_line": 159
+          },
+          {
+            "name": "VaultStats.getBytesPerSecondDecrypted",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 161,
+            "end_line": 163
+          },
+          {
+            "name": "VaultStats.cacheHitRateProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 165,
+            "end_line": 165
+          },
+          {
+            "name": "VaultStats.getCacheHitRate",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 167,
+            "end_line": 169
+          },
+          {
+            "name": "VaultStats.totalBytesReadProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 171,
+            "end_line": 171
+          },
+          {
+            "name": "VaultStats.getTotalBytesRead",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 173,
+            "end_line": 173
+          },
+          {
+            "name": "VaultStats.totalBytesWrittenProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 175,
+            "end_line": 175
+          },
+          {
+            "name": "VaultStats.getTotalBytesWritten",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 177,
+            "end_line": 177
+          },
+          {
+            "name": "VaultStats.totalBytesEncryptedProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 179,
+            "end_line": 179
+          },
+          {
+            "name": "VaultStats.getTotalBytesEncrypted",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 181,
+            "end_line": 181
+          },
+          {
+            "name": "VaultStats.totalBytesDecryptedProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 183,
+            "end_line": 183
+          },
+          {
+            "name": "VaultStats.getTotalBytesDecrypted",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 185,
+            "end_line": 185
+          },
+          {
+            "name": "VaultStats.filesRead",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 187,
+            "end_line": 187
+          },
+          {
+            "name": "VaultStats.getFilesRead",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 189,
+            "end_line": 189
+          },
+          {
+            "name": "VaultStats.filesWritten",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 191,
+            "end_line": 191
+          },
+          {
+            "name": "VaultStats.getFilesWritten",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 193,
+            "end_line": 193
+          },
+          {
+            "name": "VaultStats.filesAccessed",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 195,
+            "end_line": 196
+          },
+          {
+            "name": "VaultStats.getFilesAccessed",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 198,
+            "end_line": 198
+          },
+          {
+            "name": "VaultStats.totalFilesAccessed",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 200,
+            "end_line": 202
+          },
+          {
+            "name": "VaultStats.getTotalFilesAccessed",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultStats.java",
+            "start_line": 204,
+            "end_line": 206
+          },
+          {
+            "name": "VaultListManager",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultListManager.java",
+            "start_line": 41,
+            "end_line": 173
+          },
+          {
+            "name": "VaultListManager.add",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultListManager.java",
+            "start_line": 70,
+            "end_line": 82
+          },
+          {
+            "name": "VaultListManager.newVaultSettings",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultListManager.java",
+            "start_line": 84,
+            "end_line": 102
+          },
+          {
+            "name": "VaultListManager.addAll",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultListManager.java",
+            "start_line": 104,
+            "end_line": 107
+          },
+          {
+            "name": "VaultListManager.get",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultListManager.java",
+            "start_line": 109,
+            "end_line": 115
+          },
+          {
+            "name": "VaultListManager.create",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/vaults/VaultListManager.java",
+            "start_line": 117,
+            "end_line": 135
+          },
+          {
+            "name": "CommonsModule",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/CommonsModule.java",
+            "start_line": 33,
+            "end_line": 135
+          },
+          {
+            "name": "CommonsModule.provideLicensePublicKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/CommonsModule.java",
+            "start_line": 47,
+            "end_line": 59
+          },
+          {
+            "name": "CommonsModule.provideCSPRNG",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/CommonsModule.java",
+            "start_line": 61,
+            "end_line": 69
+          },
+          {
+            "name": "CommonsModule.provideMasterkeyFileAccess",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/CommonsModule.java",
+            "start_line": 71,
+            "end_line": 75
+          },
+          {
+            "name": "LicenseChecker",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/LicenseChecker.java",
+            "start_line": 21,
+            "end_line": 56
+          },
+          {
+            "name": "LicenseChecker.decodePublicKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/LicenseChecker.java",
+            "start_line": 32,
+            "end_line": 46
+          },
+          {
+            "name": "LicenseChecker.check",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/LicenseChecker.java",
+            "start_line": 48,
+            "end_line": 54
+          },
+          {
+            "name": "KeychainManager",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/keychain/KeychainManager.java",
+            "start_line": 20,
+            "end_line": 174
+          },
+          {
+            "name": "KeychainManager.KeychainAccessProvider",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/keychain/KeychainManager.java",
+            "start_line": 21,
+            "end_line": 21
+          },
+          {
+            "name": "KeychainManager.storePassphrase",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/keychain/KeychainManager.java",
+            "start_line": 45,
+            "end_line": 54
+          },
+          {
+            "name": "KeychainManager.loadPassphrase",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/keychain/KeychainManager.java",
+            "start_line": 56,
+            "end_line": 67
+          },
+          {
+            "name": "KeychainManager.deletePassphrase",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/keychain/KeychainManager.java",
+            "start_line": 69,
+            "end_line": 78
+          },
+          {
+            "name": "KeychainManager.changePassphrase",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/keychain/KeychainManager.java",
+            "start_line": 80,
+            "end_line": 91
+          },
+          {
+            "name": "KeychainManager.isPassphraseStored",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/keychain/KeychainManager.java",
+            "start_line": 112,
+            "end_line": 122
+          },
+          {
+            "name": "KeychainManager.migrate",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/keychain/KeychainManager.java",
+            "start_line": 160,
+            "end_line": 173
+          },
+          {
+            "name": "DeviceKey",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 24,
+            "end_line": 104
+          },
+          {
+            "name": "DeviceKey.get",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 44,
+            "end_line": 47
+          },
+          {
+            "name": "DeviceKey.loadOrCreate",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 49,
+            "end_line": 70
+          },
+          {
+            "name": "DeviceKey.loadExistingKeyPair",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 72,
+            "end_line": 75
+          },
+          {
+            "name": "DeviceKey.createAndStoreNewKeyPair",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 77,
+            "end_line": 87
+          },
+          {
+            "name": "DeviceKey.randomPassword",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 89,
+            "end_line": 93
+          },
+          {
+            "name": "LicenseHolder",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/LicenseHolder.java",
+            "start_line": 16,
+            "end_line": 75
+          },
+          {
+            "name": "LicenseHolder.validateAndStoreLicense",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/LicenseHolder.java",
+            "start_line": 37,
+            "end_line": 46
+          },
+          {
+            "name": "LicenseHolder.getLicenseKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/LicenseHolder.java",
+            "start_line": 50,
+            "end_line": 57
+          },
+          {
+            "name": "EventMap",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/EventMap.java",
+            "start_line": 33,
+            "end_line": 160
+          },
+          {
+            "name": "Cryptomator",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/launcher/Cryptomator.java",
+            "start_line": 32,
+            "end_line": 169
+          },
+          {
+            "name": "Cryptomator.changeDefaultSSLContext",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/launcher/Cryptomator.java",
+            "start_line": 123,
+            "end_line": 132
+          },
+          {
+            "name": "SSLContextWithWindowsCertStore",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextWithWindowsCertStore.java",
+            "start_line": 13,
+            "end_line": 21
+          },
+          {
+            "name": "SSLContextWithWindowsCertStore.getTruststore",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextWithWindowsCertStore.java",
+            "start_line": 16,
+            "end_line": 19
+          },
+          {
+            "name": "SSLContextDifferentTrustStoreBase",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextDifferentTrustStoreBase.java",
+            "start_line": 13,
+            "end_line": 33
+          },
+          {
+            "name": "SSLContextDifferentTrustStoreBase.getContext",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextDifferentTrustStoreBase.java",
+            "start_line": 17,
+            "end_line": 32
+          },
+          {
+            "name": "SSLContextWithPKCS12TrustStore",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextWithPKCS12TrustStore.java",
+            "start_line": 19,
+            "end_line": 42
+          },
+          {
+            "name": "SSLContextWithPKCS12TrustStore.getTruststore",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextWithPKCS12TrustStore.java",
+            "start_line": 25,
+            "end_line": 33
+          },
+          {
+            "name": "CombinedKeyStoreSpi",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 20,
+            "end_line": 185
+          },
+          {
+            "name": "CombinedKeyStoreSpi.create",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 25,
+            "end_line": 29
+          },
+          {
+            "name": "CombinedKeyStoreSpi.checkIfLoaded",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 31,
+            "end_line": 37
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineGetKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 44,
+            "end_line": 55
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineGetCertificateChain",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 57,
+            "end_line": 68
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineGetCertificate",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 70,
+            "end_line": 81
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineGetCreationDate",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 83,
+            "end_line": 94
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineSetKeyEntry",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 96,
+            "end_line": 99
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineSetKeyEntry",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 101,
+            "end_line": 104
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineSetCertificateEntry",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 106,
+            "end_line": 109
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineDeleteEntry",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 111,
+            "end_line": 114
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineAliases",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 116,
+            "end_line": 126
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineContainsAlias",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 128,
+            "end_line": 135
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineSize",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 137,
+            "end_line": 143
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineIsKeyEntry",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 145,
+            "end_line": 152
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineIsCertificateEntry",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 154,
+            "end_line": 161
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineGetCertificateAlias",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 163,
+            "end_line": 174
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineStore",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 176,
+            "end_line": 179
+          },
+          {
+            "name": "CombinedKeyStoreSpi.engineLoad",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/CombinedKeyStoreSpi.java",
+            "start_line": 181,
+            "end_line": 184
+          },
+          {
+            "name": "SSLContextWithMacKeychain",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextWithMacKeychain.java",
+            "start_line": 15,
+            "end_line": 32
+          },
+          {
+            "name": "SSLContextWithMacKeychain.SSLContextProvider",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextWithMacKeychain.java",
+            "start_line": 16,
+            "end_line": 16
+          },
+          {
+            "name": "SSLContextWithMacKeychain.getTruststore",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextWithMacKeychain.java",
+            "start_line": 18,
+            "end_line": 31
+          },
+          {
+            "name": "SSLContextProvider",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextProvider.java",
+            "start_line": 10,
+            "end_line": 24
+          },
+          {
+            "name": "SSLContextProvider.getContext",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextProvider.java",
+            "start_line": 12,
+            "end_line": 12
+          },
+          {
+            "name": "SSLContextProvider.SSLContextBuildException",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextProvider.java",
+            "start_line": 14,
+            "end_line": 19
+          },
+          {
+            "name": "SSLContextProvider.loadAll",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/networking/SSLContextProvider.java",
+            "start_line": 21,
+            "end_line": 23
+          },
+          {
+            "name": "ChangePasswordController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/changepassword/ChangePasswordController.java",
+            "start_line": 32,
+            "end_line": 115
+          },
+          {
+            "name": "ChangePasswordController.finish",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/changepassword/ChangePasswordController.java",
+            "start_line": 74,
+            "end_line": 96
+          },
+          {
+            "name": "ChangePasswordController.updatePasswordInSystemkeychain",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/changepassword/ChangePasswordController.java",
+            "start_line": 98,
+            "end_line": 107
+          },
+          {
+            "name": "RecoveryKeyResetPasswordController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyResetPasswordController.java",
+            "start_line": 23,
+            "end_line": 95
+          },
+          {
+            "name": "RecoveryKeyResetPasswordController.resetPassword",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyResetPasswordController.java",
+            "start_line": 54,
+            "end_line": 69
+          },
+          {
+            "name": "RecoveryKeyResetPasswordController.ResetPasswordTask",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyResetPasswordController.java",
+            "start_line": 71,
+            "end_line": 83
+          },
+          {
+            "name": "RecoveryKeyResetPasswordController.ResetPasswordTask.call",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyResetPasswordController.java",
+            "start_line": 77,
+            "end_line": 81
+          },
+          {
+            "name": "RecoveryKeyCreationController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyCreationController.java",
+            "start_line": 26,
+            "end_line": 97
+          },
+          {
+            "name": "RecoveryKeyCreationController.createRecoveryKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyCreationController.java",
+            "start_line": 52,
+            "end_line": 72
+          },
+          {
+            "name": "RecoveryKeyCreationController.RecoveryKeyCreationTask",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyCreationController.java",
+            "start_line": 79,
+            "end_line": 90
+          },
+          {
+            "name": "RecoveryKeyCreationController.RecoveryKeyCreationTask.call",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyCreationController.java",
+            "start_line": 85,
+            "end_line": 88
+          },
+          {
+            "name": "RecoveryKeyFactory",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactory.java",
+            "start_line": 26,
+            "end_line": 150
+          },
+          {
+            "name": "RecoveryKeyFactory.createRecoveryKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactory.java",
+            "start_line": 51,
+            "end_line": 60
+          },
+          {
+            "name": "RecoveryKeyFactory.createRecoveryKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactory.java",
+            "start_line": 62,
+            "end_line": 73
+          },
+          {
+            "name": "RecoveryKeyFactory.newMasterkeyFileWithPassphrase",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactory.java",
+            "start_line": 85,
+            "end_line": 99
+          },
+          {
+            "name": "RecoveryKeyFactory.validateRecoveryKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactory.java",
+            "start_line": 118,
+            "end_line": 132
+          },
+          {
+            "name": "RecoveryKeyFactory.decodeRecoveryKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactory.java",
+            "start_line": 134,
+            "end_line": 148
+          },
+          {
+            "name": "RecoveryKeyValidateController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyValidateController.java",
+            "start_line": 26,
+            "end_line": 180
+          },
+          {
+            "name": "RecoveryKeyValidateController.checkKeyAgainstVaultConfig",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyValidateController.java",
+            "start_line": 103,
+            "end_line": 117
+          },
+          {
+            "name": "RecoveryKeyValidateController.validateRecoveryKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyValidateController.java",
+            "start_line": 119,
+            "end_line": 129
+          },
+          {
+            "name": "QuitForcedController.forceLockAndQuit",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/quit/QuitForcedController.java",
+            "start_line": 60,
+            "end_line": 84
+          },
+          {
+            "name": "QuitController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/quit/QuitController.java",
+            "start_line": 27,
+            "end_line": 85
+          },
+          {
+            "name": "QuitController.lockAndQuit",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/quit/QuitController.java",
+            "start_line": 66,
+            "end_line": 84
+          },
+          {
+            "name": "KeyLoadingComponent",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingComponent.java",
+            "start_line": 12,
+            "end_line": 31
+          },
+          {
+            "name": "KeyLoadingComponent.keyloadingStrategy",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingComponent.java",
+            "start_line": 16,
+            "end_line": 17
+          },
+          {
+            "name": "KeyLoadingComponent.Builder",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingComponent.java",
+            "start_line": 19,
+            "end_line": 29
+          },
+          {
+            "name": "KeyLoadingComponent.Builder.vault",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingComponent.java",
+            "start_line": 22,
+            "end_line": 23
+          },
+          {
+            "name": "KeyLoadingComponent.Builder.window",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingComponent.java",
+            "start_line": 25,
+            "end_line": 26
+          },
+          {
+            "name": "KeyLoadingComponent.Builder.build",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingComponent.java",
+            "start_line": 28,
+            "end_line": 28
+          },
+          {
+            "name": "KeyLoadingStrategy",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 16,
+            "end_line": 130
+          },
+          {
+            "name": "KeyLoadingStrategy.MasterkeyLoader",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 17,
+            "end_line": 17
+          },
+          {
+            "name": "KeyLoadingStrategy.loadKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 30,
+            "end_line": 31
+          },
+          {
+            "name": "KeyLoadingStrategy.isHubVault",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 42,
+            "end_line": 44
+          },
+          {
+            "name": "KeyLoadingStrategy.isMasterkeyFileVault",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 57,
+            "end_line": 59
+          },
+          {
+            "name": "KeyLoadingStrategy.recoverFromException",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 67,
+            "end_line": 69
+          },
+          {
+            "name": "KeyLoadingStrategy.cleanup",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 77,
+            "end_line": 79
+          },
+          {
+            "name": "KeyLoadingStrategy.failed",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 87,
+            "end_line": 95
+          },
+          {
+            "name": "KeyLoadingStrategy.use",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 106,
+            "end_line": 121
+          },
+          {
+            "name": "KeyLoadingStrategy.KeyLoadingStrategyUser",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 123,
+            "end_line": 128
+          },
+          {
+            "name": "KeyLoadingStrategy.KeyLoadingStrategyUser.use",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingStrategy.java",
+            "start_line": 126,
+            "end_line": 126
+          },
+          {
+            "name": "RegisterDeviceController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/RegisterDeviceController.java",
+            "start_line": 54,
+            "end_line": 272
+          },
+          {
+            "name": "AuthFlowTask",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/AuthFlowTask.java",
+            "start_line": 14,
+            "end_line": 56
+          },
+          {
+            "name": "AuthFlowTask.call",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/AuthFlowTask.java",
+            "start_line": 34,
+            "end_line": 47
+          },
+          {
+            "name": "RegisterDeviceController.register",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/RegisterDeviceController.java",
+            "start_line": 113,
+            "end_line": 162
+          },
+          {
+            "name": "RegisterDeviceController.migrateLegacyDevices",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/RegisterDeviceController.java",
+            "start_line": 164,
+            "end_line": 202
+          },
+          {
+            "name": "RegisterDeviceController.setupFailed",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/RegisterDeviceController.java",
+            "start_line": 231,
+            "end_line": 243
+          },
+          {
+            "name": "ReceiveKeyController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceiveKeyController.java",
+            "start_line": 40,
+            "end_line": 302
+          },
+          {
+            "name": "HubKeyLoadingStrategy",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/HubKeyLoadingStrategy.java",
+            "start_line": 27,
+            "end_line": 93
+          },
+          {
+            "name": "HubKeyLoadingStrategy.loadKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/HubKeyLoadingStrategy.java",
+            "start_line": 53,
+            "end_line": 77
+          },
+          {
+            "name": "ReceiveKeyController.receivedBothEncryptedKeys",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceiveKeyController.java",
+            "start_line": 193,
+            "end_line": 202
+          },
+          {
+            "name": "ReceiveKeyController.receivedLegacyAccessTokenSuccess",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceiveKeyController.java",
+            "start_line": 240,
+            "end_line": 249
+          },
+          {
+            "name": "ReceivedKey",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceivedKey.java",
+            "start_line": 8,
+            "end_line": 45
+          },
+          {
+            "name": "ReceivedKey.decryptMasterkey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceivedKey.java",
+            "start_line": 17,
+            "end_line": 17
+          },
+          {
+            "name": "ReceivedKey.vaultKeyAndUserKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceivedKey.java",
+            "start_line": 26,
+            "end_line": 31
+          },
+          {
+            "name": "ReceivedKey.legacyDeviceKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceivedKey.java",
+            "start_line": 40,
+            "end_line": 43
+          },
+          {
+            "name": "JWEHelper",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 34,
+            "end_line": 174
+          },
+          {
+            "name": "JWEHelper.encryptUserKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 42,
+            "end_line": 44
+          },
+          {
+            "name": "JWEHelper.decryptUserKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 46,
+            "end_line": 53
+          },
+          {
+            "name": "JWEHelper.decryptUserKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 55,
+            "end_line": 62
+          },
+          {
+            "name": "JWEHelper.decodeECPrivateKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 71,
+            "end_line": 85
+          },
+          {
+            "name": "JWEHelper.decodeECPublicKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 94,
+            "end_line": 108
+          },
+          {
+            "name": "JWEHelper.encryptVaultKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 110,
+            "end_line": 112
+          },
+          {
+            "name": "JWEHelper.encryptKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 114,
+            "end_line": 127
+          },
+          {
+            "name": "JWEHelper.decryptVaultKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 129,
+            "end_line": 136
+          },
+          {
+            "name": "JWEHelper.readKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 138,
+            "end_line": 159
+          },
+          {
+            "name": "HubKeyLoadingModule",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/HubKeyLoadingModule.java",
+            "start_line": 30,
+            "end_line": 225
+          },
+          {
+            "name": "HubKeyLoadingModule.provideDeviceId",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/HubKeyLoadingModule.java",
+            "start_line": 51,
+            "end_line": 60
+          },
+          {
+            "name": "LegacyRegisterDeviceController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/LegacyRegisterDeviceController.java",
+            "start_line": 44,
+            "end_line": 191
+          },
+          {
+            "name": "LegacyRegisterDeviceController.FxController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/LegacyRegisterDeviceController.java",
+            "start_line": 45,
+            "end_line": 45
+          },
+          {
+            "name": "LegacyRegisterDeviceController.register",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/LegacyRegisterDeviceController.java",
+            "start_line": 95,
+            "end_line": 128
+          },
+          {
+            "name": "LegacyRegisterDeviceController.getUserName",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/LegacyRegisterDeviceController.java",
+            "start_line": 168,
+            "end_line": 170
+          },
+          {
+            "name": "LegacyRegisterDeviceController.CreateDeviceDto",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/LegacyRegisterDeviceController.java",
+            "start_line": 183,
+            "end_line": 189
+          },
+          {
+            "name": "KeyLoadingModule",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingModule.java",
+            "start_line": 17,
+            "end_line": 40
+          },
+          {
+            "name": "KeyLoadingModule.provideKeyLoadingStrategy",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/KeyLoadingModule.java",
+            "start_line": 27,
+            "end_line": 38
+          },
+          {
+            "name": "ChooseMasterkeyFileComponent",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/ChooseMasterkeyFileComponent.java",
+            "start_line": 9,
+            "end_line": 25
+          },
+          {
+            "name": "PassphraseEntryComponent",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/PassphraseEntryComponent.java",
+            "start_line": 12,
+            "end_line": 31
+          },
+          {
+            "name": "PassphraseEntryComponent.Builder.savedPassword",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/PassphraseEntryComponent.java",
+            "start_line": 25,
+            "end_line": 26
+          },
+          {
+            "name": "MasterkeyFileLoadingStrategy",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/MasterkeyFileLoadingStrategy.java",
+            "start_line": 32,
+            "end_line": 173
+          },
+          {
+            "name": "MasterkeyFileLoadingStrategy.loadKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/MasterkeyFileLoadingStrategy.java",
+            "start_line": 62,
+            "end_line": 90
+          },
+          {
+            "name": "MasterkeyFileLoadingStrategy.recoverFromException",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/MasterkeyFileLoadingStrategy.java",
+            "start_line": 92,
+            "end_line": 102
+          },
+          {
+            "name": "MasterkeyFileLoadingStrategy.cleanup",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/MasterkeyFileLoadingStrategy.java",
+            "start_line": 104,
+            "end_line": 112
+          },
+          {
+            "name": "MasterkeyFileLoadingStrategy.savePasswordToSystemkeychain",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/MasterkeyFileLoadingStrategy.java",
+            "start_line": 114,
+            "end_line": 122
+          },
+          {
+            "name": "MasterkeyFileLoadingStrategy.askForPassphrase",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/MasterkeyFileLoadingStrategy.java",
+            "start_line": 146,
+            "end_line": 171
+          },
+          {
+            "name": "ChooseMasterkeyFileController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/ChooseMasterkeyFileController.java",
+            "start_line": 22,
+            "end_line": 69
+          },
+          {
+            "name": "ChooseMasterkeyFileController.proceed",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/ChooseMasterkeyFileController.java",
+            "start_line": 50,
+            "end_line": 61
+          },
+          {
+            "name": "PassphraseEntryController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/PassphraseEntryController.java",
+            "start_line": 41,
+            "end_line": 216
+          },
+          {
+            "name": "PassphraseEntryController.unlock",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/PassphraseEntryController.java",
+            "start_line": 142,
+            "end_line": 150
+          },
+          {
+            "name": "MasterkeyFileLoadingModule",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/MasterkeyFileLoadingModule.java",
+            "start_line": 20,
+            "end_line": 45
+          },
+          {
+            "name": "MasterkeyFileLoadingModule.provideStoredPassword",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/masterkeyfile/MasterkeyFileLoadingModule.java",
+            "start_line": 23,
+            "end_line": 37
+          },
+          {
+            "name": "MigrationRunController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/migration/MigrationRunController.java",
+            "start_line": 49,
+            "end_line": 225
+          },
+          {
+            "name": "MigrationRunController.initialize",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/migration/MigrationRunController.java",
+            "start_line": 93,
+            "end_line": 103
+          },
+          {
+            "name": "MigrationRunController.migrate",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/migration/MigrationRunController.java",
+            "start_line": 110,
+            "end_line": 159
+          },
+          {
+            "name": "MigrationRunController.loadStoredPassword",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/migration/MigrationRunController.java",
+            "start_line": 177,
+            "end_line": 193
+          },
+          {
+            "name": "VaultDetailUnlockedController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/mainwindow/VaultDetailUnlockedController.java",
+            "start_line": 52,
+            "end_line": 287
+          },
+          {
+            "name": "VaultDetailUnlockedController.chooseDecryptedFileAndReveal",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/mainwindow/VaultDetailUnlockedController.java",
+            "start_line": 149,
+            "end_line": 162
+          },
+          {
+            "name": "VaultDetailUnlockedController.getCiphertextPath",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/mainwindow/VaultDetailUnlockedController.java",
+            "start_line": 177,
+            "end_line": 189
+          },
+          {
+            "name": "VaultDetailLockedController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/mainwindow/VaultDetailLockedController.java",
+            "start_line": 18,
+            "end_line": 76
+          },
+          {
+            "name": "VaultDetailLockedController.unlock",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/mainwindow/VaultDetailLockedController.java",
+            "start_line": 39,
+            "end_line": 42
+          },
+          {
+            "name": "VaultDetailLockedController.passwordSavedProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/mainwindow/VaultDetailLockedController.java",
+            "start_line": 69,
+            "end_line": 71
+          },
+          {
+            "name": "VaultDetailLockedController.isPasswordSaved",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/mainwindow/VaultDetailLockedController.java",
+            "start_line": 73,
+            "end_line": 75
+          },
+          {
+            "name": "VaultListController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/mainwindow/VaultListController.java",
+            "start_line": 58,
+            "end_line": 307
+          },
+          {
+            "name": "VaultListController.containsVault",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/mainwindow/VaultListController.java",
+            "start_line": 242,
+            "end_line": 251
+          },
+          {
+            "name": "create",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/Result.java",
+            "start_line": 23,
+            "end_line": 26
+          },
+          {
+            "name": "StartController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/health/StartController.java",
+            "start_line": 30,
+            "end_line": 126
+          },
+          {
+            "name": "StartController.next",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/StartController.java",
+            "start_line": 64,
+            "end_line": 68
+          },
+          {
+            "name": "StartController.loadKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/StartController.java",
+            "start_line": 70,
+            "end_line": 77
+          },
+          {
+            "name": "StartController.verifyVaultConfig",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/StartController.java",
+            "start_line": 79,
+            "end_line": 89
+          },
+          {
+            "name": "StartController.loadedKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/StartController.java",
+            "start_line": 91,
+            "end_line": 102
+          },
+          {
+            "name": "StartController.loadingKeyFailed",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/StartController.java",
+            "start_line": 104,
+            "end_line": 116
+          },
+          {
+            "name": "StartController.LoadingFailedException",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/health/StartController.java",
+            "start_line": 120,
+            "end_line": 125
+          },
+          {
+            "name": "HealthCheckModule",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/health/HealthCheckModule.java",
+            "start_line": 36,
+            "end_line": 150
+          },
+          {
+            "name": "HealthCheckModule.provideMasterkeyRef",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/HealthCheckModule.java",
+            "start_line": 39,
+            "end_line": 43
+          },
+          {
+            "name": "HealthCheckModule.provideVaultConfigRef",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/HealthCheckModule.java",
+            "start_line": 45,
+            "end_line": 49
+          },
+          {
+            "name": "HealthCheckModule.provideKeyLoadingStrategy",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/HealthCheckModule.java",
+            "start_line": 63,
+            "end_line": 68
+          },
+          {
+            "name": "HealthCheckModule.provideWindowShowingChangeListener",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/HealthCheckModule.java",
+            "start_line": 102,
+            "end_line": 110
+          },
+          {
+            "name": "CheckExecutor",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/health/CheckExecutor.java",
+            "start_line": 22,
+            "end_line": 109
+          },
+          {
+            "name": "CheckExecutor.executeBatch",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/CheckExecutor.java",
+            "start_line": 43,
+            "end_line": 50
+          },
+          {
+            "name": "CheckExecutor.cancel",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/CheckExecutor.java",
+            "start_line": 52,
+            "end_line": 57
+          },
+          {
+            "name": "CheckExecutor.CheckTask",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/health/CheckExecutor.java",
+            "start_line": 59,
+            "end_line": 107
+          },
+          {
+            "name": "CheckExecutor.CheckTask.call",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/CheckExecutor.java",
+            "start_line": 68,
+            "end_line": 78
+          },
+          {
+            "name": "ResultFixApplier",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/health/ResultFixApplier.java",
+            "start_line": 23,
+            "end_line": 77
+          },
+          {
+            "name": "ResultFixApplier.fix",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/health/ResultFixApplier.java",
+            "start_line": 60,
+            "end_line": 69
+          },
+          {
+            "name": "VaultOptionsController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/vaultoptions/VaultOptionsController.java",
+            "start_line": 20,
+            "end_line": 87
+          },
+          {
+            "name": "VaultOptionsController.FxController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/vaultoptions/VaultOptionsController.java",
+            "start_line": 21,
+            "end_line": 21
+          },
+          {
+            "name": "VaultOptionsController.initialize",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/vaultoptions/VaultOptionsController.java",
+            "start_line": 41,
+            "end_line": 57
+          },
+          {
+            "name": "getCiphertextFilename",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/CipherAndCleartext.java",
+            "start_line": 9,
+            "end_line": 11
+          },
+          {
+            "name": "ciphertextFilenameProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/CipherAndCleartext.java",
+            "start_line": 13,
+            "end_line": 15
+          },
+          {
+            "name": "getCleartextName",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/CipherAndCleartext.java",
+            "start_line": 17,
+            "end_line": 19
+          },
+          {
+            "name": "cleartextNameProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/CipherAndCleartext.java",
+            "start_line": 21,
+            "end_line": 23
+          },
+          {
+            "name": "DecryptNameModule",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/DecryptNameModule.java",
+            "start_line": 24,
+            "end_line": 59
+          },
+          {
+            "name": "DecryptNameModule.provideStage",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/DecryptNameModule.java",
+            "start_line": 27,
+            "end_line": 38
+          },
+          {
+            "name": "DecryptNameComponent",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/DecryptNameComponent.java",
+            "start_line": 19,
+            "end_line": 50
+          },
+          {
+            "name": "DecryptNameComponent.vault",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/DecryptNameComponent.java",
+            "start_line": 31,
+            "end_line": 32
+          },
+          {
+            "name": "DecryptNameComponent.showDecryptFileNameWindow",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/DecryptNameComponent.java",
+            "start_line": 34,
+            "end_line": 43
+          },
+          {
+            "name": "DecryptFileNamesViewController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/DecryptFileNamesViewController.java",
+            "start_line": 45,
+            "end_line": 233
+          },
+          {
+            "name": "DecryptFileNamesViewController.initialize",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/DecryptFileNamesViewController.java",
+            "start_line": 79,
+            "end_line": 130
+          },
+          {
+            "name": "DecryptFileNamesViewController.selectFiles",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/DecryptFileNamesViewController.java",
+            "start_line": 144,
+            "end_line": 154
+          },
+          {
+            "name": "DecryptFileNamesViewController.checkAndDecrypt",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/DecryptFileNamesViewController.java",
+            "start_line": 156,
+            "end_line": 180
+          },
+          {
+            "name": "DecryptFileNamesViewController.getCleartextName",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/decryptname/DecryptFileNamesViewController.java",
+            "start_line": 188,
+            "end_line": 195
+          },
+          {
+            "name": "ForgetPasswordController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/forgetpassword/ForgetPasswordController.java",
+            "start_line": 15,
+            "end_line": 54
+          },
+          {
+            "name": "ForgetPasswordController.finish",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/forgetpassword/ForgetPasswordController.java",
+            "start_line": 38,
+            "end_line": 53
+          },
+          {
+            "name": "UnlockWorkflow",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/unlock/UnlockWorkflow.java",
+            "start_line": 37,
+            "end_line": 189
+          },
+          {
+            "name": "UnlockWorkflow.call",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/unlock/UnlockWorkflow.java",
+            "start_line": 79,
+            "end_line": 92
+          },
+          {
+            "name": "UnlockModule.provideKeyLoadingStrategy",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/unlock/UnlockModule.java",
+            "start_line": 56,
+            "end_line": 61
+          },
+          {
+            "name": "VaultStatisticsController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/stats/VaultStatisticsController.java",
+            "start_line": 28,
+            "end_line": 244
+          },
+          {
+            "name": "VaultStatisticsController.totalBytesEncryptedProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/stats/VaultStatisticsController.java",
+            "start_line": 205,
+            "end_line": 205
+          },
+          {
+            "name": "VaultStatisticsController.getTotalBytesEncrypted",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/stats/VaultStatisticsController.java",
+            "start_line": 207,
+            "end_line": 207
+          },
+          {
+            "name": "VaultStatisticsController.totalBytesDecryptedProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/stats/VaultStatisticsController.java",
+            "start_line": 209,
+            "end_line": 209
+          },
+          {
+            "name": "VaultStatisticsController.getTotalBytesDecrypted",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/stats/VaultStatisticsController.java",
+            "start_line": 211,
+            "end_line": 211
+          },
+          {
+            "name": "VaultStatisticsController.bpsEncryptedProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/stats/VaultStatisticsController.java",
+            "start_line": 213,
+            "end_line": 215
+          },
+          {
+            "name": "VaultStatisticsController.getBpsEncrypted",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/stats/VaultStatisticsController.java",
+            "start_line": 217,
+            "end_line": 219
+          },
+          {
+            "name": "VaultStatisticsController.bpsDecryptedProperty",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/stats/VaultStatisticsController.java",
+            "start_line": 221,
+            "end_line": 223
+          },
+          {
+            "name": "VaultStatisticsController.getBpsDecrypted",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/stats/VaultStatisticsController.java",
+            "start_line": 225,
+            "end_line": 227
+          },
+          {
+            "name": "HubToPasswordConvertController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/convertvault/HubToPasswordConvertController.java",
+            "start_line": 51,
+            "end_line": 174
+          },
+          {
+            "name": "HubToPasswordConvertController.convert",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/convertvault/HubToPasswordConvertController.java",
+            "start_line": 104,
+            "end_line": 120
+          },
+          {
+            "name": "HubToPasswordConvertController.convertInternal",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/convertvault/HubToPasswordConvertController.java",
+            "start_line": 122,
+            "end_line": 145
+          },
+          {
+            "name": "HubToPasswordConvertController.createPasswordConfig",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/convertvault/HubToPasswordConvertController.java",
+            "start_line": 155,
+            "end_line": 172
+          },
+          {
+            "name": "EventListCellController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/eventview/EventListCellController.java",
+            "start_line": 50,
+            "end_line": 329
+          },
+          {
+            "name": "ShareVaultController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/sharevault/ShareVaultController.java",
+            "start_line": 17,
+            "end_line": 75
+          },
+          {
+            "name": "ShareVaultController.FxController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/sharevault/ShareVaultController.java",
+            "start_line": 18,
+            "end_line": 18
+          },
+          {
+            "name": "ShareVaultController.openHub",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/sharevault/ShareVaultController.java",
+            "start_line": 49,
+            "end_line": 52
+          },
+          {
+            "name": "ShareVaultController.getHubUri",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/sharevault/ShareVaultController.java",
+            "start_line": 59,
+            "end_line": 69
+          },
+          {
+            "name": "ShareVaultController.isHubVault",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/sharevault/ShareVaultController.java",
+            "start_line": 71,
+            "end_line": 73
+          },
+          {
+            "name": "EventListCellController.adjustToDecryptionFailedEvent",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/eventview/EventListCellController.java",
+            "start_line": 167,
+            "end_line": 176
+          },
+          {
+            "name": "EventListCellController.adjustToBrokenDirFileEvent",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/eventview/EventListCellController.java",
+            "start_line": 178,
+            "end_line": 187
+          },
+          {
+            "name": "EventListCellController.convertVaultPathToSystemPath",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/eventview/EventListCellController.java",
+            "start_line": 237,
+            "end_line": 249
+          },
+          {
+            "name": "FxApplicationWindows",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/fxapp/FxApplicationWindows.java",
+            "start_line": 42,
+            "end_line": 213
+          },
+          {
+            "name": "FxApplicationWindows.startUnlockWorkflow",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/fxapp/FxApplicationWindows.java",
+            "start_line": 166,
+            "end_line": 176
+          },
+          {
+            "name": "FxApplicationWindows.startLockWorkflow",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/fxapp/FxApplicationWindows.java",
+            "start_line": 178,
+            "end_line": 189
+          },
+          {
+            "name": "GeneralPreferencesController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/preferences/GeneralPreferencesController.java",
+            "start_line": 35,
+            "end_line": 198
+          },
+          {
+            "name": "GeneralPreferencesController.FxController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/preferences/GeneralPreferencesController.java",
+            "start_line": 36,
+            "end_line": 36
+          },
+          {
+            "name": "CreateNewVaultPasswordController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/addvaultwizard/CreateNewVaultPasswordController.java",
+            "start_line": 53,
+            "end_line": 257
+          },
+          {
+            "name": "CreateNewVaultPasswordController.FxController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/addvaultwizard/CreateNewVaultPasswordController.java",
+            "start_line": 54,
+            "end_line": 54
+          },
+          {
+            "name": "CreateNewVaultPasswordController.showRecoveryKeyScene",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/addvaultwizard/CreateNewVaultPasswordController.java",
+            "start_line": 150,
+            "end_line": 166
+          },
+          {
+            "name": "CreateNewVaultPasswordController.showSuccessScene",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/addvaultwizard/CreateNewVaultPasswordController.java",
+            "start_line": 168,
+            "end_line": 182
+          },
+          {
+            "name": "CreateNewVaultPasswordController.createVault",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/addvaultwizard/CreateNewVaultPasswordController.java",
+            "start_line": 184,
+            "end_line": 221
+          },
+          {
+            "name": "AddVaultModule.provideRecoveryKeyDisplayController",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/addvaultwizard/AddVaultModule.java",
+            "start_line": 175,
+            "end_line": 180
+          },
+          {
+            "name": "KeychainManagerTest",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/common/keychain/KeychainManagerTest.java",
+            "start_line": 20,
+            "end_line": 58
+          },
+          {
+            "name": "KeychainManagerTest.testStoreAndLoad",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/keychain/KeychainManagerTest.java",
+            "start_line": 28,
+            "end_line": 33
+          },
+          {
+            "name": "KeychainManagerTest.WhenObservingProperties",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/common/keychain/KeychainManagerTest.java",
+            "start_line": 35,
+            "end_line": 56
+          },
+          {
+            "name": "EnvironmentTest.VariablesContainingPathLists",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/common/EnvironmentTest.java",
+            "start_line": 94,
+            "end_line": 124
+          },
+          {
+            "name": "EnvironmentTest.VariablesContainingPathLists.testP12Path",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/EnvironmentTest.java",
+            "start_line": 104,
+            "end_line": 109
+          },
+          {
+            "name": "EnvironmentTest.VariablesContainingPathLists.testKeychainPath",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/EnvironmentTest.java",
+            "start_line": 118,
+            "end_line": 123
+          },
+          {
+            "name": "LicenseCheckerTest",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 10,
+            "end_line": 68
+          },
+          {
+            "name": "LicenseCheckerTest.setup",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 22,
+            "end_line": 25
+          },
+          {
+            "name": "LicenseCheckerTest.testCheckValidLicense",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 27,
+            "end_line": 36
+          },
+          {
+            "name": "LicenseCheckerTest.testCheckInvalidLicenseHeader",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 38,
+            "end_line": 46
+          },
+          {
+            "name": "LicenseCheckerTest.testCheckInvalidLicensePayload",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 48,
+            "end_line": 56
+          },
+          {
+            "name": "LicenseCheckerTest.testCheckInvalidLicenseSignature",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 58,
+            "end_line": 66
+          },
+          {
+            "name": "WordEncoderTest",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/WordEncoderTest.java",
+            "start_line": 14,
+            "end_line": 42
+          },
+          {
+            "name": "WordEncoderTest.setup",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/WordEncoderTest.java",
+            "start_line": 20,
+            "end_line": 23
+          },
+          {
+            "name": "WordEncoderTest.encodeAndDecode",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/WordEncoderTest.java",
+            "start_line": 25,
+            "end_line": 32
+          },
+          {
+            "name": "WordEncoderTest.createRandomByteSequences",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/WordEncoderTest.java",
+            "start_line": 34,
+            "end_line": 40
+          },
+          {
+            "name": "RecoveryKeyFactoryTest",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactoryTest.java",
+            "start_line": 18,
+            "end_line": 96
+          },
+          {
+            "name": "RecoveryKeyFactoryTest.testCreateRecoveryKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactoryTest.java",
+            "start_line": 24,
+            "end_line": 36
+          },
+          {
+            "name": "RecoveryKeyFactoryTest.testValidateValidateRecoveryKeyWithOddNumberOfWords",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactoryTest.java",
+            "start_line": 38,
+            "end_line": 43
+          },
+          {
+            "name": "RecoveryKeyFactoryTest.testValidateValidateRecoveryKeyWithGarbageInput",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactoryTest.java",
+            "start_line": 45,
+            "end_line": 50
+          },
+          {
+            "name": "RecoveryKeyFactoryTest.testValidateValidateRecoveryKeyWithTooShortInput",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactoryTest.java",
+            "start_line": 52,
+            "end_line": 57
+          },
+          {
+            "name": "RecoveryKeyFactoryTest.testValidateValidateRecoveryKeyWithInvalidCrc",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactoryTest.java",
+            "start_line": 59,
+            "end_line": 68
+          },
+          {
+            "name": "RecoveryKeyFactoryTest.testValidateValidateRecoveryKeyWithValidKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactoryTest.java",
+            "start_line": 70,
+            "end_line": 79
+          },
+          {
+            "name": "RecoveryKeyFactoryTest.testValidateValidateRecoveryKeyWithValidKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactoryTest.java",
+            "start_line": 81,
+            "end_line": 94
+          },
+          {
+            "name": "HubConfigTest",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/HubConfigTest.java",
+            "start_line": 8,
+            "end_line": 19
+          },
+          {
+            "name": "JWEHelperTest",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 22,
+            "end_line": 202
+          },
+          {
+            "name": "HubConfigTest.testParseJWTWithUnknownFields",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/HubConfigTest.java",
+            "start_line": 10,
+            "end_line": 17
+          },
+          {
+            "name": "JWEHelperTest.Decoders",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 36,
+            "end_line": 62
+          },
+          {
+            "name": "JWEHelperTest.Decoders.setup",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 42,
+            "end_line": 45
+          },
+          {
+            "name": "JWEHelperTest.Decoders.testDecodeECPublicKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 47,
+            "end_line": 53
+          },
+          {
+            "name": "JWEHelperTest.Decoders.testDecodeECPrivateKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 55,
+            "end_line": 61
+          },
+          {
+            "name": "JWEHelperTest.testDecryptUserKeyECDHES",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 64,
+            "end_line": 83
+          },
+          {
+            "name": "JWEHelperTest.testDecryptUserKeyECDHESWrongKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 85,
+            "end_line": 103
+          },
+          {
+            "name": "JWEHelperTest.testDecryptUserKeyPBES2",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 105,
+            "end_line": 120
+          },
+          {
+            "name": "JWEHelperTest.testDecryptUserKeyPBES2WrongKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 122,
+            "end_line": 135
+          },
+          {
+            "name": "JWEHelperTest.testDecryptVaultKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 137,
+            "end_line": 158
+          },
+          {
+            "name": "JWEHelperTest.testDecryptInvalidVaultKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 160,
+            "end_line": 173
+          },
+          {
+            "name": "JWEHelperTest.testEncryptAndDecryptVaultKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 175,
+            "end_line": 188
+          },
+          {
+            "name": "JWEHelperTest.testEncryptAndDecryptUserKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 190,
+            "end_line": 200
+          },
+          {
+            "name": "HubToPasswordConvertControllerTest",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/ui/convertvault/HubToPasswordConvertControllerTest.java",
+            "start_line": 46,
+            "end_line": 212
+          },
+          {
+            "name": "HubToPasswordConvertControllerTest.integrationTestCreatePasswordConfig",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/convertvault/HubToPasswordConvertControllerTest.java",
+            "start_line": 102,
+            "end_line": 143
+          },
+          {
+            "name": "HubToPasswordConvertControllerTest.ConvertInternalTests",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/ui/convertvault/HubToPasswordConvertControllerTest.java",
+            "start_line": 145,
+            "end_line": 209
+          },
+          {
+            "name": "HubToPasswordConvertControllerTest.ConvertInternalTests.beforeEach",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/convertvault/HubToPasswordConvertControllerTest.java",
+            "start_line": 153,
+            "end_line": 161
+          },
+          {
+            "name": "HubToPasswordConvertControllerTest.ConvertInternalTests.testConvertInternal",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/convertvault/HubToPasswordConvertControllerTest.java",
+            "start_line": 164,
+            "end_line": 180
+          },
+          {
+            "name": "HubToPasswordConvertControllerTest.ConvertInternalTests.testConvertInternalWrapsCryptoException",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/convertvault/HubToPasswordConvertControllerTest.java",
+            "start_line": 182,
+            "end_line": 189
+          },
+          {
+            "name": "HubToPasswordConvertControllerTest.ConvertInternalTests.testConvertInternalWrapsIOException",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/convertvault/HubToPasswordConvertControllerTest.java",
+            "start_line": 191,
+            "end_line": 199
+          },
+          {
+            "name": "HubToPasswordConvertControllerTest.ConvertInternalTests.testConvertInternalNotWrapsIAE",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/convertvault/HubToPasswordConvertControllerTest.java",
+            "start_line": 201,
+            "end_line": 208
+          }
+        ],
+        "cost": 0.33028599999999986
+      },
+      {
+        "name": "Quantum-Weakened Asymmetric Cryptography",
+        "filter_prompt": "The code snippet implements, references, or uses asymmetric cryptographic algorithms that are fundamentally broken by quantum computers using Shor's algorithm (RSA, DSA, ECDSA, ECDH, DH, classic elliptic curve cryptography based on discrete logarithm or integer factorization problems).",
+        "subdirs_or_files": [
+          "/"
+        ],
+        "snippets": [
+          {
+            "name": "LicenseChecker",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/LicenseChecker.java",
+            "start_line": 21,
+            "end_line": 56
+          },
+          {
+            "name": "LicenseChecker.decodePublicKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/LicenseChecker.java",
+            "start_line": 32,
+            "end_line": 46
+          },
+          {
+            "name": "LicenseChecker.check",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/LicenseChecker.java",
+            "start_line": 48,
+            "end_line": 54
+          },
+          {
+            "name": "DeviceKey",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 24,
+            "end_line": 104
+          },
+          {
+            "name": "DeviceKey.get",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 44,
+            "end_line": 47
+          },
+          {
+            "name": "DeviceKey.loadOrCreate",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 49,
+            "end_line": 70
+          },
+          {
+            "name": "DeviceKey.loadExistingKeyPair",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 72,
+            "end_line": 75
+          },
+          {
+            "name": "DeviceKey.createAndStoreNewKeyPair",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/common/settings/DeviceKey.java",
+            "start_line": 77,
+            "end_line": 87
+          },
+          {
+            "name": "RegisterDeviceController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/RegisterDeviceController.java",
+            "start_line": 54,
+            "end_line": 272
+          },
+          {
+            "name": "RegisterDeviceController.register",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/RegisterDeviceController.java",
+            "start_line": 113,
+            "end_line": 162
+          },
+          {
+            "name": "RegisterDeviceController.migrateLegacyDevices",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/RegisterDeviceController.java",
+            "start_line": 164,
+            "end_line": 202
+          },
+          {
+            "name": "HubKeyLoadingStrategy",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/HubKeyLoadingStrategy.java",
+            "start_line": 27,
+            "end_line": 93
+          },
+          {
+            "name": "HubKeyLoadingStrategy.KeyLoadingStrategy",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/HubKeyLoadingStrategy.java",
+            "start_line": 28,
+            "end_line": 28
+          },
+          {
+            "name": "HubKeyLoadingStrategy.loadKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/HubKeyLoadingStrategy.java",
+            "start_line": 53,
+            "end_line": 77
+          },
+          {
+            "name": "ReceiveKeyController.FxController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceiveKeyController.java",
+            "start_line": 41,
+            "end_line": 41
+          },
+          {
+            "name": "ReceiveKeyController.initialize",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceiveKeyController.java",
+            "start_line": 78,
+            "end_line": 81
+          },
+          {
+            "name": "ReceiveKeyController.receiveKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceiveKeyController.java",
+            "start_line": 83,
+            "end_line": 85
+          },
+          {
+            "name": "ReceiveKeyController.receivedBothEncryptedKeys",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceiveKeyController.java",
+            "start_line": 193,
+            "end_line": 202
+          },
+          {
+            "name": "ReceiveKeyController.receivedLegacyAccessTokenSuccess",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceiveKeyController.java",
+            "start_line": 240,
+            "end_line": 249
+          },
+          {
+            "name": "ReceivedKey",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceivedKey.java",
+            "start_line": 8,
+            "end_line": 45
+          },
+          {
+            "name": "ReceivedKey.decryptMasterkey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceivedKey.java",
+            "start_line": 17,
+            "end_line": 17
+          },
+          {
+            "name": "ReceivedKey.vaultKeyAndUserKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceivedKey.java",
+            "start_line": 26,
+            "end_line": 31
+          },
+          {
+            "name": "ReceivedKey.legacyDeviceKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/ReceivedKey.java",
+            "start_line": 40,
+            "end_line": 43
+          },
+          {
+            "name": "JWEHelper",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 34,
+            "end_line": 174
+          },
+          {
+            "name": "JWEHelper.encryptUserKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 42,
+            "end_line": 44
+          },
+          {
+            "name": "JWEHelper.decryptUserKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 46,
+            "end_line": 53
+          },
+          {
+            "name": "JWEHelper.decryptUserKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 55,
+            "end_line": 62
+          },
+          {
+            "name": "JWEHelper.decodeECPrivateKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 71,
+            "end_line": 85
+          },
+          {
+            "name": "JWEHelper.decodeECPublicKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 94,
+            "end_line": 108
+          },
+          {
+            "name": "JWEHelper.encryptVaultKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 110,
+            "end_line": 112
+          },
+          {
+            "name": "JWEHelper.encryptKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 114,
+            "end_line": 127
+          },
+          {
+            "name": "JWEHelper.decryptVaultKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/JWEHelper.java",
+            "start_line": 129,
+            "end_line": 136
+          },
+          {
+            "name": "HubKeyLoadingModule.provideDeviceId",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/HubKeyLoadingModule.java",
+            "start_line": 51,
+            "end_line": 60
+          },
+          {
+            "name": "LegacyRegisterDeviceController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/LegacyRegisterDeviceController.java",
+            "start_line": 44,
+            "end_line": 191
+          },
+          {
+            "name": "LegacyRegisterDeviceController.register",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/LegacyRegisterDeviceController.java",
+            "start_line": 95,
+            "end_line": 128
+          },
+          {
+            "name": "LicenseCheckerTest",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 10,
+            "end_line": 68
+          },
+          {
+            "name": "LicenseCheckerTest.setup",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 22,
+            "end_line": 25
+          },
+          {
+            "name": "LicenseCheckerTest.testCheckValidLicense",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 27,
+            "end_line": 36
+          },
+          {
+            "name": "LicenseCheckerTest.testCheckInvalidLicenseHeader",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 38,
+            "end_line": 46
+          },
+          {
+            "name": "LicenseCheckerTest.testCheckInvalidLicensePayload",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 48,
+            "end_line": 56
+          },
+          {
+            "name": "LicenseCheckerTest.testCheckInvalidLicenseSignature",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/common/LicenseCheckerTest.java",
+            "start_line": 58,
+            "end_line": 66
+          },
+          {
+            "name": "JWEHelperTest",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 22,
+            "end_line": 202
+          },
+          {
+            "name": "JWEHelperTest.Decoders",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 36,
+            "end_line": 62
+          },
+          {
+            "name": "JWEHelperTest.Decoders.setup",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 42,
+            "end_line": 45
+          },
+          {
+            "name": "JWEHelperTest.Decoders.testDecodeECPublicKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 47,
+            "end_line": 53
+          },
+          {
+            "name": "JWEHelperTest.Decoders.testDecodeECPrivateKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 55,
+            "end_line": 61
+          },
+          {
+            "name": "JWEHelperTest.testDecryptUserKeyECDHES",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 64,
+            "end_line": 83
+          },
+          {
+            "name": "JWEHelperTest.testDecryptUserKeyECDHESWrongKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 85,
+            "end_line": 103
+          },
+          {
+            "name": "JWEHelperTest.testDecryptVaultKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 137,
+            "end_line": 158
+          },
+          {
+            "name": "JWEHelperTest.testDecryptInvalidVaultKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 160,
+            "end_line": 173
+          },
+          {
+            "name": "JWEHelperTest.testEncryptAndDecryptVaultKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 175,
+            "end_line": 188
+          },
+          {
+            "name": "JWEHelperTest.testEncryptAndDecryptUserKey",
+            "type": "function",
+            "file_path": "src/test/java/org/cryptomator/ui/keyloading/hub/JWEHelperTest.java",
+            "start_line": 190,
+            "end_line": 200
+          }
+        ],
+        "cost": 0.3409268000000002
+      },
+      {
+        "name": "Non-Quantum-Resistant Symmetric Cryptography",
+        "filter_prompt": "The code snippet implements, references, or uses symmetric cryptographic algorithms that have reduced security against quantum attacks (AES-128, DES, 3DES, hash functions like SHA-1, SHA-256, MD5).",
+        "subdirs_or_files": [
+          "/"
+        ],
+        "snippets": [
+          {
+            "name": "RecoveryKeyFactory",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactory.java",
+            "start_line": 26,
+            "end_line": 150
+          },
+          {
+            "name": "RecoveryKeyFactory.createRecoveryKey",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/recoverykey/RecoveryKeyFactory.java",
+            "start_line": 51,
+            "end_line": 60
+          },
+          {
+            "name": "HubKeyLoadingModule",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/HubKeyLoadingModule.java",
+            "start_line": 30,
+            "end_line": 225
+          },
+          {
+            "name": "HubKeyLoadingModule.provideDeviceId",
+            "type": "function",
+            "file_path": "src/main/java/org/cryptomator/ui/keyloading/hub/HubKeyLoadingModule.java",
+            "start_line": 51,
+            "end_line": 60
+          },
+          {
+            "name": "ResultFixApplier",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/health/ResultFixApplier.java",
+            "start_line": 23,
+            "end_line": 77
+          },
+          {
+            "name": "CreateNewVaultPasswordController",
+            "type": "class",
+            "file_path": "src/main/java/org/cryptomator/ui/addvaultwizard/CreateNewVaultPasswordController.java",
+            "start_line": 53,
+            "end_line": 257
+          },
+          {
+            "name": "HubToPasswordConvertControllerTest",
+            "type": "class",
+            "file_path": "src/test/java/org/cryptomator/ui/convertvault/HubToPasswordConvertControllerTest.java",
+            "start_line": 46,
+            "end_line": 212
+          }
+        ],
+        "cost": 0.3415052000000006
+      }
+    ]
   }
 }
