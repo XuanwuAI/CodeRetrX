@@ -8,6 +8,7 @@ from pathlib import Path
 from tqdm import tqdm
 from textwrap import dedent
 from typing import (
+    Any,
     Dict,
     Iterable,
     List,
@@ -17,16 +18,14 @@ from typing import (
     Set,
     Tuple,
     TypeVar,
+    Union,
 )
 from uuid import UUID
 
 from attrs import Factory, define
 from ignore import Walk
-from tree_sitter import Language as TSLanguage, QueryError
-from tree_sitter import Node, Tree
-from tree_sitter import Parser as TSParser
-from tree_sitter_language_pack import get_language as get_ts_language
-from tree_sitter_language_pack import get_parser
+from tree_sitter import QueryError
+from tree_sitter import Node
 import logging
 from pydantic import BaseModel, Field
 
@@ -46,6 +45,7 @@ from .languages import (
     is_dependency,
     is_sourcecode,
 )
+from .parsers import CodebaseParser, ParserFactory
 from coderetrx.static.ripgrep import (
     GrepMatchResult,
     ripgrep_search,
@@ -60,9 +60,10 @@ class ChunkType(str, Enum):
     QUERY_RESULT = "query_result"
     OTHER = "other"
 
+
 def is_utf8(file_path):
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             f.read()
         return True
     except UnicodeDecodeError:
@@ -129,10 +130,15 @@ class CodeHunk:
         return start, end
 
     # @cached(cache=code_cache)
-    def code(self, do_dedent: bool = True, show_line_numbers: bool = False, trunc_headlines: Optional[int] = None):
+    def code(
+        self,
+        do_dedent: bool = True,
+        show_line_numbers: bool = False,
+        trunc_headlines: Optional[int] = None,
+    ):
         start, end = self.get_linerange()
         if trunc_headlines is not None:
-            end = min(end, start + trunc_headlines-1)
+            end = min(end, start + trunc_headlines - 1)
         return self.src.lookup((start, end), do_dedent, show_line_numbers)
 
     # @cached(cache=codeblock_cache)
@@ -172,14 +178,13 @@ class CodeHunk:
 
 @define
 class CodeChunk(CodeHunk):
-    """A code chunk that is backed by a tree-sitter node."""
+    """A code chunk representing a range of code in a file."""
 
     type: ChunkType
     parent: Optional[Self] = None
     tag: Optional[IDXSupportedTag] = None
     name: Optional[str] = None
-    #todo: use @property to get ts_root on the fly
-    ts_root: Optional[Node] = None
+
     def to_json(self, include_content: bool = False):
         from .models import CodeChunkModel
 
@@ -197,30 +202,28 @@ class CodeChunk(CodeHunk):
         return chunk
 
     @classmethod
-    def from_ts(
+    def new(
         cls,
-        node: Node,
         src: "File",
-        type: str = "primary",
-        tag: IDXSupportedTag | None = None,
-        name: str | None = None,
+        start_line: int,
+        end_line: int,
+        start_column: int,
+        end_column: int,
+        chunk_type: ChunkType,
+        tag: Optional[IDXSupportedTag] = None,
+        name: Optional[str] = None,
     ):
+        """Parser-agnostic factory method for creating code chunks."""
         return cls(
-            type=ChunkType(type),
+            type=chunk_type,
             tag=tag,
-            start_line=node.start_point[0],
-            end_line=node.end_point[0],
-            start_column=node.start_point[1],
-            end_column=node.end_point[1],
-            src=src,
-            uuid=hunk_uuid(
-                src.path,
-                node.start_point[0],
-                node.end_point[0],
-                node.start_point[1],
-                node.end_point[1],
-            ),
             name=name,
+            start_line=start_line,
+            end_line=end_line,
+            start_column=start_column,
+            end_column=end_column,
+            src=src,
+            uuid=hunk_uuid(src.path, start_line, end_line, start_column, end_column),
         )
 
     def symbol_name(self) -> Optional[str]:
@@ -245,11 +248,9 @@ class CodeChunk(CodeHunk):
         prev_child = self
         parent = self.parent
         while parent:
-            if parent.ts_root is None:
-                logger.debug(f"Skipping {parent.symbol_name()} because ts_root is None")
-                break
-            if parent.ts_root.text:
-                line_diff = prev_child.start_line - parent.start_line
+            # Skip parent processing since we no longer have ts_root
+            line_diff = prev_child.start_line - parent.start_line
+            if line_diff > 0:
                 par_lines = parent.lines()[: min(par_headlines, line_diff)]
                 if show_line_numbers:
                     line_numbers = range(
@@ -280,7 +281,11 @@ class CodeChunk(CodeHunk):
                 ),
             )
         parts.append("<CODE_CHUNK_IN_INTEREST>")
-        code = self.code(do_dedent=False, show_line_numbers=show_line_numbers, trunc_headlines=trunc_headlines)
+        code = self.code(
+            do_dedent=False,
+            show_line_numbers=show_line_numbers,
+            trunc_headlines=trunc_headlines,
+        )
         parts.append(code)
         parts.append("</CODE_CHUNK_IN_INTEREST>")
         parts.insert(0, f"```{self.src.path}:{self.src.lang()}")
@@ -297,19 +302,7 @@ class CodeChunk(CodeHunk):
         return self.codeblock()
 
 
-@define
-class TreeSitterState:
-    parser: TSParser
-    ts_language: TSLanguage
-    idx_language: IDXSupportedLanguage
-    tree: Tree
-    node_map: Dict[int, Node] = Factory(dict)
-
-    def build_node_map(self, node: Node):
-        """Build a map of node IDs to nodes by walking the tree."""
-        self.node_map[node.id] = node
-        for child in node.children:
-            self.build_node_map(child)
+# TreeSitterState moved to parsers/treesitter.py
 
 
 FileType = Literal["source", "dependency"]
@@ -327,9 +320,11 @@ class File:
     _content: str | None = None
     _lines: List[str] | None = None
 
-    # Tree Sitter
-    tree_sitter: Optional[TreeSitterState] = None
     chunks: List[CodeChunk] = Factory(list)
+
+    # Parser system
+    _parser: Optional[CodebaseParser] = None
+    _parse_state: Optional[Any] = None
 
     @classmethod
     def new(
@@ -365,129 +360,60 @@ class File:
             self._lines = self.content.splitlines()
         return self._lines
 
-    def init_treesitter(self) -> TreeSitterState:
-        assert self.file_type == "source"
-        lang = get_language(self.path)
-        if lang is None:
-            raise ValueError(f"Unsupported language for file: {self.path}")
-        ts_lang = get_ts_language(lang)
-        parser = get_parser(lang)
-        tree = parser.parse(self.content.encode())
-        ts_state = TreeSitterState(
-            parser=parser,
-            idx_language=lang,
-            ts_language=ts_lang,
-            tree=tree,
-        )
-        # ts_state.build_node_map(tree.root_node) -- perf
-        self.tree_sitter = ts_state
-        return self.tree_sitter
+    # Legacy tree-sitter methods removed - now handled by parser system
 
-    def ts(self) -> TreeSitterState:
+    def init_parser(self, parser: Optional[CodebaseParser] = None) -> Any:
         """
-        Convenience method to get the TreeSitterState for the file.
+        Initialize parser for this file.
+
+        Args:
+            parser: Parser instance to use. If None, uses codebase parser.
+
+        Returns:
+            Parser-specific state
         """
-        assert self.file_type == "source"
-        if self.tree_sitter is None:
-            return self.init_treesitter()
-        else:
-            return self.tree_sitter
+        if self._parser is None:
+            self._parser = parser or self.codebase.get_parser()
 
-    def get_block_nodes(self) -> Set[Node]:
-        assert self.file_type == "source"
-        ts = self.ts()
-        try:
-            stmt = get_query(ts.idx_language, "tests")
-            query = ts.ts_language.query(stmt)
-            captures = query.captures(ts.tree.root_node)
-            return set(node for nodes in captures.values() for node in nodes)
-        except FileNotFoundError:
-            logger.debug(f"Test Query file not found for language {ts.idx_language}")
-            return set()
-        except Exception as e:
-            raise e
+        if self._parser is None:
+            raise ValueError("No parser available for file parsing")
 
-    def init_chunks(self) -> List[CodeChunk]:
-        assert self.file_type == "source"
-        ts = self.ts()
-        stmt = get_query(ts.idx_language)
-        query = ts.ts_language.query(stmt)
-        matches = query.matches(ts.tree.root_node)
-        block_nodes: Set[Node] = (
-            self.get_block_nodes() if self.codebase.ignore_tests else set()
-        )
+        if self._parse_state is None:
+            self._parse_state = self._parser.parse_file(self)
 
-        for match in matches:
-            match_g = match[1]
-            main_tag = next(k for k in match_g.keys() if not k.startswith("name."))
-            if main_tag in PRIMARY_TAGS:
-                kind = ChunkType.PRIMARY
-            elif main_tag in REFERENCE_TAGS:
-                kind = ChunkType.REFERENCE
-            elif main_tag in IMPORT_TAGS:
-                kind = ChunkType.IMPORT
-            else:
-                continue
+        return self._parse_state
 
-            node = match_g[main_tag][0]
-            is_blocked = False
-            # TODO: optimize for perf
-            for block_node in block_nodes:
-                if (
-                    block_node.start_point <= node.start_point
-                    and block_node.end_point >= node.end_point
-                ):
-                    is_blocked = True
-                    break
-            if is_blocked:
-                continue
+    def get_parser(self) -> Optional[CodebaseParser]:
+        """Get the parser instance for this file."""
+        return self._parser
 
-            name: str | None = None
-            if f"name.{main_tag}" in match_g:
-                _name = match_g[f"name.{main_tag}"][0].text
-                if _name is not None:
-                    name = _name.decode()
+    def init_chunks_with_parser(
+        self, parser: Optional[CodebaseParser] = None
+    ) -> List[CodeChunk]:
+        """
+        Initialize chunks using the parser system.
 
-            self.chunks.append(CodeChunk.from_ts(node, self, kind, main_tag, name))
-            from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
-            settings = SmartCodebaseSettings()
-            max_chunk_size: int = settings.max_chunks_one_file
-            if max_chunk_size>0 and len(self.chunks) > max_chunk_size:
-                logger.warning(f"Too many chunks in {self.path}: {len(self.chunks)} > {max_chunk_size}")
-                self.chunks = []
-                return []
+        Args:
+            parser: Parser instance to use. If None, uses codebase parser.
 
-        self.populate_nesting()
+        Returns:
+            List of extracted chunks
+        """
+        if self.chunks:  # Already initialized
+            return self.chunks
+
+        parse_state = self.init_parser(parser)
+        if self._parser is None:
+            raise ValueError("No parser available")
+        self.chunks = self._parser.extract_chunks(self, parse_state)
         return self.chunks
 
-    def populate_nesting(self):
-        # Reference: https://github.com/zed-industries/zed/blob/9bd3e156f5d4db33d1cfc3b5868a493dba8ebc09/crates/language/src/buffer.rs#L3396
-
-        # Sort chunks by start line and then by end line in reverse order
-        # This ensures that outer chunks come before inner chunks when they start at the same line
-        self.chunks.sort(key=lambda x: (x.start_line, -x.end_line))
-
-        # Stack to keep track of potential parent chunks
-        # Each entry is (end_line, chunk) where end_line is the ending line of the chunk
-        parent_stack = []
-
-        for chunk in self.chunks:
-            # Pop chunks from the stack that end before the current chunk starts
-            # These cannot be parents of the current chunk
-            while parent_stack and parent_stack[-1][0] < chunk.start_line:
-                parent_stack.pop()
-
-            # If there's a chunk on the stack, it contains the current chunk
-            # The last chunk on the stack is the immediate parent
-            if parent_stack:
-                chunk.parent = parent_stack[-1][1]
-
-            # Push the current chunk onto the stack as a potential parent for future chunks
-            parent_stack.append((chunk.end_line, chunk))
-
     def init_all(self):
-        self.init_treesitter()
-        self.init_chunks()
+        """Initialize chunks using the codebase parser system."""
+        if hasattr(self.codebase, "get_parser") and self.codebase.get_parser():
+            self.init_chunks_with_parser()
+        else:
+            raise ValueError("No parser configured for codebase")
 
     # @cached(cache=lookup_lines_cache)
     def lookup_lines(
@@ -532,9 +458,9 @@ class File:
         lines = self.lines
         if show_line_numbers:
             numbered_lines = [f"{i:4d} | {lines[i]}" for i in range(len(lines))]
-            content = dedent('\n'.join(numbered_lines))
+            content = dedent("\n".join(numbered_lines))
             return f"```{self.path}\n{content}\n```"
-        content = dedent('\n'.join(lines))
+        content = dedent("\n".join(lines))
         return f"```{self.path}\n{content}\n```"
 
     def to_json(self, include_content: bool = False):
@@ -571,17 +497,17 @@ class File:
 
     def primary_chunks(self) -> List[CodeChunk]:
         return [chunk for chunk in self.chunks if chunk.type == ChunkType.PRIMARY]
-    
-    def get_lines(self, max_chars = 0):
+
+    def get_lines(self, max_chars=0):
         chunks = self.primary_chunks()  # Already sorted by start_line
         active_chunks = []  # List of chunks that currently contain the line
         chunk_idx = 0  # Index of next chunk to consider
         results: List[CodelineDocument] = []
-        
+
         for i, line in enumerate(self.lines):
             # Remove chunks that end before the current line
             active_chunks = [chunk for chunk in active_chunks if chunk.end_line >= i]
-            
+
             # Add chunks that start at or before the current line and haven't been processed yet
             while chunk_idx < len(chunks) and chunks[chunk_idx].start_line <= i:
                 chunk = chunks[chunk_idx]
@@ -589,13 +515,20 @@ class File:
                 if chunk.end_line >= i:
                     active_chunks.append(chunk)
                 chunk_idx += 1
-            
+
             # Collect IDs of all chunks that contain the current line
             symbol_ids = [chunk.id for chunk in active_chunks]
-            
+
             if len(line):
-                results.append(CodelineDocument(file_path=str(self.path), start_line=i, content=line, symbol_ids=symbol_ids))
-        
+                results.append(
+                    CodelineDocument(
+                        file_path=str(self.path),
+                        start_line=i,
+                        content=line,
+                        symbol_ids=symbol_ids,
+                    )
+                )
+
         cur_buf = []
         cur_symbol_ids = []
         cur_buf_len = 0
@@ -603,15 +536,20 @@ class File:
         def get_new_doc():
             nonlocal cur_buf, cur_buf_len, cur_symbol_ids
             content = "\n".join([doc.content for doc in cur_buf])
-            new_doc = CodelineDocument(file_path=str(self.path), start_line=cur_buf[0].start_line, end_line=cur_buf[-1].start_line, content=content, symbol_ids=cur_buf[0].symbol_ids)
+            new_doc = CodelineDocument(
+                file_path=str(self.path),
+                start_line=cur_buf[0].start_line,
+                end_line=cur_buf[-1].start_line,
+                content=content,
+                symbol_ids=cur_buf[0].symbol_ids,
+            )
             cur_buf = []
             cur_buf_len = 0
             return new_doc
 
         for doc in results:
             if len(cur_buf) and (
-                cur_buf_len > max_chars or 
-                cur_symbol_ids != doc.symbol_ids
+                cur_buf_len > max_chars or cur_symbol_ids != doc.symbol_ids
             ):
                 yield get_new_doc()
             cur_buf.append(doc)
@@ -762,35 +700,34 @@ class CallGraphEdge:
         return model.to_edge(codebase)
 
 
-
 class CodelineDocument(BaseModel):
     file_path: str
     # Range is inclusive [start_line, end_line]
     start_line: int = Field(description="0-indexed line number of the code line")
-    end_line: Optional[int] = Field(default=None, description="0-indexed end line number of the code line")
+    end_line: Optional[int] = Field(
+        default=None, description="0-indexed end line number of the code line"
+    )
     content: str
     symbol_ids: List[str]
 
+
 class CodeLine(BaseModel):
     """Pydantic model representing a code line entry with metadata."""
+
     model_config = {"arbitrary_types_allowed": True}
-    
+
     line_content: str = Field(description="The content of the code line")
     symbol: Symbol = Field(description="Symbol object containing this line")
     score: float = Field(description="Vector similarity score for this line")
-    
+
     @classmethod
-    def new(
-        cls, line_content: str, symbol: Symbol, score: float = 0.0
-    ) -> "CodeLine":
+    def new(cls, line_content: str, symbol: Symbol, score: float = 0.0) -> "CodeLine":
         return cls(line_content=line_content, symbol=symbol, score=score)
 
 
 CodeElement = Symbol | Keyword | Dependency | File | CallGraphEdge
 
-CodeElementTypeVar = TypeVar(
-    "CodeElementTypeVar", bound=CodeElement
-)
+CodeElementTypeVar = TypeVar("CodeElementTypeVar", bound=CodeElement)
 
 
 # MARK: Codebase
@@ -808,6 +745,9 @@ class Codebase:
     version: str = "v0.0.1"
     ignore_tests: bool = True
 
+    # Parser system
+    _parser: Optional[CodebaseParser] = None
+
     _chunks_initialized: bool = False
     _symbols_initialized: bool = False
     _keywords_initialized: bool = False
@@ -815,7 +755,9 @@ class Codebase:
     _call_graph_initialized: bool = False
 
     @classmethod
-    def from_json(cls, data: dict, languages: Optional[List[IDXSupportedLanguage]] = None) -> "Codebase":
+    def from_json(
+        cls, data: dict, languages: Optional[List[IDXSupportedLanguage]] = None
+    ) -> "Codebase":
         """
         Create a Codebase instance from a JSON representation.
         """
@@ -834,6 +776,8 @@ class Codebase:
         version: str = "v0.0.1",
         ignore_tests: bool = True,
         languages: Optional[List[IDXSupportedLanguage]] = None,
+        parser: Optional[Union[str, CodebaseParser]] = None,
+        **parser_kwargs,
     ) -> Self:
         dir = Path(dir)
         res = cls(
@@ -845,6 +789,16 @@ class Codebase:
             url=url,
             ignore_tests=ignore_tests,
         )
+
+        # Initialize parser - default to TreeSitter if none specified
+        if parser is not None:
+            if isinstance(parser, str):
+                res._parser = ParserFactory.get_parser(parser, **parser_kwargs)
+            else:
+                res._parser = parser
+        else:
+            # Default to TreeSitter parser
+            res._parser = ParserFactory.get_parser("treesitter", **parser_kwargs)
         for entry in Walk(dir):
             path = entry.path()
             if not path.is_file():
@@ -867,14 +821,37 @@ class Codebase:
                 )
         return res
 
+    def get_parser(self) -> Optional[CodebaseParser]:
+        """Get the parser instance for this codebase."""
+        return self._parser
+
+    def set_parser(self, parser: Union[str, CodebaseParser], **kwargs):
+        """
+        Set the parser for this codebase.
+
+        Args:
+            parser: Parser instance or parser type string
+            **kwargs: Additional parser configuration
+        """
+        if isinstance(parser, str):
+            self._parser = ParserFactory.get_parser(parser, **kwargs)
+        else:
+            self._parser = parser
+
+        # Reset initialization flags since we're changing the parser
+        self._chunks_initialized = False
+
     def init_chunks(self) -> List[CodeChunk]:
         if self._chunks_initialized:
             return self.all_chunks
-        logger.info("Starting chunks extraction from source code files...")
-        files = list(self.source_files.values())
-        for file in tqdm(files, desc="Initializing chunks"):
-            chunks = file.init_chunks()
-            self.all_chunks.extend(chunks)
+
+        if not self._parser:
+            raise ValueError(
+                "No parser configured for codebase. Use set_parser() to configure a parser."
+            )
+
+        logger.info(f"Using parser: {type(self._parser).__name__}")
+        self._parser.init_chunks(self)
         self._chunks_initialized = True
         logger.info(
             f"chunk extraction complete: found {len(self.all_chunks)} chunks across the codebase"
@@ -884,24 +861,13 @@ class Codebase:
     def _extract_symbols(self):
         if self._symbols_initialized:
             return self.symbols
-        logger.info("Starting symbol extraction from source code files...")
-        for chunk in tqdm(self.primary_chunks(), desc="Extracting symbols"):
-            if symb_name := chunk.symbol_name():
-                if chunk.tag in OBJLIKE_TAGS:
-                    type = "class"
-                elif chunk.tag in FUNCLIKE_TAGS:
-                    type = "function"
-                else:
-                    continue
-                self.symbols.append(
-                    Symbol(
-                        name=symb_name,
-                        file=chunk.src,
-                        type=type,
-                        id=chunk.id,
-                        chunk=chunk,
-                    )
-                )
+
+        if not self._parser:
+            raise ValueError(
+                "No parser configured for codebase. Use set_parser() to configure a parser."
+            )
+
+        self._parser.init_symbols(self)
         self._symbols_initialized = True
         logger.info(
             f"Symbol extraction complete: found {len(self.symbols)} symbols across the codebase"
@@ -912,113 +878,32 @@ class Codebase:
         """Extract keywords from source code files."""
         if self._keywords_initialized:
             return self.keywords
-        logger.info("Starting keyword extraction from source code files...")
 
-        # Set to store unique keywords
-        unique_keywords: dict[str, Keyword] = {}
+        if not self._parser:
+            raise ValueError(
+                "No parser configured for codebase. Use set_parser() to configure a parser."
+            )
 
-        # Check if we should use sentence-based extraction
-        from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
-        settings = SmartCodebaseSettings()
-        use_sentence_extraction = settings.keyword_sentence_extraction
-
-        # Process each source file
-        for file_path, file in tqdm(self.source_files.items(), desc="Extracting keywords"):
-            try:
-                content = file.content
-                
-                if use_sentence_extraction:
-                    # Sentence-based extraction
-                    sentences = re.split(r'[.!?\n]+', content)
-                    for sentence in sentences:
-                        sentence = sentence.strip()
-                        # remove extra whitespace and normalize
-                        normalized_sentence = ' '.join(sentence.split()).lower()
-                        
-                        # Skip empty sentences
-                        if not normalized_sentence:
-                            continue
-                        
-                        if normalized_sentence in unique_keywords:
-                            unique_keywords[normalized_sentence].referenced_by.append(file)
-                        else:
-                            unique_keywords[normalized_sentence] = Keyword(
-                                content=normalized_sentence, referenced_by=[file]
-                            )
-                else:
-                    # Word-based extraction
-                    words = content.split()
-                    for word in words:
-                        # only reserve words, numbers and '.', '-', '_', '/'
-                        normalized_word = re.sub(r"[^a-zA-Z0-9.-_/]", "", word.lower())
-
-                        # Skip words that are too short (less than 3 characters)
-                        if len(normalized_word) < 3:
-                            continue
-
-                        if normalized_word in unique_keywords:
-                            unique_keywords[normalized_word].referenced_by.append(file)
-                        else:
-                            unique_keywords[normalized_word] = Keyword(
-                                content=normalized_word, referenced_by=[file]
-                            )
-
-            except Exception as e:
-                logger.info(f"Error extracting keywords from file {file_path}: {e}")
-
-        self.keywords = list(unique_keywords.values())
-        extraction_type = "sentence" if use_sentence_extraction else "word"
-        logger.info(
-            f"Keyword extraction ({extraction_type}-based) complete: found {len(self.keywords)} unique keywords across the codebase"
-        )
+        self._parser.init_keywords(self)
         self._keywords_initialized = True
+        logger.info(
+            f"Keyword extraction complete: found {len(self.keywords)} unique keywords across the codebase"
+        )
         return self.keywords
 
     def _extract_dependencies(self):
         if self._dependencies_initialized:
             return self.dependencies
-        logger.info("Starting dependency extraction from source code files...")
-        dependency_symbols: List[Symbol] = []
-        for file in tqdm(self.source_files.values(), desc="Extracting dependencies"):
-            ts = file.ts()
-            lang = ts.idx_language
-            try:
-                pattern = get_query(lang, "fine_imports")
-            except FileNotFoundError:
-                continue
-            query = ts.ts_language.query(pattern)
-            captures = query.captures(ts.tree.root_node)
-            for capture_name, nodes in captures.items():
-                if capture_name != "module":
-                    continue
-                for node in nodes:
-                    raw = node.text.decode() if node.text else ""
-                    # strip quotes, angle brackets, etc.
-                    module_name = raw.strip("'\"<>")
-                    # skip empty or local imports
-                    if not module_name or module_name.startswith((".", "/")):
-                        continue
-                    chunk = CodeChunk.from_ts(node, file, "import", name=module_name)
-                    sym = Symbol(
-                        name=module_name,
-                        type="dependency",
-                        file=file,
-                        chunk=chunk,
-                    )
-                    dependency_symbols.append(sym)
-                    file.chunks.append(chunk)
-        dep_map: Dict[str, List[File]] = defaultdict(list)
-        for sym in dependency_symbols:
-            dep_map[sym.name].append(sym.file)
 
-        self.dependencies = [
-            Dependency(id=sym.id, name=name, imported_by=imported_by)
-            for name, imported_by in dep_map.items()
-        ]
-        self.symbols += dependency_symbols
+        if not self._parser:
+            raise ValueError(
+                "No parser configured for codebase. Use set_parser() to configure a parser."
+            )
+
+        self._parser.init_dependencies(self)
         self._dependencies_initialized = True
         logger.info(
-            f"Dependency extraction complete: found {len(self.dependencies)} unique keywords across the codebase"
+            f"Dependency extraction complete: found {len(self.dependencies)} unique dependencies across the codebase"
         )
         return self.dependencies
 
@@ -1134,11 +1019,23 @@ class Codebase:
 
     def get_file(self, path: PathLike | str) -> File | None:
         return self.source_files.get(str(path)) or self.dependency_files.get(str(path))
-    
+
     def get_all_lines(self, max_chars: int = 0):
         for file in self.source_files.values():
             for line in file.get_lines(max_chars=max_chars):
                 yield line
+
+    def cleanup(self):
+        """Clean up resources held by the codebase, including parser resources."""
+        if self._parser:
+            self._parser.cleanup()
+
+    def __del__(self):
+        """Ensure cleanup when the object is garbage collected."""
+        try:
+            self.cleanup()
+        except Exception:
+            pass  # Ignore errors during cleanup
 
     @classmethod
     def jit_for_testing(cls) -> Self:
