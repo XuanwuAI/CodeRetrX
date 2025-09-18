@@ -5,6 +5,7 @@ This test suite validates that both parsers implement the new interface correctl
 and produce consistent results for the same codebase using real GitHub repositories.
 """
 
+import json
 import pytest
 import asyncio
 import tempfile
@@ -18,12 +19,12 @@ from coderetrx.static.codebase.parsers import ParserFactory, TreeSitterParser
 from coderetrx.static.codebase.parsers.codeql.parser import CodeQLParser
 from coderetrx.static.codebase.languages import get_language
 from coderetrx.utils.git import clone_repo_if_not_exists, get_repo_id
-from coderetrx.utils.path import get_data_dir
+from coderetrx.utils.path import get_cache_dir, get_data_dir
 
 # Configure logging for tests
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
+(get_cache_dir() / "test").mkdir(parents=True, exist_ok=True)
 # Global variable for test repositories - can be configured externally
 TEST_REPOS = [
     {
@@ -153,6 +154,8 @@ class TestRealRepositoryParsing:
         logger.info("Testing TreeSitter dependency extraction...")
         dependencies = codebase._extract_dependencies()
         logger.info(f"TreeSitter extracted {len(dependencies)} dependencies")
+        with open(get_cache_dir()/ "test" / "codebase_test_treesitter.json", "w") as f:
+            json.dump(codebase.to_json(), f)
         
         # Verify data consistency
         self._verify_codebase_consistency(codebase, "TreeSitter")
@@ -195,10 +198,11 @@ class TestRealRepositoryParsing:
             logger.info("Testing CodeQL dependency extraction...")
             dependencies = codebase._extract_dependencies()
             logger.info(f"CodeQL extracted {len(dependencies)} dependencies")
-            
+            with open(get_cache_dir()/"test"/ "codebase_test_codeql.json", "w") as f:
+                json.dump(codebase.to_json(), f)
             # Verify data consistency
             self._verify_codebase_consistency(codebase, "CodeQL")
-            
+
         except Exception as e:
             pytest.skip(f"CodeQL not available or failed: {e}")
     

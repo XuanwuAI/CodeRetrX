@@ -41,7 +41,6 @@ from .languages import (
     IDXSupportedLanguage,
     IDXSupportedTag,
     get_language,
-    get_query,
     is_dependency,
     is_sourcecode,
 )
