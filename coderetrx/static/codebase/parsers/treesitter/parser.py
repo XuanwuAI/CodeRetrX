@@ -8,8 +8,8 @@ from tree_sitter_language_pack import get_language as get_ts_language, get_parse
 from attrs import Factory, define
 from tqdm import tqdm
 
-from .base import CodebaseParser, ParseError, UnsupportedLanguageError
-from ..languages import (
+from ..base import CodebaseParser, ParseError, UnsupportedLanguageError
+from ...languages import (
     IDXSupportedLanguage,
     IDXSupportedTag,
     PRIMARY_TAGS,
@@ -18,11 +18,11 @@ from ..languages import (
     OBJLIKE_TAGS,
     FUNCLIKE_TAGS,
     get_language,
-    get_query,
 )
+from .queries import TreeSitterQueryTemplates
 
 if TYPE_CHECKING:
-    from ..codebase import (
+    from ...codebase import (
         File,
         CodeChunk,
         ChunkType,
@@ -129,13 +129,13 @@ class TreeSitterParser(CodebaseParser):
         Returns:
             List of CodeChunk objects with consistent UUIDs
         """
-        from ..codebase import CodeChunk, ChunkType
+        from ...codebase import CodeChunk, ChunkType
 
         chunks = []
         ts = parse_state
 
         try:
-            stmt = get_query(ts.idx_language)
+            stmt = TreeSitterQueryTemplates.get_query(ts.idx_language)
             query = ts.ts_language.query(stmt)
             matches = query.matches(ts.tree.root_node)
 
@@ -198,7 +198,7 @@ class TreeSitterParser(CodebaseParser):
     def _get_block_nodes(self, file: "File", ts: "TreeSitterState") -> Set[Node]:
         """Get test block nodes for filtering."""
         try:
-            stmt = get_query(ts.idx_language, "tests")
+            stmt = TreeSitterQueryTemplates.get_query(ts.idx_language, "tests")
             query = ts.ts_language.query(stmt)
             captures = query.captures(ts.tree.root_node)
             return set(node for nodes in captures.values() for node in nodes)
@@ -282,7 +282,7 @@ class TreeSitterParser(CodebaseParser):
         if not codebase.all_chunks:
             self.init_chunks(codebase)
 
-        from ..codebase import Symbol, ChunkType
+        from ...codebase import Symbol, ChunkType
 
         # Create Symbol objects from chunks
         for chunk in codebase.all_chunks:
@@ -302,7 +302,7 @@ class TreeSitterParser(CodebaseParser):
         """
         Extract dependencies using tree-sitter queries and populate into codebase.
         """
-        from ..codebase import CodeChunk, Symbol, Dependency, ChunkType
+        from ...codebase import CodeChunk, Symbol, Dependency, ChunkType
 
         dependency_symbols: List[Symbol] = []
 
@@ -318,7 +318,7 @@ class TreeSitterParser(CodebaseParser):
                 lang = ts.idx_language
 
                 try:
-                    pattern = get_query(lang, "fine_imports")
+                    pattern = TreeSitterQueryTemplates.get_query(lang, "fine_imports")
                 except FileNotFoundError:
                     continue
 
@@ -382,7 +382,7 @@ class TreeSitterParser(CodebaseParser):
 
         This is the tree-sitter specific factory method that replaces from_ts.
         """
-        from ..codebase import CodeChunk, ChunkType
+        from ...codebase import CodeChunk, ChunkType
 
         return CodeChunk.new(
             tag=tag,
