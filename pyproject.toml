@@ -27,6 +27,7 @@ dependencies = [
     "mcp>=1.13.1",
     "starlette>=0.47.3",
     "anyio>=4.9.0",
+    "pytest-asyncio>=1.2.0",
 ]
 
 [tool.setuptools.packages.find]
