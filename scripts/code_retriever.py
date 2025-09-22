@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class CodeRetriever:
-    def __init__(self, repo_url: str, coarse_recall_strategy: CoarseRecallStrategyType = "line_per_symbol", use_function_call: bool = True, enable_checkpoint: bool = False):
+    def __init__(self, repo_url: str, coarse_recall_strategy: CoarseRecallStrategyType = "line_per_symbol", use_function_call: bool = True, enable_checkpoint: bool = False, queries: str = "refactor"):
         self.repo_url = repo_url
         self.repo_path = get_data_dir() / "repos" / get_repo_id(repo_url)
         self.topic_extractor = TopicExtractor()
@@ -33,6 +33,7 @@ class CodeRetriever:
             raise ValueError(f"Invalid coarse_recall_strategy '{coarse_recall_strategy}'. Must be one of: {CoarseRecallStrategyType.__args__} or 'precise'")
         self.use_function_call = use_function_call
         self.enable_checkpoint = enable_checkpoint
+        self.queries = queries
         
         # Initialize checkpoint manager if enabled
         if self.enable_checkpoint:
@@ -43,8 +44,15 @@ class CodeRetriever:
     def generate_prompts(self, limit: int = 10) -> list[str]:
         all_prompts = []
         
-        # Get the absolute path of the query file from queries folder
-        query_file = Path(__file__).parent.parent / "bench" / "queries.json"
+        # Select queries file by queries type
+        queries_filename_map = {
+            "vuln": "queries_vuln.json",
+            "PQAlgo": "queries_PQAlgo.json",
+            "refactor": "queries_refactor.json",
+            "custom": "queries_custom.json",
+        }
+        selected_filename = queries_filename_map.get(self.queries, "queries_refactor.json")
+        query_file = Path(__file__).parent.parent / "bench" / selected_filename
         
         try:
             with open(query_file, 'r', encoding='utf-8') as f:
@@ -446,6 +454,7 @@ class CodeRetriever:
             "timestamp": str(datetime.datetime.now()),
             "coarse_recall_strategy": self.coarse_recall_strategy,
             "function_call_coarse_recall_strategy": self.use_function_call,
+            "queries": self.queries,
             "llm_cost": cost,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
@@ -506,6 +515,14 @@ Available coarse_recall_strategies:
     )
 
     parser.add_argument(
+        "--queries", "-q",
+        type=str,
+        choices=["vuln", "PQAlgo", "refactor", "custom"],
+        default="refactor",
+        help="Which queries set to use (default: refactor)"
+    )
+
+    parser.add_argument(
         "--sec",
         action="store_true",
         help="Enable secondary recall (default: False)"
@@ -531,19 +548,20 @@ async def main():
     print(f"code Finder - Repository Analysis")
     print(f"Repository: {args.repo}")
     print(f"Mode: {args.coarse_recall_strategy}")
+    print(f"Queries: {args.queries}")
     print(f"Subdirectories: {args.subdirs}")
     print("-" * 60)
     
     try:
         # Run the code finder with checkpoint enabled
-        code_finder = CodeRetriever(args.repo, coarse_recall_strategy=args.coarse_recall_strategy, use_function_call=args.use_function_call, enable_checkpoint=True)
+        code_finder = CodeRetriever(args.repo, coarse_recall_strategy=args.coarse_recall_strategy, use_function_call=args.use_function_call, enable_checkpoint=True, queries=args.queries)
         
         codes, timing_info, cost_info = await code_finder.find_codes(subdirs=args.subdirs, enable_secondary_recall=args.sec, limit=args.limit, resume=args.resume)
 
         # Determine secondary recall suffix based on --sec flag
         secondary_recall_suffix = "sec" if args.sec else "pri"
 
-        output_file = f"code_report_{args.limit}_{args.coarse_recall_strategy}_{secondary_recall_suffix}.json"
+        output_file = f"code_report_{args.limit}_{args.coarse_recall_strategy}_{args.queries}_{secondary_recall_suffix}.json"
 
         await code_finder.save_results(codes, timing_info, cost_info, output_file)
         

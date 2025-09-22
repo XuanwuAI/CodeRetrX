@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Synchronous Server Calls",
+    "filter_prompt": "The code snippet implements, references, or uses synchronous server calls (e.g., blocking network requests, synchronous HTTP APIs, or RPCs that block the main thread).",
+    "subdirs_or_files": [
+      "/"
+    ]
+  },
+  {
+    "name": "Long Method Detection",
+    "filter_prompt": "The code snippet contains methods or functions that are unusually long, indicating a need for refactoring into smaller, more manageable units.",
+    "subdirs_or_files": [
+      "/"
+    ]
+  },
+  {
+    "name": "Duplicated Code Patterns",
+    "filter_prompt": "The code snippet contains duplicated code blocks or patterns that could be refactored into reusable functions or classes.",
+    "subdirs_or_files": [
+      "/"
+    ]
+  },
+  {
+    "name": "Deeply Nested Conditionals",
+    "filter_prompt": "The code snippet contains deeply nested if/else or switch/case statements.",
+    "subdirs_or_files": [
+      "/"
+    ]
+  },
+  {
+    "name": "God Object or Large Class",
+    "filter_prompt": "The code snippet defines a class or object that has too many responsibilities or methods.",
+    "subdirs_or_files": [
+      "/"
+    ]
+  }
+]

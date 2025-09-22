@@ -28,17 +28,26 @@ https://github.com/ethereum/go-ethereum
 // Mastercard Client Encryption, java, Small, 8654
 https://github.com/Mastercard/client-encryption-java
 
-// Keycloak, java, Large, 955351
-https://github.com/keycloak/keycloak
-
 // Cryptomator, java, Mid, 38883
 https://github.com/cryptomator/cryptomator
 
-// Padloc, js/ts, Large, 136233
-https://github.com/padloc/padloc
+// Keycloak, java, Large, 955351
+https://github.com/keycloak/keycloak
+
+// Swifty, js/ts, Small, 8295
+https://github.com/swiftyapp/swifty
 
 // Vaultwarden, js/ts, Mid, 62609
 https://github.com/dani-garcia/vaultwarden
 
-// Swifty, js/ts, Small, 8295
-https://github.com/swiftyapp/swifty
+// Padloc, js/ts, Large, 136233
+https://github.com/padloc/padloc
+
+// Inih, c/c++, Small, 2193
+https://github.com/benhoyt/inih
+
+// cJSON, c/c++, Mid, 25423
+https://github.com/DaveGamble/cJSON
+
+// Llama.cpp, c/c++, Large, 537200
+https://github.com/ggml-org/llama.cpp
