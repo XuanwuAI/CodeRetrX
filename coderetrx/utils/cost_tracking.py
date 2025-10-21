@@ -88,10 +88,6 @@ def clear_model_costs_cache():
 async def calc_llm_costs(log_paths: PathLike | str | list[PathLike | str], model_costs: Optional[ModelCosts] = None):
     from pathlib import Path
     
-    # Check if log file exists
-    if not Path(log_path).exists():
-        return 0.0
-        
     model_costs_parsed = model_costs or await load_model_costs()
     
     # Normalize log_paths to always be a list
@@ -100,6 +96,8 @@ async def calc_llm_costs(log_paths: PathLike | str | list[PathLike | str], model
     
     total_cost = 0
     for log_path in log_paths:
+        if not Path(log_path).exists():
+            continue
         for log_item in read_logs(log_path):
             if log_item.data.type == "llm_call":
                 log = log_item.data
