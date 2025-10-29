@@ -234,7 +234,15 @@ Use `file_name` for structural queries, `symbol_name` for API search, `line_per_
 
 We conducted comprehensive experiments on the *Ollama* repository to validate the effectiveness of our code retrieval strategies. The analysis demonstrates how **`coderetrx_filter`** performs across various bug types and complexity levels.
 
-For detailed results, see: 
+### Performance Benchmarks
+
+The following results are from large-scale benchmarks running on **gpt-oss-120b** across multiple programming languages and repository sizes:
+
+![Figure 1: Recall Rate Comparisons across languages and repository sizes](bench/recall_rate_comparison.png)
+
+![Table 1: Effectiveness and Efficiency Comparison](bench/effectiveness_efficiency_comparison.png)
+
+For detailed case studies on specific repositories running with **claude-4-sonnet**, see the benchmark results:
 
 [Ollama Analysis by Bug Type](bench/Ollama_Analysis_by_Bug_Type.md)
 
