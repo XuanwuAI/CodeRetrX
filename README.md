@@ -242,6 +242,8 @@ The following results are from large-scale benchmarks running on **gpt-oss-120b*
 
 ![Table 1: Effectiveness and Efficiency Comparison](bench/effectiveness_efficiency_comparison.png)
 
+### Detailed Analysis
+
 For detailed case studies on specific repositories running with **claude-4-sonnet**, see the benchmark results:
 
 [Ollama Analysis by Bug Type](bench/Ollama_Analysis_by_Bug_Type.md)
