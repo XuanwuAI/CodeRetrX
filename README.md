@@ -232,13 +232,18 @@ Use `file_name` for structural queries, `symbol_name` for API search, `line_per_
 
 ## 🧪 Experiments
 
-We conducted comprehensive experiments on the *Ollama* repository to validate the effectiveness of our code retrieval strategies. The analysis demonstrates how **`coderetrx_filter`** performs across various bug types and complexity levels.
+We conducted comprehensive experiments on large-scale benchmarks across multiple programming languages and repository sizes to validate the effectiveness of our code retrieval strategies. The analysis demonstrates how **`coderetrx_filter`** performs across various bug types and complexity levels.
 
-For detailed results, see: 
+### Experiment Setup
 
-[Ollama Analysis by Bug Type](bench/Ollama_Analysis_by_Bug_Type.md)
+All methods share the same indexing and parsing pipeline (repository snapshot, language parser, and symbol table extraction). The Symbol Vector Embedding baseline encodes identifier-level semantics only, while Line-per-Symbol indexes each line within a function / class's body, enabling precise structure-aware retrieval. We used **gpt-oss-120b** for dataset construction and evaluation. 
 
-[Rosenpass Analysis by Bug Type](bench/Rosenpass_Analysis_By_Bug_Type.md)
+### Performance Benchmarks
+
+The following results demonstrate the performance across different strategies. Figure 1 shows the Recall Rate Comparisons across languages and repository sizes and Table 1 compares the Effectiveness and Efficiency between CodeRetrX and baselines.
+
+![Figure 1: Recall Rate Comparisons across languages and repository sizes](bench/recall_rate_comparison.png)
+![Table 1: Effectiveness and Efficiency Comparison](bench/effectiveness_efficiency_comparison.png)
 
 
 ## 📚 Extras
