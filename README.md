@@ -25,7 +25,7 @@ The code retrieval process operates in two stages recalling: prioritizes high re
 
 The coarse recall focuses on maximizing recall while keeping costs low, aiming to retrieve as many potentially relevant code snippets as possible. This stage prioritizes recall over precision, allowing for false positives to ensure comprehensive coverage. Techniques such as vector-based retrieval, LLM-driven semantic analysis, and adaptive algorithms are employed to achieve efficient, large-scale filtering. We chose to use the `line_per_symbol` method for best performance.
 
-For detailed information about available strategies and their performance characteristics, see [STRATEGIES.md](STRATEGIES.md).
+For detailed information about available strategies and their performance characteristics, see [STRATEGIES.md](STRATEGIES.md). See our [experimental results](#-experiments) for performance benchmarks.
 
 #### Refined Recall Stage
 
