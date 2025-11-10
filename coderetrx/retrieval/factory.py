@@ -35,6 +35,7 @@ class CodebaseFactory:
             dependencies=codebase.dependencies,
             settings=settings,
         )
+        smart_codebase.set_parser("codeql")
         smart_codebase.init_all()
         cls._initialize_similarity_searchers(smart_codebase, settings)
         return smart_codebase
@@ -52,6 +53,7 @@ class CodebaseFactory:
         smart_codebase = SmartCodebase.new(
             id, dir, settings=settings, llm_settings=llm_settings, languages=languages
         )
+        smart_codebase.set_parser("codeql")
         smart_codebase.init_all()
         cls._initialize_similarity_searchers(smart_codebase, settings)
         return smart_codebase
