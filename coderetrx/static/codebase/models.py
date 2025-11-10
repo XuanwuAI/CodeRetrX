@@ -30,6 +30,7 @@ class CodeChunkModel(BaseModel):
     start_column: int
     end_column: int
     src: str  # Path to source file
+    name: Optional[str]
     uuid: str
     content: Optional[str] = None
     tag: Optional[IDXSupportedTag] = None
@@ -47,6 +48,7 @@ class CodeChunkModel(BaseModel):
             src=str(chunk.src.path),
             content=chunk.code() if include_content else None,
             tag=chunk.tag,
+            name=chunk.name,
             uuid=str(chunk.uuid),
         )
 
@@ -58,6 +60,7 @@ class CodeChunkModel(BaseModel):
             start_column=self.start_column,
             end_column=self.end_column,
             src=src_file,
+            name=self.name,
             type=self.type,
             tag=self.tag,
             uuid=UUID(self.uuid),
@@ -314,13 +317,13 @@ class CodebaseModel(BaseModel):
         all_chunks = []
         for source_file in self.source_files:
             file_model = self.source_files[source_file]
-            file = codebase.source_files[source_file] 
+            file = codebase.source_files[source_file]
             file.chunks = [c.to_chunk(file) for c in file_model.chunks]
             all_chunks.extend(file.chunks)
-        codebase.all_chunks = all_chunks 
+        codebase.all_chunks = all_chunks
         codebase._chunks_initialized = True
 
-        #todo: enable callgraph properly
+        # todo: enable callgraph properly
         if has_symbols:
             codebase.symbols = [s.to_symbol(codebase) for s in self.symbols]
             codebase._symbols_initialized = True
@@ -328,9 +331,12 @@ class CodebaseModel(BaseModel):
             codebase.keywords = [k.to_keyword(codebase) for k in self.keywords]
             codebase._keywords_initialized = True
         if has_dependencies:
-            codebase.dependencies = [d.to_dependency(codebase) for d in self.dependencies]
+            codebase.dependencies = [
+                d.to_dependency(codebase) for d in self.dependencies
+            ]
             codebase._dependencies_initialized = True
-        
 
-        codebase.init_all(False, not has_symbols, not has_keywords, not has_dependencies, False)
+        codebase.init_all(
+            False, not has_symbols, not has_keywords, not has_dependencies, False
+        )
         return codebase

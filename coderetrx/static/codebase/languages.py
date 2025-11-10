@@ -144,17 +144,3 @@ def is_dependency(filepath: PathLike | str) -> bool:
 def get_language(filepath: PathLike | str) -> Optional[IDXSupportedLanguage]:
     extension = get_extension(filepath)
     return EXTENSION_MAP.get(extension)
-
-
-@lru_cache()
-def get_query(
-    language: IDXSupportedLanguage,
-    query_type: Literal["tags", "tests", "fine_imports"] = "tags",
-) -> str:
-    scm_loc = Path(__file__).parent / "queries" / query_type / f"{language}.scm"
-    if not scm_loc.exists():
-        raise FileNotFoundError(
-            f"Query file for {query_type} not found for language {language}"
-        )
-    with open(scm_loc, "r") as f:
-        return f.read()
