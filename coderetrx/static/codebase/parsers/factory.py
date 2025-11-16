@@ -19,7 +19,7 @@ class ParserFactory:
     """
 
     # Parser priority order for auto-selection
-    PARSER_PRIORITY = ["codeql", "treesitter"]
+    PARSER_PRIORITY = ["treesitter", "codeql"]
 
     @classmethod
     def get_parser(cls, parser_type: str = "auto", **kwargs) -> CodebaseParser:
