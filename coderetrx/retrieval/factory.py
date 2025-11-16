@@ -8,6 +8,7 @@ from .smart_codebase import SmartCodebaseSettings, SmartCodebase
 from coderetrx.utils.llm import LLMSettings
 from coderetrx.utils.similarity_searcher import get_similarity_searcher
 from coderetrx.static.codebase import Codebase
+from coderetrx.static.codebase.parsers.factory import ParserFactory
 
 import logging
 
@@ -35,7 +36,7 @@ class CodebaseFactory:
             dependencies=codebase.dependencies,
             settings=settings,
         )
-        smart_codebase.set_parser("codeql")
+        smart_codebase.set_parser("auto")
         smart_codebase.init_all()
         cls._initialize_similarity_searchers(smart_codebase, settings)
         return smart_codebase
@@ -53,7 +54,7 @@ class CodebaseFactory:
         smart_codebase = SmartCodebase.new(
             id, dir, settings=settings, llm_settings=llm_settings, languages=languages
         )
-        smart_codebase.set_parser("codeql")
+        smart_codebase.set_parser("auto")
         smart_codebase.init_all()
         cls._initialize_similarity_searchers(smart_codebase, settings)
         return smart_codebase
