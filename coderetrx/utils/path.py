@@ -34,6 +34,14 @@ def safe_join(path1: str | Path, path2: str | Path) -> Path:
     if isinstance(path2, str):
         path2 = Path(path2)
     result = path1 / path2
+    # Basic check: disallow absolute path2 that would ignore path1
     if not result.is_relative_to(path1):
         raise ValueError(f"Path {path2} is not relative to the base directory {path1}")
+    # Symlink-aware check: resolve both sides (non-strict to allow non-existing leaf)
+    resolved_base = path1.resolve(strict=False)
+    resolved_result = (path1 / path2).resolve(strict=False)
+    if not resolved_result.is_relative_to(resolved_base):
+        raise ValueError(
+            f"Path {path2} escapes base directory {path1} via symlink resolution"
+        )
     return result
