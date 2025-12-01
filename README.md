@@ -176,3 +176,9 @@ For detailed experiment setup, methodology, and results, see [bench/EXPERIMENTS.
 
 - `stats`: for codebase statistics
 - `cli`: for command-line interface tools
+
+## 📜 License
+
+CodeRetrX is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0-only).
+Copyright (C) 2025 Tencent Xuanwu Lab (Yuxuan Sun, Guancheng Li, Tianrui Chen).
+For commercial licensing inquiries, contact atumli@tencent.com or sunyxedu@gmail.com.
