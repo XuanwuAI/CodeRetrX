@@ -1,9 +1,15 @@
-from typing import List, Any, Set, Dict, Optional, TYPE_CHECKING
+from typing import List, Set, Dict, Optional, TYPE_CHECKING
 import logging
 from collections import defaultdict
 from pathlib import Path
-from tree_sitter import Language as TSLanguage, Node, Tree
-from tree_sitter import Parser as TSParser
+from tree_sitter import (
+    Language as TSLanguage,
+    Node,
+    Parser as TSParser,
+    Query as TSQuery,
+    QueryCursor as TSQueryCursor,
+    Tree,
+)
 from tree_sitter_language_pack import get_language as get_ts_language, get_parser
 from attrs import Factory, define
 from tqdm import tqdm
@@ -116,6 +122,34 @@ class TreeSitterParser(CodebaseParser):
                 original_error=e,
             )
 
+    def _compile_query(self, ts_language: TSLanguage, query_text: str) -> TSQuery:
+        """Compile a tree-sitter Query using the modern API."""
+        try:
+            return TSQuery(ts_language, query_text)
+        except Exception as exc:
+            raise ParseError(f"Failed to compile tree-sitter query: {exc}") from exc
+
+    def _execute_query_matches(
+        self, query: TSQuery, root_node: Node
+    ) -> List[tuple[int, Dict[str, List[Node]]]]:
+        """Run a query via QueryCursor and return normalized matches."""
+        try:
+            cursor = TSQueryCursor(query)
+            return cursor.matches(root_node)
+        except Exception as exc:
+            raise ParseError(f"Failed to execute tree-sitter matches: {exc}") from exc
+
+    def _execute_query_captures(
+        self, query: TSQuery, root_node: Node
+    ) -> Dict[str, List[Node]]:
+        """Collect captures into a {name: [Node]} map using QueryCursor."""
+        try:
+            cursor = TSQueryCursor(query)
+            captures = cursor.captures(root_node)
+            return captures if isinstance(captures, dict) else {}
+        except Exception as exc:
+            raise ParseError(f"Failed to execute tree-sitter captures: {exc}") from exc
+
     def extract_chunks(
         self, file: "File", parse_state: "TreeSitterState"
     ) -> List["CodeChunk"]:
@@ -136,8 +170,8 @@ class TreeSitterParser(CodebaseParser):
 
         try:
             stmt = TreeSitterQueryTemplates.get_query(ts.idx_language)
-            query = ts.ts_language.query(stmt)
-            matches = query.matches(ts.tree.root_node)
+            query = self._compile_query(ts.ts_language, stmt)
+            matches = self._execute_query_matches(query, ts.tree.root_node)
 
             # Get test block nodes if test filtering is enabled
             block_nodes: Set[Node] = (
@@ -199,8 +233,8 @@ class TreeSitterParser(CodebaseParser):
         """Get test block nodes for filtering."""
         try:
             stmt = TreeSitterQueryTemplates.get_query(ts.idx_language, "tests")
-            query = ts.ts_language.query(stmt)
-            captures = query.captures(ts.tree.root_node)
+            query = self._compile_query(ts.ts_language, stmt)
+            captures = self._execute_query_captures(query, ts.tree.root_node)
             return set(node for nodes in captures.values() for node in nodes)
         except FileNotFoundError:
             logger.debug(f"Test Query file not found for language {ts.idx_language}")
@@ -322,8 +356,8 @@ class TreeSitterParser(CodebaseParser):
                 except FileNotFoundError:
                     continue
 
-                query = ts.ts_language.query(pattern)
-                captures = query.captures(ts.tree.root_node)
+                query = self._compile_query(ts.ts_language, pattern)
+                captures = self._execute_query_captures(query, ts.tree.root_node)
 
                 for capture_name, nodes in captures.items():
                     if capture_name != "module":
