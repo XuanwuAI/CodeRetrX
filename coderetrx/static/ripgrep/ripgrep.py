@@ -253,7 +253,7 @@ async def ripgrep_glob(
     if (
         proc.returncode != 0 and proc.returncode != 1
     ):  # rg returns 1 when no matches found
-        raise RuntimeError(f"ripgrep failed with error: {stderr.decode()}")
+        raise RuntimeError(f"ripgrep failed with error {proc.returncode}: {stderr.decode()}")
 
     return stdout.decode().splitlines()
 
@@ -337,7 +337,7 @@ async def ripgrep_search(
         if (
             proc.returncode != 0 and proc.returncode != 1
         ):  # rg returns 1 when no matches found
-            raise RuntimeError(f"ripgrep failed with error: {stderr.decode()}")
+            raise RuntimeError(f"ripgrep failed with error {proc.returncode}: {stderr.decode()}")
 
         # Parse the output
         return parse_ripgrep_output(stdout.decode("utf-8"))
@@ -443,7 +443,7 @@ async def ripgrep_raw(
         if (
             proc.returncode != 0 and proc.returncode != 1
         ):  # rg returns 1 when no matches found
-            raise RuntimeError(f"ripgrep failed with error: {stderr.decode()}")
+            raise RuntimeError(f"ripgrep failed with error {proc.returncode}: {stderr.decode()}")
 
         # Return the raw stdout
         return stdout.decode("utf-8")
