@@ -18,7 +18,7 @@ class ModelCost:
     completion: float
 
 
-type ModelCosts = Dict[str, ModelCost]
+ModelCosts = Dict[str, ModelCost]
 
 def get_cost_hook(json_logger: JsonLogger, base_url: str = "https://openrouter.ai/api/v1"):
     async def on_response(response: httpx.Response):

@@ -57,7 +57,7 @@ class ErrLog(BaseModel):
     error: str
 
 
-type LogData = (
+LogData = (
     FilteringLog | CodeChunkClassificationLog | VecSearchLog | LLMCallLog | ErrLog
 )
 
