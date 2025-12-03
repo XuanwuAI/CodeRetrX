@@ -2,7 +2,7 @@
 Strategy for filtering symbols using vector similarity search.
 """
 
-from typing import List, override
+from typing import List
 from .base import FilterByVectorStrategy
 from ..smart_codebase import SmartCodebase as Codebase, SimilaritySearchTargetType
 from coderetrx.static import Symbol
@@ -13,19 +13,19 @@ class FilterSymbolContentByVectorStrategy(FilterByVectorStrategy[Symbol]):
 
     name: str = "FILTER_SYMBOL_CONTENT_BY_VECTOR"
 
-    @override
+    
     def get_strategy_name(self) -> str:
         return self.name
 
-    @override
+    
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
         return ["symbol_content"]
 
-    @override
+    
     def get_collection_size(self, codebase: Codebase) -> int:
         return len(codebase.symbols)
 
-    @override
+    
     def extract_file_paths(
         self, elements: List[Symbol], codebase: Codebase, subdirs_or_files: List[str]
     ) -> List[str]:

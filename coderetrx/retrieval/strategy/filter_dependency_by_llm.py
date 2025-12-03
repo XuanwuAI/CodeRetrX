@@ -2,7 +2,7 @@
 Strategy for filtering dependencies using LLM.
 """
 
-from typing import List, override
+from typing import List
 from .base import FilterByLLMStrategy, StrategyExecuteResult
 from ..smart_codebase import SmartCodebase as Codebase, LLMMapFilterTargetType
 from coderetrx.static import Dependency, Symbol
@@ -11,15 +11,15 @@ from coderetrx.static import Dependency, Symbol
 class FilterDependencyByLLMStrategy(FilterByLLMStrategy[Dependency]):
     """Strategy to filter dependencies by LLM and retrieve code chunks that use these dependencies."""
 
-    @override
+    
     def get_strategy_name(self) -> str:
         return "FILTER_DEPENDENCY_BY_LLM"
 
-    @override
+    
     def get_target_type(self) -> LLMMapFilterTargetType:
         return "dependency_name"
 
-    @override
+    
     def extract_file_paths(
         self, elements: List[Dependency], codebase: Codebase
     ) -> List[str]:
@@ -32,7 +32,7 @@ class FilterDependencyByLLMStrategy(FilterByLLMStrategy[Dependency]):
                 file_paths.append(str(dependency.file.path))
         return list(set(file_paths))
 
-    @override
+    
     async def execute(
         self,
         codebase: Codebase,

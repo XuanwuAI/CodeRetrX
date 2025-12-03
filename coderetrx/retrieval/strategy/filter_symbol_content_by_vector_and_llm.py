@@ -3,7 +3,7 @@ Strategy for filtering symbols using vector similarity search followed by LLM re
 """
 
 from collections import defaultdict
-from typing import List, Union, Optional, override
+from typing import List, Union, Optional
 from .base import FilterByVectorAndLLMStrategy
 from ..smart_codebase import (
     SmartCodebase as Codebase,
@@ -16,23 +16,23 @@ from coderetrx.static import Keyword, Symbol, File
 class FilterSymbolContentByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
     """Strategy to filter symbols using vector similarity search followed by LLM refinement."""
 
-    @override
+    
     def get_strategy_name(self) -> str:
         return "FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM"
 
-    @override
+    
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
         return ["symbol_content"]
 
-    @override
+    
     def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
         return "symbol_content"
 
-    @override
+    
     def get_collection_size(self, codebase: Codebase) -> int:
         return len(codebase.symbols)
 
-    @override
+    
     def filter_elements(
         self,
         codebase: Codebase,
@@ -87,7 +87,7 @@ class FilterSymbolContentByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
             ]
         return filtered_symbols
 
-    @override
+    
     def collect_file_paths(
         self,
         filtered_elements: List[Symbol],

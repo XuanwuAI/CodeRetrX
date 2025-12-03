@@ -2,7 +2,7 @@
 Strategy for adaptive filtering of keywords using vector similarity search followed by LLM refinement.
 """
 
-from typing import List, Union, Optional, override, Any, Literal
+from typing import List, Union, Optional, Any, Literal
 from .base import AdaptiveFilterByVectorAndLLMStrategy, StrategyExecuteResult
 from ..smart_codebase import (
     SmartCodebase as Codebase,
@@ -17,23 +17,23 @@ class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMSt
 
     name: str = "ADAPTIVE_FILTER_KEYWORD_BY_VECTOR_AND_LLM"
 
-    @override
+    
     def get_strategy_name(self) -> str:
         return self.name
 
-    @override
+    
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
         return ["keyword"]
 
-    @override
+    
     def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
         return "keyword"
 
-    @override
+    
     def get_collection_size(self, codebase: Codebase) -> int:
         return len(codebase.keywords)
 
-    @override
+    
     def filter_elements(
         self,
         codebase: Codebase,
@@ -56,7 +56,7 @@ class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMSt
                     keyword_elements.append(element)
         return keyword_elements
 
-    @override
+    
     def collect_file_paths(
         self,
         filtered_elements: List[Any],
@@ -71,7 +71,7 @@ class AdaptiveFilterKeywordByVectorAndLLMStrategy(AdaptiveFilterByVectorAndLLMSt
                         referenced_paths.add(str(ref_file.path))
         return list(referenced_paths)
 
-    @override
+    
     async def execute(
         self,
         codebase: Codebase,

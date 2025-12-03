@@ -2,7 +2,7 @@
 Strategy for filtering top-k lines per file using vector similarity search followed by LLM refinement.
 """
 
-from typing import List, Tuple, Union, Optional, override, Any
+from typing import List, Tuple, Union, Optional, Any
 from tqdm import tqdm
 
 from coderetrx.retrieval.topic_extractor import TopicExtractor

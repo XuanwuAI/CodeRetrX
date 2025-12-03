@@ -18,7 +18,6 @@ from typing import (
     TypeVar,
     Generic,
     Optional,
-    override,
 )
 import asyncio
 import logging

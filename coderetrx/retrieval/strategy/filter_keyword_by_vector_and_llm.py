@@ -2,7 +2,7 @@
 Strategy for filtering keywords using vector similarity search followed by LLM refinement.
 """
 
-from typing import Any, List, Union, Optional, override
+from typing import Any, List, Union, Optional
 
 from coderetrx.retrieval.strategy.base import StrategyExecuteResult
 from coderetrx.retrieval.strategy.base import FilterByVectorAndLLMStrategy
@@ -19,23 +19,23 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
 
     name: str = "FILTER_KEYWORD_BY_VECTOR_AND_LLM"
 
-    @override
+    
     def get_strategy_name(self) -> str:
         return self.name
 
-    @override
+    
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
         return ["keyword"]
 
-    @override
+    
     def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
         return "keyword"
 
-    @override
+    
     def get_collection_size(self, codebase: Codebase) -> int:
         return len(codebase.keywords)
 
-    @override
+    
     def filter_elements(
         self,
         codebase: Codebase,
@@ -59,7 +59,7 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
                     keyword_elements.append(element)
         return keyword_elements
 
-    @override
+    
     def collect_file_paths(
         self,
         filtered_elements: List[Any],
@@ -74,7 +74,7 @@ class FilterKeywordByVectorAndLLMStrategy(FilterByVectorAndLLMStrategy):
                         referenced_paths.add(str(ref_file.path))
         return list(referenced_paths)
 
-    @override
+    
     async def execute(
         self,
         codebase: Codebase,

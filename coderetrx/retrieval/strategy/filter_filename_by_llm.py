@@ -2,7 +2,7 @@
 Strategy for filtering filenames using LLM.
 """
 
-from typing import List, override
+from typing import List
 from .base import FilterByLLMStrategy, StrategyExecuteResult
 from ..smart_codebase import SmartCodebase as Codebase, LLMMapFilterTargetType
 from coderetrx.static import File
@@ -11,19 +11,19 @@ from coderetrx.static import File
 class FilterFilenameByLLMStrategy(FilterByLLMStrategy[File]):
     """Strategy to filter filenames using LLM."""
 
-    @override
+    
     def get_strategy_name(self) -> str:
         return "FILTER_FILENAME_BY_LLM"
 
-    @override
+    
     def get_target_type(self) -> LLMMapFilterTargetType:
         return "file_name"
 
-    @override
+    
     def extract_file_paths(self, elements: List[File], codebase: Codebase) -> List[str]:
         return [str(file.path) for file in elements]
 
-    @override
+    
     async def execute(
         self,
         codebase: Codebase,

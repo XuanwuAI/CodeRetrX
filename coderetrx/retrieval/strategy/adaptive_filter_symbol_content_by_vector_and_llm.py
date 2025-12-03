@@ -3,7 +3,7 @@ Strategy for adaptive filtering of symbols using vector similarity search follow
 """
 
 from collections import defaultdict
-from typing import List, Union, Optional, override, Literal, Any
+from typing import List, Union, Optional, Literal, Any
 from .base import (
     AdaptiveFilterByVectorAndLLMStrategy,
     FilterByVectorAndLLMStrategy,
@@ -24,23 +24,23 @@ class AdaptiveFilterSymbolContentByVectorAndLLMStrategy(
 
     name: str = "ADAPTIVE_FILTER_SYMBOL_CONTENT_BY_VECTOR_AND_LLM"
 
-    @override
+    
     def get_strategy_name(self) -> str:
         return self.name
 
-    @override
+    
     def get_target_types_for_vector(self) -> List[SimilaritySearchTargetType]:
         return ["symbol_content"]
 
-    @override
+    
     def get_target_type_for_llm(self) -> LLMMapFilterTargetType:
         return "symbol_content"
 
-    @override
+    
     def get_collection_size(self, codebase: Codebase) -> int:
         return len(codebase.symbols)
 
-    @override
+    
     def filter_elements(
         self,
         codebase: Codebase,
@@ -95,7 +95,7 @@ class AdaptiveFilterSymbolContentByVectorAndLLMStrategy(
             ]
         return filtered_symbols  # type: ignore
 
-    @override
+    
     def collect_file_paths(
         self,
         filtered_elements: List[Any],
@@ -110,7 +110,7 @@ class AdaptiveFilterSymbolContentByVectorAndLLMStrategy(
                     file_paths.append(file_path)
         return file_paths
 
-    @override
+    
     async def execute(
         self,
         codebase: Codebase,
