@@ -155,7 +155,10 @@ async def install_rg(install_path: Path) -> Optional[Path]:
 if __name__ == "__main__":
     from pathlib import Path
 
-    path = Path(".")
+    if len(sys.argv) < 2:
+        path = Path(".")
+    else:
+        path = Path(sys.argv[1])
     installed_path = asyncio.run(install_rg(path))
     if installed_path:
         print(f"Successfully installed rg at: {installed_path}")
