@@ -430,6 +430,8 @@ async def ripgrep_raw(
 
         # Add search directory
         if search_arg:
+            if not (Path(search_dir) / search_arg).exists():
+                raise RuntimeError(f"File or directory {search_arg} not found.")
             cmd.append(search_arg)
         else:
             cmd.append(".")
