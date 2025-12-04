@@ -72,6 +72,13 @@ class LLMSettings(BaseSettings):
         alias="DISABLE_LLM_CACHE"
     )
     
+    # Cost Tracking
+    enable_cost_tracking: bool = Field(
+        default=True,
+        description="Enable cost tracking (HTTP hooks and LLM call usage logging)",
+        alias="ENABLE_COST_TRACKING"
+    )
+    
     # Session Configuration
     session_id: str = Field(
         default_factory=generate_session_id,
@@ -114,7 +121,7 @@ class LLMSettings(BaseSettings):
     
     def get_httpx_client(self) -> AsyncClient:
         kwargs={}
-        if self.enable_json_log:
+        if self.enable_json_log and self.enable_cost_tracking:
             hook = get_cost_hook(self.get_json_logger(), self.openai_base_url)
             kwargs["event_hooks"] = {"response": [hook]}
         if self.proxy:
@@ -248,6 +255,8 @@ def _parse_json_with_repair(text: str) -> Any:
     raise ValueError(f"Failed to parse JSON from text: {text[:200]}...")
 
 def _log_response(llm_settings: LLMSettings, response: ChatCompletion, cached: bool=True):
+    if not llm_settings.enable_cost_tracking:
+        return
     json_logger = llm_settings.get_json_logger()
     if response.usage:
         json_logger.log(
