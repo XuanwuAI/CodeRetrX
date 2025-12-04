@@ -6,6 +6,7 @@ from enum import Enum
 from os import PathLike
 from pathlib import Path
 from typing import List, Optional, Union
+import shutil
 
 from pydantic import BaseModel
 
@@ -199,6 +200,9 @@ def parse_ripgrep_output(json_lines: str) -> List[GrepMatchResult]:
 
 async def check_ripgrep_available() -> Optional[Path]:
     """Check if ripgrep is available on the system."""
+    sys_rg_path = shutil.which("rg")
+    if sys_rg_path:
+        return Path(sys_rg_path)
     if os.name != "nt" and (Path(__file__).parent / "rg").exists():
         return Path(__file__).parent / "rg"
     elif os.name == "nt" and (Path(__file__).parent / "rg.exe").exists():
