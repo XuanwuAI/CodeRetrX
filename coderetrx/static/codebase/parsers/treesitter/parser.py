@@ -345,7 +345,6 @@ class TreeSitterParser(CodebaseParser):
                             chunk=chunk,
                         )
                         dependency_symbols.append(sym)
-                        file.chunks.append(chunk)
 
             except Exception as e:
                 logger.warning(f"Failed to extract dependencies from {file.path}: {e}")
