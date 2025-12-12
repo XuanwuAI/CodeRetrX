@@ -30,11 +30,10 @@ tool_map: dict[str, dict[str, BaseTool]] = {}
 
 
 def get_tool_class(name: str) -> Type[BaseTool]:
-    current_module = sys.modules[__name__]
-    cls = getattr(current_module, name, None)
-    if not issubclass(cls, BaseTool):  # type: ignore
-        raise ValueError(f"{name} is not a valid tool")
-    return cls
+    for cls in tool_classes:
+        if getattr(cls, "name", None) == name:
+            return cls
+    raise ValueError(f"{name} is not a valid tool")
 
 
 def get_tool(repo_url: str, name: str) -> BaseTool:
