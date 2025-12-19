@@ -110,6 +110,11 @@ class SmartCodebaseSettings(BaseSettings):
     )
     
     # Codebase Processing Configuration
+    max_file_size: int = Field(
+        default=100000,  # 100KB
+        description="Maximum file size in bytes",
+        alias="MAX_FILE_SIZE",
+    )
     max_chunks_one_file: int = Field(
         default=500,
         description="Maximum number of chunks allowed in one file",
@@ -298,7 +303,7 @@ class SmartCodebase(Codebase):
     ) -> "SmartCodebase":
         if settings is None:
             settings = get_smart_codebase_settings()
-        codebase = Codebase.new(id, dir, url, lazy, version, ignore_tests, languages)
+        codebase = Codebase.new(id, dir, url, lazy, version, ignore_tests, languages, max_file_size=settings.max_file_size)
         return cls(
             id=codebase.id,
             dir=codebase.dir,
