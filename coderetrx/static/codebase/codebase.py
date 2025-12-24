@@ -782,6 +782,7 @@ class Codebase:
         ignore_tests: bool = True,
         languages: Optional[List[IDXSupportedLanguage]] = None,
         parser: Optional[Union[str, CodebaseParser]] = None,
+        max_file_size: int | None = None,
         **parser_kwargs,
     ) -> Self:
         dir = Path(dir)
@@ -808,6 +809,9 @@ class Codebase:
             path = entry.path()
             if not path.is_file():
                 continue
+            if max_file_size is not None:
+                if path.stat().st_size > max_file_size:
+                    continue
             if not is_utf8(path):
                 continue
             relative_path = path.relative_to(dir)
