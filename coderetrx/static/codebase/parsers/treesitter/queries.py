@@ -26,6 +26,7 @@ class TreeSitterQueryTemplates:
         "go": ["tags", "tests", "fine_imports"],
         "elixir": ["tags", "tests", "fine_imports"],
         "java": ["tags", "fine_imports"],
+        "php": ["tags", "tests", "fine_imports"],
     }
 
     @classmethod
