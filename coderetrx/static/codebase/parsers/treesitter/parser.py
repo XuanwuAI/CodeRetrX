@@ -165,9 +165,12 @@ class TreeSitterParser(CodebaseParser):
             List of CodeChunk objects with consistent UUIDs
         """
         from ...codebase import CodeChunk, ChunkType
+        from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
 
         chunks = []
         ts = parse_state
+        settings = SmartCodebaseSettings()
+        count_primary_chunks = 0
 
         try:
             stmt = TreeSitterQueryTemplates.get_query(ts.idx_language)
@@ -226,11 +229,10 @@ class TreeSitterParser(CodebaseParser):
                 chunks.append(chunk)
 
                 # Check chunk limit to prevent memory issues
-                from coderetrx.retrieval.smart_codebase import SmartCodebaseSettings
-
-                settings = SmartCodebaseSettings()
-                max_chunk_size: int = settings.max_chunks_one_file
-                if max_chunk_size > 0 and len(chunks) > max_chunk_size:
+                if chunk.type == ChunkType.PRIMARY:
+                    count_primary_chunks += 1
+                max_chunk_size: int = settings.max_primary_chunks_per_file
+                if max_chunk_size > 0 and count_primary_chunks > max_chunk_size:
                     logger.warning(
                         f"Too many chunks in {file.path}: {len(chunks)} > {max_chunk_size}"
                     )

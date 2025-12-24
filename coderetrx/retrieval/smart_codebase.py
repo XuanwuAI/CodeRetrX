@@ -115,10 +115,10 @@ class SmartCodebaseSettings(BaseSettings):
         description="Maximum file size in bytes",
         alias="MAX_FILE_SIZE",
     )
-    max_chunks_one_file: int = Field(
-        default=500,
-        description="Maximum number of chunks allowed in one file",
-        alias="MAX_CHUNKS_ONE_FILE",
+    max_primary_chunks_per_file: int = Field(
+        default=150,
+        description="Maximum number of primary chunks allowed in one file",
+        alias="MAX_PRIMARY_CHUNKS_PER_FILE",
     )
     keyword_sentence_extraction: bool = Field(
         default=False,
