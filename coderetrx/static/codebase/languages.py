@@ -16,6 +16,7 @@ IDXSupportedLanguage = Literal[
     "go",
     "elixir",
     "java",
+    "php",
 ]
 
 IDXSupportedTag = Literal[
@@ -47,6 +48,7 @@ EXTENSION_MAP: dict[str, IDXSupportedLanguage] = {
     "ex": "elixir",
     "exs": "elixir",
     "java": "java",
+    "php": "php",
 }
 
 BLOCKED_PATTERNS = ["*.min.js", "*_test.go"]
@@ -88,6 +90,7 @@ BUILTIN_CRYPTO_LIBS: dict[IDXSupportedLanguage, List[str]] = {
     "go": ["crypto"],
     "elixir": [":crypto"],
     "java": ["java.security", "javax.crypto"],
+    "php": ["openssl", "hash", "sodium"],
 }
 
 FUNCLIKE_TAGS: List[IDXSupportedTag] = [
