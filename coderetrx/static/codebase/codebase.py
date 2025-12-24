@@ -134,11 +134,12 @@ class CodeHunk:
         do_dedent: bool = True,
         show_line_numbers: bool = False,
         trunc_headlines: Optional[int] = None,
+        zero_based_line_numbers: bool = True,
     ):
         start, end = self.get_linerange()
         if trunc_headlines is not None:
             end = min(end, start + trunc_headlines - 1)
-        return self.src.lookup((start, end), do_dedent, show_line_numbers)
+        return self.src.lookup((start, end), do_dedent, show_line_numbers, zero_based_line_numbers)
 
     # @cached(cache=codeblock_cache)
     def codeblock(self, show_line_numbers: bool = False):
@@ -242,7 +243,9 @@ class CodeChunk(CodeHunk):
         show_line_numbers: bool = False,
         show_imports: bool = False,
         trunc_headlines: Optional[int] = None,
+        zero_based_line_numbers: bool = True,
     ):
+        shift_line_num = 0 if zero_based_line_numbers else 1
         parts = []
         prev_child = self
         parent = self.parent
@@ -256,7 +259,7 @@ class CodeChunk(CodeHunk):
                         parent.start_line, parent.start_line + len(par_lines)
                     )
                     par_lines = [
-                        f"{num:4d} | {line}"
+                        f"{num+shift_line_num:4d} | {line}"
                         for num, line in zip(line_numbers, par_lines)
                     ]
                 if line_diff > par_headlines:
@@ -274,7 +277,7 @@ class CodeChunk(CodeHunk):
                 0,
                 "\n".join(
                     [
-                        chunk.code(show_line_numbers=show_line_numbers)
+                        chunk.code(show_line_numbers=show_line_numbers, zero_based_line_numbers=zero_based_line_numbers)
                         for chunk in import_chunks
                     ]
                 ),
@@ -284,6 +287,7 @@ class CodeChunk(CodeHunk):
             do_dedent=False,
             show_line_numbers=show_line_numbers,
             trunc_headlines=trunc_headlines,
+            zero_based_line_numbers=zero_based_line_numbers,
         )
         parts.append(code)
         parts.append("</CODE_CHUNK_IN_INTEREST>")
@@ -416,7 +420,7 @@ class File:
 
     # @cached(cache=lookup_lines_cache)
     def lookup_lines(
-        self, x: CodeHunk | Tuple[int, int] | int, show_line_numbers: bool = False
+        self, x: CodeHunk | Tuple[int, int] | int, show_line_numbers: bool = False, zero_based_line_numbers: bool = True,
     ) -> List[str]:
         if isinstance(x, CodeHunk):
             start, end = x.get_linerange()
@@ -436,8 +440,9 @@ class File:
             else:
                 start_line = x
 
+            shift_line_num = 0 if zero_based_line_numbers else 1
             line_numbers = range(start_line, start_line + len(lines))
-            return [f"{num:4d} | {line}" for num, line in zip(line_numbers, lines)]
+            return [f"{num+shift_line_num:4d} | {line}" for num, line in zip(line_numbers, lines)]
 
         return lines
 
@@ -447,8 +452,9 @@ class File:
         x: CodeHunk | Tuple[int, int] | int,
         do_dedent: bool = True,
         show_line_numbers: bool = False,
+        zero_based_line_numbers: bool = True,
     ) -> str:
-        lines = self.lookup_lines(x, show_line_numbers)
+        lines = self.lookup_lines(x, show_line_numbers, zero_based_line_numbers=zero_based_line_numbers)
         if do_dedent and not show_line_numbers:
             return dedent("\n".join(lines))
         return "\n".join(lines)
