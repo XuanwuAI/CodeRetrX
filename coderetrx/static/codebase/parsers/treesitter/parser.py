@@ -178,10 +178,22 @@ class TreeSitterParser(CodebaseParser):
                 self._get_block_nodes(file, ts) if file.codebase.ignore_tests else set()
             )
 
+            # Define valid main tags in priority order
+            VALID_MAIN_TAGS = PRIMARY_TAGS + REFERENCE_TAGS + IMPORT_TAGS
+
             # Process each query match
             for match in matches:
                 match_g = match[1]
-                main_tag = next(k for k in match_g.keys() if not k.startswith("name."))
+
+                # Find the first valid main tag from the match captures
+                # This uses a whitelist approach to ignore auxiliary tags like 'doc'
+                main_tag = next(
+                    (tag for tag in VALID_MAIN_TAGS if tag in match_g), None
+                )
+
+                # Skip if no valid tag found
+                if main_tag is None:
+                    continue
 
                 # Determine chunk type based on tag
                 if main_tag in PRIMARY_TAGS:

@@ -20,6 +20,7 @@ IDXSupportedLanguage = Literal[
 
 IDXSupportedTag = Literal[
     "definition.function",
+    "definition.type",
     "definition.method",
     "definition.class",
     "definition.interface",
@@ -103,6 +104,7 @@ OBJLIKE_TAGS: List[IDXSupportedTag] = [
 
 PRIMARY_TAGS: List[IDXSupportedTag] = [
     "definition.class",
+    "definition.type",
     "definition.function",
     "definition.interface",
     "definition.method",
