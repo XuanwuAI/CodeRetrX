@@ -20,3 +20,13 @@
 (superclass (type_identifier) @name.reference.class) @reference.class
 
 (import_declaration) @import
+
+; Variable definitions - field declarations
+(field_declaration
+  declarator: (variable_declarator
+    name: (identifier) @name.definition.variable)) @definition.variable
+
+; Local variable declarations
+(local_variable_declaration
+  declarator: (variable_declarator
+    name: (identifier) @name.definition.variable)) @definition.variable

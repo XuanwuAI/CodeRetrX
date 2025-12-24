@@ -56,3 +56,9 @@
 (call
   target: (identifier)@_cap
   (#any-of? @_cap "import" "use" "require"))@import
+
+; Variable definitions - module attributes
+(unary_operator
+  operator: "@"
+  operand: (call
+    target: (identifier) @name.definition.variable)) @definition.variable

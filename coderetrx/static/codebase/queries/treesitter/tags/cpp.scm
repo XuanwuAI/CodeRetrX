@@ -15,3 +15,19 @@
 (class_specifier name: (type_identifier) @name.definition.class) @definition.class
 
 (preproc_include) @import
+
+; Variable definitions - all declarations
+(declaration
+  declarator: (identifier) @name.definition.variable) @definition.variable
+
+(declaration
+  declarator: (init_declarator
+    declarator: (identifier) @name.definition.variable)) @definition.variable
+
+(declaration
+  declarator: (pointer_declarator
+    declarator: (identifier) @name.definition.variable)) @definition.variable
+
+(declaration
+  declarator: (reference_declarator
+    (identifier) @name.definition.variable)) @definition.variable

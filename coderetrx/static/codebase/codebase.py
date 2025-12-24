@@ -56,6 +56,7 @@ class ChunkType(str, Enum):
     PRIMARY = "primary"
     REFERENCE = "reference"
     IMPORT = "import"
+    VARIABLE = "variable"
     QUERY_RESULT = "query_result"
     OTHER = "other"
 

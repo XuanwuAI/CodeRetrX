@@ -21,6 +21,7 @@ from ...languages import (
     PRIMARY_TAGS,
     REFERENCE_TAGS,
     IMPORT_TAGS,
+    VARIABLE_TAGS,
     OBJLIKE_TAGS,
     FUNCLIKE_TAGS,
     get_language,
@@ -179,7 +180,7 @@ class TreeSitterParser(CodebaseParser):
             )
 
             # Define valid main tags in priority order
-            VALID_MAIN_TAGS = PRIMARY_TAGS + REFERENCE_TAGS + IMPORT_TAGS
+            VALID_MAIN_TAGS = PRIMARY_TAGS + REFERENCE_TAGS + IMPORT_TAGS + VARIABLE_TAGS
 
             # Process each query match
             for match in matches:
@@ -202,6 +203,8 @@ class TreeSitterParser(CodebaseParser):
                     kind = ChunkType.REFERENCE
                 elif main_tag in IMPORT_TAGS:
                     kind = ChunkType.IMPORT
+                elif main_tag in VARIABLE_TAGS:
+                    kind = ChunkType.VARIABLE
                 else:
                     continue
 

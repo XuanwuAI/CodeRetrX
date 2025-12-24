@@ -14,3 +14,14 @@
 ; Handle imports
 (import_statement) @import
 (import_from_statement) @import
+
+; Variable definitions - all assignment statements
+(assignment
+  left: (identifier) @name.definition.variable) @definition.variable
+
+(assignment
+  left: (pattern_list
+    (identifier) @name.definition.variable)) @definition.variable
+
+(assignment
+  left: (attribute) @name.definition.variable) @definition.variable

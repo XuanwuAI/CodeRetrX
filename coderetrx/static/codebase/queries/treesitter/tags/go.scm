@@ -30,3 +30,16 @@
 (type_identifier) @name.reference.type @reference.type
 
 (import_spec) @import
+
+; Variable definitions
+(var_declaration
+  (var_spec
+    name: (identifier) @name.definition.variable)) @definition.variable
+
+(const_declaration
+  (const_spec
+    name: (identifier) @name.definition.variable)) @definition.variable
+
+(short_var_declaration
+  left: (expression_list
+    (identifier) @name.definition.variable)) @definition.variable
