@@ -2,7 +2,14 @@
 
 (declaration type: (union_specifier name: (type_identifier) @name.definition.class)) @definition.class
 
-(function_declarator declarator: (identifier) @name.definition.function) @definition.function
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @name.definition.function)) @definition.function
+
+(function_definition
+  declarator: (pointer_declarator
+    declarator: (function_declarator
+      declarator: (identifier) @name.definition.function))) @definition.function
 
 (type_definition declarator: (type_identifier) @name.definition.type) @definition.type
 
