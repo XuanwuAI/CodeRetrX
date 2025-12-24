@@ -26,3 +26,17 @@
 (namespace_declaration name: (identifier) @name.definition.module) @module
 
 (using_directive) @import
+
+; Variable definitions - field and variable declarations
+(field_declaration
+  (variable_declaration
+    (variable_declarator
+      (identifier) @name.definition.variable))) @definition.variable
+
+(local_declaration_statement
+  (variable_declaration
+    (variable_declarator
+      (identifier) @name.definition.variable))) @definition.variable
+
+(property_declaration
+  name: (identifier) @name.definition.variable) @definition.variable

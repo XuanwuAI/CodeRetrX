@@ -9,3 +9,15 @@
 (enum_specifier name: (type_identifier) @name.definition.type) @definition.type
 
 (preproc_include) @import
+
+; Variable definitions - all declarations
+(declaration
+  declarator: (identifier) @name.definition.variable) @definition.variable
+
+(declaration
+  declarator: (init_declarator
+    declarator: (identifier) @name.definition.variable)) @definition.variable
+
+(declaration
+  declarator: (pointer_declarator
+    declarator: (identifier) @name.definition.variable)) @definition.variable

@@ -62,3 +62,13 @@
 ; handle imports
 
 ( use_declaration ) @import
+
+; Variable definitions
+(let_declaration
+  pattern: (identifier) @name.definition.variable) @definition.variable
+
+(const_item
+  name: (identifier) @name.definition.variable) @definition.variable
+
+(static_item
+  name: (identifier) @name.definition.variable) @definition.variable

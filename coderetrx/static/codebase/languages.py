@@ -26,6 +26,7 @@ IDXSupportedTag = Literal[
     "definition.interface",
     "definition.module",
     "definition.reexport",
+    "definition.variable",
     "reference.implementation",
     "reference.call",
     "reference.class",
@@ -121,6 +122,10 @@ REFERENCE_TAGS: List[IDXSupportedTag] = [
 
 IMPORT_TAGS: List[IDXSupportedTag] = [
     "import",
+]
+
+VARIABLE_TAGS: List[IDXSupportedTag] = [
+    "definition.variable",
 ]
 
 

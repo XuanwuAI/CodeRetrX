@@ -43,3 +43,13 @@
   name: (identifier) @name.definition.enum) @definition.enum
 
 (import_statement) @import
+
+; Variable definitions - const/let/var declarations
+; Note: We capture all variable declarations, function assignments are already captured above
+(lexical_declaration
+  (variable_declarator
+    name: (identifier) @name.definition.variable)) @definition.variable
+
+(variable_declaration
+  (variable_declarator
+    name: (identifier) @name.definition.variable)) @definition.variable
