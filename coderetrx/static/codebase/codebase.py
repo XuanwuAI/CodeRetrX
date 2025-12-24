@@ -10,6 +10,7 @@ from textwrap import dedent
 from typing import (
     Any,
     Dict,
+    Generator,
     Iterable,
     List,
     Literal,
@@ -962,6 +963,106 @@ class Codebase:
 
     def primary_chunks(self) -> List[CodeChunk]:
         return [chunk for chunk in self.all_chunks if chunk.type == ChunkType.PRIMARY]
+
+    def get_splited_distinct_chunks(self, max_lines: Optional[int] = None) -> List[CodeChunk]:
+        """
+        Get filtered primary + variable chunks that satisfy the following conditions:
+        1. No nested parent-child relationships between any two chunks
+        2. Large containers (class/module/interface) exceeding max_lines will be recursively split
+        
+        Args:
+            max_lines: Maximum line count threshold for container chunks, None means unlimited
+        
+        Returns:
+            List of filtered chunks
+        """
+        # Collect all primary and variable chunks
+        candidates = [
+            chunk for chunk in self.all_chunks
+            if chunk.type in (ChunkType.PRIMARY, ChunkType.VARIABLE)
+        ]
+        
+        # Group chunks by file for processing
+        chunks_by_file = defaultdict(list)
+        for chunk in candidates:
+            chunks_by_file[chunk.src.path].append(chunk)
+
+        result = []
+        for file_chunks in chunks_by_file.values():
+            result.extend(self._split_and_filter_file_chunks(file_chunks, max_lines))
+        return result
+
+    def _split_and_filter_file_chunks(
+        self, 
+        chunks: List[CodeChunk], 
+        max_lines: Optional[int]
+    ) -> List[CodeChunk]:
+        """
+        Process chunks from a single file using tree-based algorithm.
+        
+        Algorithm:
+        1. Build a tree structure from parent-child relationships
+        2. Traverse the tree depth-first
+        3. For each node, decide whether to split (use children) or keep it
+        4. Collect leaf nodes that satisfy the constraints
+        """
+        if not chunks:
+            return []
+        
+        # Build children map to represent the tree structure
+        children_map: Dict[Optional[CodeChunk], List[CodeChunk]] = defaultdict(list)
+        for chunk in chunks:
+            children_map[chunk.parent].append(chunk)
+        
+        # Sort children by start_line for consistent ordering
+        for children in children_map.values():
+            children.sort(key=lambda x: x.start_line)
+        
+        def traverse_and_collect(chunk: CodeChunk) -> Generator[CodeChunk, None, None]:
+            """
+            Traverse the tree rooted at chunk and collect valid leaf chunks.
+            
+            Returns:
+                List of chunks to include in the result (leaf nodes after splitting)
+            """
+            # Check if this chunk should be split
+            if self._should_split_container_chunk(chunk, max_lines):
+                children = children_map.get(chunk, [])
+                if children: # Split: recursively process all children
+                    for child in children:
+                        yield from traverse_and_collect(child)
+                else: # No children to split into, keep the chunk itself
+                    yield chunk
+            else: # Don't split, return this chunk as a leaf
+                yield chunk
+        
+        # Process all top-level chunks (roots of the tree)
+        result = []
+        top_level_chunks = children_map.get(None, [])
+        for chunk in top_level_chunks:
+            result.extend(traverse_and_collect(chunk))
+        return result
+
+    def _should_split_container_chunk(
+        self, 
+        chunk: CodeChunk, 
+        max_lines: Optional[int]
+    ) -> bool:
+        """Check if a chunk needs to be split"""
+        if max_lines is None:
+            return False
+        
+        # Only split container types
+        if chunk.tag not in [
+            'definition.class',
+            'definition.module', 
+            'definition.interface'
+        ]:
+            return False
+        
+        # Calculate line count
+        line_count = chunk.end_line - chunk.start_line + 1
+        return line_count > max_lines
 
     async def ripgrep_chunks(
         self,

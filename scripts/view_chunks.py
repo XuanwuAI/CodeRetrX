@@ -25,7 +25,7 @@ def load_coderetrx_codebase(codebase_path: str) -> Codebase:
 
 
 def show_code_chunks(codebase: Codebase, file_name: str):
-    for chunk in codebase.all_chunks:
+    for chunk in codebase.get_splited_distinct_chunks(100):
         if str(chunk.src.path) != file_name:
             continue
         print("Type:", chunk.type)
