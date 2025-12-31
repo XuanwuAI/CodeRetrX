@@ -125,6 +125,11 @@ class SmartCodebaseSettings(BaseSettings):
         description="Enable sentence-based keyword extraction",
         alias="KEYWORD_SENTENCE_EXTRACTION",
     )
+    variable_definition_extraction: bool = Field(
+        default=False,
+        description="Enable variable definition extraction",
+        alias="VARIABLE_DEFINITION_EXTRACTION",
+    )
       
     vector_db_mode: Literal["always_reuse", "never_reuse", "reuse_on_match"] = Field(
         default="reuse_on_match",
