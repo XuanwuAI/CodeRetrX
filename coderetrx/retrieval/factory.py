@@ -49,13 +49,24 @@ class CodebaseFactory:
         settings: Optional[SmartCodebaseSettings] = None,
         llm_settings: Optional[LLMSettings] = None,
         languages: Optional[List] = None,
+        init_chunks: bool = True,
+        init_symbols: bool = True,
+        init_keywords: bool = True,
+        init_dependencies: bool = True,
+        init_call_graph: bool = True,
     ) -> SmartCodebase:
         settings = settings or SmartCodebaseSettings()
         smart_codebase = SmartCodebase.new(
             id, dir, settings=settings, llm_settings=llm_settings, languages=languages
         )
         smart_codebase.set_parser("auto")
-        smart_codebase.init_all()
+        smart_codebase.init_all(
+            chunks=init_chunks,
+            symbols=init_symbols,
+            keywords=init_keywords,
+            dependencies=init_dependencies,
+            call_graph=init_call_graph,
+        )
         cls._initialize_similarity_searchers(smart_codebase, settings)
         return smart_codebase
 
