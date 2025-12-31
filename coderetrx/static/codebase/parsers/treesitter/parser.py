@@ -172,6 +172,11 @@ class TreeSitterParser(CodebaseParser):
         settings = SmartCodebaseSettings()
         count_primary_chunks = 0
 
+        # Define valid main tags in priority order
+        VALID_MAIN_TAGS = PRIMARY_TAGS + REFERENCE_TAGS + IMPORT_TAGS
+        if settings.variable_definition_extraction:
+            VALID_MAIN_TAGS += VARIABLE_TAGS
+
         try:
             stmt = TreeSitterQueryTemplates.get_query(ts.idx_language)
             query = self._compile_query(ts.ts_language, stmt)
@@ -181,9 +186,6 @@ class TreeSitterParser(CodebaseParser):
             block_nodes: Set[Node] = (
                 self._get_block_nodes(file, ts) if file.codebase.ignore_tests else set()
             )
-
-            # Define valid main tags in priority order
-            VALID_MAIN_TAGS = PRIMARY_TAGS + REFERENCE_TAGS + IMPORT_TAGS + VARIABLE_TAGS
 
             # Process each query match
             for match in matches:
@@ -206,7 +208,10 @@ class TreeSitterParser(CodebaseParser):
                     kind = ChunkType.REFERENCE
                 elif main_tag in IMPORT_TAGS:
                     kind = ChunkType.IMPORT
-                elif main_tag in VARIABLE_TAGS:
+                elif (
+                    main_tag in VARIABLE_TAGS
+                    and settings.variable_definition_extraction
+                ):
                     kind = ChunkType.VARIABLE
                 else:
                     continue
