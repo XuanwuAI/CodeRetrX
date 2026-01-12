@@ -20,6 +20,10 @@ def load_coderetrx_codebase(codebase_path: str) -> Codebase:
         str(abs_repo_path),
         abs_repo_path,
         smart_settings,
+        init_symbols=False,
+        init_keywords=False,
+        init_dependencies=False,
+        init_call_graph=False,
     )
     return codebase
 
