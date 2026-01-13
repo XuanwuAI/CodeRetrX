@@ -37,13 +37,18 @@ IDXSupportedTag = Literal[
 
 EXTENSION_MAP: dict[str, IDXSupportedLanguage] = {
     "js": "javascript",
+    "jsx": "javascript",
     "ts": "typescript",
+    "tsx": "typescript",
     "py": "python",
     "rs": "rust",
     "c": "c",
     "cpp": "cpp",
+    "cc": "cpp",
+    "cxx": "cpp",
     "h": "c",
     "hpp": "cpp",
+    "hxx": "cpp",
     "cs": "csharp",
     "go": "go",
     "ex": "elixir",
