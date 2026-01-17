@@ -8,6 +8,7 @@ from .get_references import GetReferenceTool
 from .keyword_search import KeywordSearchTool
 from .list_dir import ListDirTool
 from .view_file import ViewFileTool
+from .codeql_query import CodeQLQueryTool
 from typing import Type
 import sys
 
@@ -18,6 +19,7 @@ __all__ = [
     "KeywordSearchTool",
     "ListDirTool",
     "ViewFileTool",
+    "CodeQLQueryTool",
 ]
 tool_classes = [
     FindFileByNameTool,
@@ -25,6 +27,7 @@ tool_classes = [
     KeywordSearchTool,
     ListDirTool,
     ViewFileTool,
+    CodeQLQueryTool,
 ]
 tool_map: dict[str, dict[str, BaseTool]] = {}
 
