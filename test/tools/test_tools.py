@@ -93,5 +93,28 @@ def test_all_tools():
     for tester in tool_testers:
         tester.test()
 
+class TestToolsSettings:
+    def test_default_disabled_tools(self):
+        """Test that codeql_query is disabled by default"""
+        from coderetrx.tools.settings import Settings
+        settings = Settings()
+        assert "codeql_query" in settings.disabled_tools
+
+    def test_tool_classes_excludes_disabled(self):
+        """Test that tool_classes excludes disabled tools"""
+        from coderetrx.tools import tool_classes
+        tool_names = [cls.name for cls in tool_classes]
+        assert "codeql_query" not in tool_names
+
+    def test_env_override_disabled_tools(self):
+        """Test that env var can override disabled_tools"""
+        import os
+        os.environ["CODERETRX_DISABLED_TOOLS"] = "[]"
+        from coderetrx.tools.settings import Settings
+        settings = Settings()
+        assert settings.disabled_tools == []
+        del os.environ["CODERETRX_DISABLED_TOOLS"]
+
+
 if __name__ == "__main__":
     test_all_tools()

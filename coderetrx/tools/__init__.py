@@ -10,7 +10,7 @@ from .list_dir import ListDirTool
 from .view_file import ViewFileTool
 from .codeql_query import CodeQLQueryTool
 from typing import Type
-import sys
+from .settings import settings
 
 # Export the tools as the default
 __all__ = [
@@ -21,7 +21,8 @@ __all__ = [
     "ViewFileTool",
     "CodeQLQueryTool",
 ]
-tool_classes = [
+
+_all_tool_classes = [
     FindFileByNameTool,
     GetReferenceTool,
     KeywordSearchTool,
@@ -29,6 +30,12 @@ tool_classes = [
     ViewFileTool,
     CodeQLQueryTool,
 ]
+
+tool_classes = [
+    cls for cls in _all_tool_classes
+    if getattr(cls, "name", None) not in settings.disabled_tools
+]
+
 tool_map: dict[str, dict[str, BaseTool]] = {}
 
 
