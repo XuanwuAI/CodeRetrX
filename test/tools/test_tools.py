@@ -5,10 +5,11 @@ from coderetrx.tools.view_file import ViewFileTool
 from coderetrx.tools.find_file_by_name import FindFileByNameTool
 from coderetrx.tools.keyword_search import KeywordSearchTool
 from coderetrx.tools.list_dir import ListDirTool
+from coderetrx.tools.codeql_query import CodeQLQueryTool
 import logging
-logger =logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-TEST_REPO = "https://github.com/apache/flink.git"
+TEST_REPO = "https://github.com/pallets/flask.git"
 
 class TestGetReferenceTool:
     def test(self):
@@ -67,6 +68,18 @@ class TestListDirTool:
         logger.info(f"ListDirTool result: {result}")
         assert isinstance(result, list), "Result should be a list of directory entries"
 
+
+class TestCodeQLQueryTool:
+    def test(self):
+        """Test CodeQL query execution"""
+        logger.info("Testing CodeQLQueryTool...")
+        tool = CodeQLQueryTool(TEST_REPO)
+        query = "import python\nfrom Function f\nselect f.getName()"
+        result = asyncio.run(tool._run(query=query, language="python"))
+        logger.info(f"CodeQLQueryTool result: {result}")
+        assert isinstance(result, list), "Result should be a list"
+
+
 def test_all_tools():
     """Test all tools"""
     tool_testers = [
@@ -75,6 +88,7 @@ def test_all_tools():
         TestFindFileByNameTool(),
         TestKeywordSearchTool(),
         TestListDirTool(),
+        TestCodeQLQueryTool(),
     ]
     for tester in tool_testers:
         tester.test()
