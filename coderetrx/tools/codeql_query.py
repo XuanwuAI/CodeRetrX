@@ -138,8 +138,17 @@ class CodeQLQueryTool(BaseTool):
                 )
 
             # Check if query is a file path or query string
-            query_path = Path(query)
-            if query_path.exists() and query_path.suffix == ".ql":
+            # Avoid Path() on long strings or strings with newlines (query content)
+            is_file_path = (
+                len(query) < 256
+                and '\n' not in query
+                and not query.strip().startswith('import ')
+            )
+            if is_file_path:
+                query_path = Path(query)
+                is_file_path = query_path.exists() and query_path.suffix == ".ql"
+
+            if is_file_path:
                 raw_result = wrapper.run_query_raw(database, query_path, query_name="custom_query")
             else:
                 # Query is a string, write to temp file in qlpack directory
