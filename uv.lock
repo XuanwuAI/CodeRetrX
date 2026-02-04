@@ -7,6 +7,12 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+[manifest]
+members = [
+    "coderetrx",
+    "lspyc",
+]
+
 [[package]]
 name = "aiofiles"
 version = "25.1.0"
@@ -408,6 +414,7 @@ dependencies = [
     { name = "httpx" },
     { name = "ignore-python" },
     { name = "json-repair" },
+    { name = "lspyc" },
     { name = "mcp" },
     { name = "nanoid" },
     { name = "openai" },
@@ -461,6 +468,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27.2" },
     { name = "ignore-python", specifier = ">=0.2.0" },
     { name = "json-repair", specifier = ">=0.46.0" },
+    { name = "lspyc", editable = "deps/lspyc" },
     { name = "mcp", specifier = ">=1.13.1" },
     { name = "nanoid", specifier = ">=2.0.0" },
     { name = "openai", specifier = ">=1.0.0" },
@@ -1183,6 +1191,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ae/52/19ebe8004c243fdfa78268a96727c71e08f00ff6fe69a301d0b7fcbce3c2/kubernetes-33.1.0.tar.gz", hash = "sha256:f64d829843a54c251061a8e7a14523b521f2dc5c896cf6d65ccf348648a88993", size = 1036779, upload-time = "2025-06-09T21:57:58.521Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/89/43/d9bebfc3db7dea6ec80df5cb2aad8d274dd18ec2edd6c4f21f32c237cbbb/kubernetes-33.1.0-py2.py3-none-any.whl", hash = "sha256:544de42b24b64287f7e0aa9513c93cb503f7f40eea39b20f66810011a86eabc5", size = 1941335, upload-time = "2025-06-09T21:57:56.327Z" },
+]
+
+[[package]]
+name = "lspyc"
+version = "0.1.0"
+source = { editable = "deps/lspyc" }
+dependencies = [
+    { name = "pydantic-settings" },
+    { name = "websockets" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic-settings", specifier = ">=2.12.0" },
+    { name = "websockets", specifier = ">=16.0" },
 ]
 
 [[package]]
