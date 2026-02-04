@@ -1154,12 +1154,14 @@ version = "0.1.0"
 source = { editable = "deps/lspyc" }
 dependencies = [
     { name = "pydantic-settings" },
+    { name = "pyyaml" },
     { name = "websockets" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.12.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "websockets", specifier = ">=16.0" },
 ]
 
