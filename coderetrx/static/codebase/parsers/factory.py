@@ -5,6 +5,7 @@ from pathlib import Path
 from .base import CodebaseParser, UnsupportedLanguageError
 from .treesitter import TreeSitterParser
 from .codeql import CodeQLParser
+from .lsp import LSPParser
 from ..languages import IDXSupportedLanguage
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ class ParserFactory:
     """
 
     # Parser priority order for auto-selection
-    PARSER_PRIORITY = ["treesitter", "codeql"]
+    PARSER_PRIORITY = ["lsp", "treesitter", "codeql"]
 
     @classmethod
     def get_parser(cls, parser_type: str = "auto", **kwargs) -> CodebaseParser:
@@ -29,6 +30,7 @@ class ParserFactory:
         Args:
             parser_type: Type of parser to create:
                 - "auto": Auto-select best available parser
+                - "lsp": LSP-based parser
                 - "codeql": CodeQL parser
                 - "treesitter": Tree-sitter parser
                 - "hybrid": Use CodeQL where available, fallback to tree-sitter
@@ -43,6 +45,8 @@ class ParserFactory:
         """
         if parser_type == "auto":
             return cls._auto_select_parser(**kwargs)
+        elif parser_type == "lsp":
+            return cls._create_lsp_parser(**kwargs)
         elif parser_type == "codeql":
             return cls._create_codeql_parser(**kwargs)
         elif parser_type == "treesitter":
@@ -59,7 +63,16 @@ class ParserFactory:
         """
         for parser_name in cls.PARSER_PRIORITY:
             try:
-                if parser_name == "codeql":
+                if parser_name == "lsp":
+                    parser = cls._create_lsp_parser(**kwargs)
+                    # Test if LSP servers are available
+                    if cls._test_lsp_availability(parser):
+                        logger.info("Auto-selected LSP parser")
+                        return parser
+                    else:
+                        logger.info("LSP servers not available, trying next parser")
+                        continue
+                elif parser_name == "codeql":
                     parser = cls._create_codeql_parser(**kwargs)
                     # Test if CodeQL is actually available
                     if cls._test_codeql_availability(parser):
@@ -79,6 +92,11 @@ class ParserFactory:
         raise RuntimeError("No suitable parser available")
 
     @classmethod
+    def _create_lsp_parser(cls, **kwargs) -> LSPParser:
+        """Create an LSP parser instance."""
+        return LSPParser(**kwargs)
+
+    @classmethod
     def _create_codeql_parser(cls, **kwargs) -> CodeQLParser:
         """Create a CodeQL parser instance."""
         return CodeQLParser(**kwargs)
@@ -87,6 +105,25 @@ class ParserFactory:
     def _create_treesitter_parser(cls, **kwargs) -> TreeSitterParser:
         """Create a Tree-sitter parser instance."""
         return TreeSitterParser(**kwargs)
+
+    @classmethod
+    def _test_lsp_availability(cls, parser: LSPParser) -> bool:
+        """
+        Test if LSP servers are available.
+
+        Args:
+            parser: LSP parser instance to test
+
+        Returns:
+            True if LSP is available, False otherwise
+        """
+        try:
+            # Test basic LSP functionality
+            supported_langs = parser.get_supported_languages()
+            return len(supported_langs) > 0
+        except Exception as e:
+            logger.debug(f"LSP availability test failed: {e}")
+            return False
 
     @classmethod
     def _test_codeql_availability(cls, parser: CodeQLParser) -> bool:
@@ -116,6 +153,13 @@ class ParserFactory:
             Dictionary mapping parser names to availability status
         """
         status = {}
+
+        # Test LSP
+        try:
+            parser = cls._create_lsp_parser()
+            status["lsp"] = cls._test_lsp_availability(parser)
+        except Exception:
+            status["lsp"] = False
 
         # Test Tree-sitter
         try:
@@ -149,8 +193,10 @@ class ParserFactory:
         available = cls.get_available_parsers()
 
         if not languages:
-            # If no specific languages, prefer CodeQL if available
-            if available.get("codeql", False):
+            # If no specific languages, prefer LSP, then CodeQL if available
+            if available.get("lsp", False):
+                return "lsp"
+            elif available.get("codeql", False):
                 return "codeql"
             elif available.get("treesitter", False):
                 return "treesitter"
@@ -158,8 +204,17 @@ class ParserFactory:
                 return "auto"  # Let auto-selection handle the error
 
         # Check language support for each parser
+        lsp_coverage = 0
         codeql_coverage = 0
         treesitter_coverage = 0
+
+        if available.get("lsp", False):
+            try:
+                lsp_parser = cls._create_lsp_parser()
+                lsp_supported = set(lsp_parser.get_supported_languages())
+                lsp_coverage = len(set(languages).intersection(lsp_supported))
+            except Exception:
+                pass
 
         if available.get("codeql", False):
             try:
@@ -179,12 +234,16 @@ class ParserFactory:
             except Exception:
                 pass
 
-        # Prefer CodeQL if it covers more languages, otherwise tree-sitter
-        if codeql_coverage > treesitter_coverage:
+        # Prefer parser with best coverage
+        if lsp_coverage >= codeql_coverage and lsp_coverage >= treesitter_coverage and lsp_coverage > 0:
+            return "lsp"
+        elif codeql_coverage > treesitter_coverage:
             return "codeql"
         elif treesitter_coverage > 0:
             return "treesitter"
         elif codeql_coverage > 0:
             return "codeql"
+        elif lsp_coverage > 0:
+            return "lsp"
         else:
             return "hybrid"  # Use hybrid for maximum coverage
