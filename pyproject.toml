@@ -29,6 +29,7 @@ dependencies = [
     "starlette>=0.47.3",
     "anyio>=4.9.0",
     "pytest-asyncio>=1.2.0",
+    "lspyc",
 ]
 
 [tool.setuptools.packages.find]
@@ -65,3 +66,11 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 "coderetrx" = ["**/*.scm", "**/*.py"]
+
+[tool.uv.workspace]
+members = [
+    "deps/lspyc",
+]
+
+[tool.uv.sources]
+lspyc = { workspace = true }

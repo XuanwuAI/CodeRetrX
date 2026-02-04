@@ -1,0 +1,3 @@
+[submodule "deps/lspyc"]
+	path = deps/lspyc
+	url = https://github.com/XuanwuAI/lspyc
