@@ -2,11 +2,14 @@
 This module contains tools exposed by mcp server.
 """
 
+from typing import Type
+
 from .base import BaseTool
 from .find_file_by_name import FindFileByNameTool
 from .get_references import GetReferenceTool
 from .keyword_search import KeywordSearchTool
 from .list_dir import ListDirTool
+from .lsp import GetDefinitionTool, GetReferencesTool, ListSymbolTool
 from .view_file import ViewFileTool
 from .codeql_query import CodeQLQueryTool
 from .llm_filter import LLMCodeFilterTool
