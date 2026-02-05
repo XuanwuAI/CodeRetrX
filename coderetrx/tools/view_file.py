@@ -1,10 +1,9 @@
-import asyncio
-import os
-from typing import Optional, Type, ClassVar
-from pathlib import Path
-from pydantic import BaseModel, Field
-from coderetrx.tools.base import BaseTool
+from typing import ClassVar, Optional, Type
+
 import aiofiles
+from pydantic import BaseModel, Field
+
+from coderetrx.tools.base import BaseTool
 from coderetrx.utils.path import safe_join
 
 
@@ -15,6 +14,10 @@ class ViewFileArgs(BaseModel):
         ...,
         description="Absolute path of file to view",
     )
+    show_line_numbers: bool = Field(
+        True,
+        description="If true, prefix each line with its line number (0-indexed).",
+    )
     start_line: Optional[int] = Field(
         None, description="Starting line number. Optional, default to be 0.", ge=0
     )
@@ -23,6 +26,7 @@ class ViewFileArgs(BaseModel):
         description="Ending line number. Optional, default to be the last line.",
         ge=0,
     )
+
 
 
 class ViewFileTool(BaseTool):
@@ -35,17 +39,27 @@ class ViewFileTool(BaseTool):
         "3) If the file contents you have viewed are insufficient, and you suspect they may be in lines not shown, proactively call the tool again to view those lines.\n"
         "4) When in doubt, call this tool again to gather more information. Remember that partial file views may miss critical dependencies, imports, or functionality."
     )
-    args_schema: ClassVar[Type[ViewFileArgs]] = ViewFileArgs
+    args_schema: ClassVar[Type[ViewFileArgs]] = ViewFileArgs # type: ignore
 
-    def forward(self, file_path: str, start_line: int, end_line: int) -> str:
+    def forward(
+        self,
+        file_path: str,
+        show_line_numbers: bool,
+        start_line: int,
+        end_line: int,
+    ) -> str:
         """Synchronous wrapper for async _run method."""
         return self.run_sync(
-            file_path=file_path, start_line=start_line, end_line=end_line
+            file_path=file_path,
+            start_line=start_line,
+            end_line=end_line,
+            show_line_numbers=show_line_numbers,
         )
 
     async def _run(
         self,
         file_path: str,
+        show_line_numbers: bool,
         start_line: Optional[int] = None,
         end_line: Optional[int] = None,
     ) -> str:
@@ -81,9 +95,22 @@ class ViewFileTool(BaseTool):
                 return f"File is too large ({total_lines} lines), please specify a line range less than or equal {threshold_line}, or search keyword in the file.\n"
 
             selected_lines = lines[start:end]
-            result = "\n".join(selected_lines)
+            actual_start = start
         else:
-            result = content
+            selected_lines = lines
+            actual_start = 0
+
+        # Format output with or without line numbers
+        if show_line_numbers:
+            max_line_num = actual_start + len(selected_lines) - 1
+            width = len(str(max_line_num))
+            formatted_lines = [
+                f"{actual_start + i:>{width}} | {line}"
+                for i, line in enumerate(selected_lines)
+            ]
+            result = "\n".join(formatted_lines)
+        else:
+            result = "\n".join(selected_lines)
 
         # Add line count info unless we're showing the whole file
         if start_line is not None or end_line is not None:
