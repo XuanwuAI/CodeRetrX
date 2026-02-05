@@ -2,14 +2,15 @@
 This module contains tools exposed by mcp server.
 """
 
+from typing import Type
+
 from .base import BaseTool
 from .find_file_by_name import FindFileByNameTool
 from .get_references import GetReferenceTool
 from .keyword_search import KeywordSearchTool
 from .list_dir import ListDirTool
+from .lsp import GetDefinitionTool, GetReferencesTool, ListSymbolTool
 from .view_file import ViewFileTool
-from typing import Type
-import sys
 
 # Export the tools as the default
 __all__ = [
@@ -18,6 +19,9 @@ __all__ = [
     "KeywordSearchTool",
     "ListDirTool",
     "ViewFileTool",
+    "ListSymbolTool",
+    "GetDefinitionTool",
+    "GetReferencesTool",
 ]
 tool_classes = [
     FindFileByNameTool,
@@ -25,6 +29,9 @@ tool_classes = [
     KeywordSearchTool,
     ListDirTool,
     ViewFileTool,
+    ListSymbolTool,
+    GetDefinitionTool,
+    GetReferencesTool,
 ]
 tool_map: dict[str, dict[str, BaseTool]] = {}
 
