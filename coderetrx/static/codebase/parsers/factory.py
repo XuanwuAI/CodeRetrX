@@ -20,7 +20,7 @@ class ParserFactory:
     """
 
     # Parser priority order for auto-selection
-    PARSER_PRIORITY = ["lsp", "treesitter", "codeql"]
+    PARSER_PRIORITY = ["treesitter", "lsp", "codeql"]
 
     @classmethod
     def get_parser(cls, parser_type: str = "auto", **kwargs) -> CodebaseParser:
@@ -94,6 +94,7 @@ class ParserFactory:
     @classmethod
     def _create_lsp_parser(cls, **kwargs) -> LSPParser:
         """Create an LSP parser instance."""
+        logger.warning("Using LSP parser, which only generates class and function chunks")
         return LSPParser(**kwargs)
 
     @classmethod
