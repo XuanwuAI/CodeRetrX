@@ -1,11 +1,10 @@
-import uuid
-import os
+import logging
 import re
+import uuid
 from collections import defaultdict
 from enum import Enum
 from os import PathLike
 from pathlib import Path
-from tqdm import tqdm
 from textwrap import dedent
 from typing import (
     Any,
@@ -21,24 +20,25 @@ from typing import (
     TypeVar,
     Union,
 )
+from urllib.parse import urlparse
 from uuid import UUID
 
 from attrs import Factory, define
 from ignore import Walk
-from tree_sitter import QueryError
-from tree_sitter import Node
-import logging
+from lspyc.mlclient import MutilLangClient
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 
+from coderetrx.static.ripgrep import (
+    GrepMatchResult,
+    ripgrep_search,
+    ripgrep_search_symbols,
+)
+
 from .languages import (
-    FUNCLIKE_TAGS,
-    IMPORT_TAGS,
     OBJLIKE_TAGS,
-    PRIMARY_TAGS,
-    REFERENCE_TAGS,
     IDXSupportedLanguage,
     IDXSupportedTag,
     get_language,
@@ -46,11 +46,6 @@ from .languages import (
     is_sourcecode,
 )
 from .parsers import CodebaseParser, ParserFactory
-from coderetrx.static.ripgrep import (
-    GrepMatchResult,
-    ripgrep_search,
-    ripgrep_search_symbols,
-)
 
 
 class ChunkType(str, Enum):
@@ -141,7 +136,9 @@ class CodeHunk:
         start, end = self.get_linerange()
         if trunc_headlines is not None:
             end = min(end, start + trunc_headlines - 1)
-        return self.src.lookup((start, end), do_dedent, show_line_numbers, zero_based_line_numbers)
+        return self.src.lookup(
+            (start, end), do_dedent, show_line_numbers, zero_based_line_numbers
+        )
 
     # @cached(cache=codeblock_cache)
     def codeblock(self, show_line_numbers: bool = False):
@@ -279,7 +276,10 @@ class CodeChunk(CodeHunk):
                 0,
                 "\n".join(
                     [
-                        chunk.code(show_line_numbers=show_line_numbers, zero_based_line_numbers=zero_based_line_numbers)
+                        chunk.code(
+                            show_line_numbers=show_line_numbers,
+                            zero_based_line_numbers=zero_based_line_numbers,
+                        )
                         for chunk in import_chunks
                     ]
                 ),
@@ -422,7 +422,10 @@ class File:
 
     # @cached(cache=lookup_lines_cache)
     def lookup_lines(
-        self, x: CodeHunk | Tuple[int, int] | int, show_line_numbers: bool = False, zero_based_line_numbers: bool = True,
+        self,
+        x: CodeHunk | Tuple[int, int] | int,
+        show_line_numbers: bool = False,
+        zero_based_line_numbers: bool = True,
     ) -> List[str]:
         if isinstance(x, CodeHunk):
             start, end = x.get_linerange()
@@ -444,7 +447,10 @@ class File:
 
             shift_line_num = 0 if zero_based_line_numbers else 1
             line_numbers = range(start_line, start_line + len(lines))
-            return [f"{num+shift_line_num:4d} | {line}" for num, line in zip(line_numbers, lines)]
+            return [
+                f"{num+shift_line_num:4d} | {line}"
+                for num, line in zip(line_numbers, lines)
+            ]
 
         return lines
 
@@ -456,7 +462,9 @@ class File:
         show_line_numbers: bool = False,
         zero_based_line_numbers: bool = True,
     ) -> str:
-        lines = self.lookup_lines(x, show_line_numbers, zero_based_line_numbers=zero_based_line_numbers)
+        lines = self.lookup_lines(
+            x, show_line_numbers, zero_based_line_numbers=zero_based_line_numbers
+        )
         if do_dedent and not show_line_numbers:
             return dedent("\n".join(lines))
         return "\n".join(lines)
@@ -755,6 +763,10 @@ class Codebase:
     # Parser system
     _parser: Optional[CodebaseParser] = None
 
+    # LSP client for advanced code navigation
+    _lsp_client: Optional[Any] = None  # MutilLangClient from lspyc
+    _lsp_initialized: bool = False
+
     _chunks_initialized: bool = False
     _symbols_initialized: bool = False
     _keywords_initialized: bool = False
@@ -835,6 +847,165 @@ class Codebase:
     def get_parser(self) -> Optional[CodebaseParser]:
         """Get the parser instance for this codebase."""
         return self._parser
+
+    async def init_lsp(self):
+        """
+        Initialize LSP client for advanced code navigation.
+
+        Must be called before using:
+        - LSP parser
+        - get_function_calls()
+        - get_symbol_definition()
+        - get_symbol_references()
+
+        Example:
+            >>> codebase = Codebase.new(id="repo", dir="/path")
+            >>> await codebase.init_lsp()
+            >>> calls = await codebase.get_function_calls(symbol)
+        """
+        if self._lsp_initialized:
+            return
+        self._lsp_client = MutilLangClient(str(self.dir))
+        self._lsp_initialized = True
+        logger.info("LSP client initialized for workspace: %s", self.dir)
+
+    async def close_lsp(self):
+        """
+        Shutdown LSP client and cleanup resources.
+
+        Should be called in async context when done with LSP functionality.
+
+        Example:
+            >>> await codebase.init_lsp()
+            >>> # ... use LSP features ...
+            >>> await codebase.close_lsp()
+        """
+        if self._lsp_client:
+            try:
+                await self._lsp_client.shutdown()
+                logger.info("LSP client shutdown successfully")
+            except Exception as e:
+                logger.warning(f"Failed to shutdown LSP client: {e}")
+            finally:
+                self._lsp_client = None
+                self._lsp_initialized = False
+
+    @property
+    def lsp_available(self) -> bool:
+        """Check if LSP functionality is available."""
+        return self._lsp_initialized and self._lsp_client is not None
+
+    async def get_function_calls(
+        self, symbol: Symbol, include_declaration: bool = False
+    ) -> List[CodeChunk]:
+        """
+        Get all locations where a function/method is called.
+
+        Args:
+            symbol: The Symbol to find calls for
+            include_declaration: Include the definition location
+
+        Returns:
+            List of CodeChunk objects representing call sites
+
+        Raises:
+            ValueError: If LSP is not initialized
+
+        Example:
+            >>> await codebase.init_lsp()
+            >>> function_symbol = codebase.symbols[0]
+            >>> call_sites = await codebase.get_function_calls(function_symbol)
+            >>> for call in call_sites:
+            ...     print(f"Called at {call.src.path}:{call.start_line}")
+        """
+        if not self.lsp_available:
+            raise ValueError(
+                "LSP not initialized. Call await codebase.init_lsp() first."
+            )
+
+        assert self._lsp_client is not None, "LSP client should be available"
+
+        # Get references using LSP
+        file_path = symbol.file.path
+        line = symbol.chunk.start_line
+        col = symbol.chunk.start_column
+
+        references = await self._lsp_client.get_references(
+            str(file_path), line, col, include_declaration=include_declaration
+        )
+
+        # Convert LSP Locations to CodeChunks
+        chunks = []
+        for loc in references:
+            chunk = self._location_to_chunk(loc)
+            if chunk:
+                chunks.append(chunk)
+
+        return chunks
+
+    async def get_symbol_definition(self, symbol: Symbol) -> Optional[Symbol]:
+        """
+        Get the definition location of a symbol (useful for references).
+
+        Args:
+            symbol: The Symbol to find definition for
+
+        Returns:
+            Symbol at the definition location, or None if not found
+
+        Raises:
+            ValueError: If LSP is not initialized
+
+        Example:
+            >>> await codebase.init_lsp()
+            >>> ref_symbol = codebase.symbols[10]  # Some reference
+            >>> definition = await codebase.get_symbol_definition(ref_symbol)
+            >>> print(f"Defined at {definition.file.path}:{definition.chunk.start_line}")
+        """
+        if not self.lsp_available:
+            raise ValueError(
+                "LSP not initialized. Call await codebase.init_lsp() first."
+            )
+
+        assert self._lsp_client is not None, "LSP client should be available"
+
+        definitions = await self._lsp_client.get_definition(
+            str(symbol.file.path), symbol.chunk.start_line, symbol.chunk.start_column
+        )
+
+        if not definitions:
+            return None
+
+        # Return the first definition (usually there's only one)
+        loc = definitions[0]
+        chunk = self._location_to_chunk(loc)
+        if chunk:
+            # Find the symbol that owns this chunk
+            for sym in self.symbols:
+                if sym.chunk.uuid == chunk.uuid:
+                    return sym
+
+        return None
+
+    async def get_symbol_references(
+        self, symbol: Symbol, include_declaration: bool = True
+    ) -> List[CodeChunk]:
+        """
+        Get all references to a symbol.
+
+        Alias for get_function_calls() with a more general name for non-function symbols.
+
+        Args:
+            symbol: The Symbol to find references for
+            include_declaration: Include the definition location
+
+        Returns:
+            List of CodeChunk objects representing reference locations
+
+        Raises:
+            ValueError: If LSP is not initialized
+        """
+        return await self.get_function_calls(symbol, include_declaration)
 
     def set_parser(self, parser: Union[str, CodebaseParser], **kwargs):
         """
@@ -964,24 +1135,27 @@ class Codebase:
     def primary_chunks(self) -> List[CodeChunk]:
         return [chunk for chunk in self.all_chunks if chunk.type == ChunkType.PRIMARY]
 
-    def get_splited_distinct_chunks(self, max_lines: Optional[int] = None) -> List[CodeChunk]:
+    def get_splited_distinct_chunks(
+        self, max_lines: Optional[int] = None
+    ) -> List[CodeChunk]:
         """
         Get filtered primary + variable chunks that satisfy the following conditions:
         1. No nested parent-child relationships between any two chunks
         2. Large containers (class/module/interface) exceeding max_lines will be recursively split
-        
+
         Args:
             max_lines: Maximum line count threshold for container chunks, None means unlimited
-        
+
         Returns:
             List of filtered chunks
         """
         # Collect all primary and variable chunks
         candidates = [
-            chunk for chunk in self.all_chunks
+            chunk
+            for chunk in self.all_chunks
             if chunk.type in (ChunkType.PRIMARY, ChunkType.VARIABLE)
         ]
-        
+
         # Group chunks by file for processing
         chunks_by_file = defaultdict(list)
         for chunk in candidates:
@@ -993,13 +1167,11 @@ class Codebase:
         return result
 
     def _split_and_filter_file_chunks(
-        self, 
-        chunks: List[CodeChunk], 
-        max_lines: Optional[int]
+        self, chunks: List[CodeChunk], max_lines: Optional[int]
     ) -> List[CodeChunk]:
         """
         Process chunks from a single file using tree-based algorithm.
-        
+
         Algorithm:
         1. Build a tree structure from parent-child relationships
         2. Traverse the tree depth-first
@@ -1008,34 +1180,34 @@ class Codebase:
         """
         if not chunks:
             return []
-        
+
         # Build children map to represent the tree structure
         children_map: Dict[Optional[CodeChunk], List[CodeChunk]] = defaultdict(list)
         for chunk in chunks:
             children_map[chunk.parent].append(chunk)
-        
+
         # Sort children by start_line for consistent ordering
         for children in children_map.values():
             children.sort(key=lambda x: x.start_line)
-        
+
         def traverse_and_collect(chunk: CodeChunk) -> Generator[CodeChunk, None, None]:
             """
             Traverse the tree rooted at chunk and collect valid leaf chunks.
-            
+
             Returns:
                 List of chunks to include in the result (leaf nodes after splitting)
             """
             # Check if this chunk should be split
             if self._should_split_container_chunk(chunk, max_lines):
                 children = children_map.get(chunk, [])
-                if children: # Split: recursively process all children
+                if children:  # Split: recursively process all children
                     for child in children:
                         yield from traverse_and_collect(child)
-                else: # No children to split into, keep the chunk itself
+                else:  # No children to split into, keep the chunk itself
                     yield chunk
-            else: # Don't split, return this chunk as a leaf
+            else:  # Don't split, return this chunk as a leaf
                 yield chunk
-        
+
         # Process all top-level chunks (roots of the tree)
         result = []
         top_level_chunks = children_map.get(None, [])
@@ -1044,22 +1216,20 @@ class Codebase:
         return result
 
     def _should_split_container_chunk(
-        self, 
-        chunk: CodeChunk, 
-        max_lines: Optional[int]
+        self, chunk: CodeChunk, max_lines: Optional[int]
     ) -> bool:
         """Check if a chunk needs to be split"""
         if max_lines is None:
             return False
-        
+
         # Only split container types
         if chunk.tag not in [
-            'definition.class',
-            'definition.module', 
-            'definition.interface'
+            "definition.class",
+            "definition.module",
+            "definition.interface",
         ]:
             return False
-        
+
         # Calculate line count
         line_count = chunk.end_line - chunk.start_line + 1
         return line_count > max_lines
@@ -1131,18 +1301,88 @@ class Codebase:
     def get_file(self, path: PathLike | str) -> File | None:
         return self.source_files.get(str(path)) or self.dependency_files.get(str(path))
 
+    def _location_to_chunk(self, location: Dict[str, Any]) -> Optional[CodeChunk]:
+        """
+        Convert an LSP Location to a CodeChunk.
+
+        Args:
+            location: LSP Location with uri and range
+
+        Returns:
+            CodeChunk if found, None otherwise
+        """
+
+        # Parse URI to get file path
+        uri = location["uri"]
+        parsed = urlparse(uri)
+        file_path = Path(parsed.path)
+
+        # Make relative to workspace
+        try:
+            rel_path = file_path.relative_to(self.dir)
+        except ValueError:
+            # File is outside workspace, try as-is
+            rel_path = file_path
+
+        # Find the file in codebase
+        file = self.get_file(str(rel_path))
+        if not file:
+            return None
+
+        # Extract position from LSP range
+        range_data = location["range"]
+        start_line = range_data["start"]["line"]
+        start_col = range_data["start"]["character"]
+        end_line = range_data["end"]["line"]
+        end_col = range_data["end"]["character"]
+
+        # Find existing chunk at this location
+        for chunk in file.chunks:
+            if (
+                chunk.start_line == start_line
+                and chunk.start_column == start_col
+                and chunk.end_line == end_line
+                and chunk.end_column == end_col
+            ):
+                return chunk
+
+        # Create a new CodeChunk for this location
+        # (LSP reference might not correspond to an existing chunk)
+        return CodeChunk.new(
+            src=file,
+            start_line=start_line,
+            end_line=end_line,
+            start_column=start_col,
+            end_column=end_col,
+            chunk_type=ChunkType.REFERENCE,
+            tag="reference.call",  # Assuming it's a call reference
+        )
+
     def get_all_lines(self, max_chars: int = 0):
         for file in self.source_files.values():
             for line in file.get_lines(max_chars=max_chars):
                 yield line
 
     def cleanup(self):
-        """Clean up resources held by the codebase, including parser resources."""
+        """
+        Clean up resources held by the codebase, including parser resources.
+
+        Note: This does NOT shutdown the LSP client. Use close_lsp() for that in async context.
+
+        Example:
+            >>> codebase.cleanup()  # Sync cleanup for parser
+            >>> await codebase.close_lsp()  # Async cleanup for LSP
+        """
         if self._parser:
             self._parser.cleanup()
 
     def __del__(self):
-        """Ensure cleanup when the object is garbage collected."""
+        """
+        Ensure cleanup when the object is garbage collected.
+
+        Note: This only cleans up sync resources (parser). LSP client must be
+        explicitly closed using close_lsp() in async context before object destruction.
+        """
         try:
             self.cleanup()
         except Exception:
