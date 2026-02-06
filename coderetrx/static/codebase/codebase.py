@@ -25,7 +25,7 @@ from uuid import UUID
 
 from attrs import Factory, define
 from ignore import Walk
-from lspyc.handle.protocol import Range
+from lspyc.handle.protocol import Range, Position, Location
 from lspyc.mlclient import MutilLangClient
 from pydantic import BaseModel, Field
 
@@ -899,7 +899,7 @@ class Codebase:
 
     async def get_function_calls(
         self, symbol: Symbol, include_declaration: bool = False
-    ) -> List[CodeChunk]:
+    ) -> List[tuple[str, Range]]:
         """
         Get all locations where a function/method is called.
 
@@ -935,20 +935,18 @@ class Codebase:
         line = select_range["start"]["line"]
         col = select_range["start"]["character"]
 
-        references = await self._lsp_client.get_references(
+        res = await self._lsp_client.get_references(
             str(file_path), line, col, include_declaration=include_declaration
         )
+        def uri2relative(uri: str) -> str:
+            uri = uri.replace("file://", "")
+            root_dir = Path(self.dir)
+            return str(Path(uri.replace("file://", "")).relative_to(root_dir))
+        return [(uri2relative(ref["uri"]), ref["range"]) for ref in res]
 
-        # Convert LSP Locations to CodeChunks
-        chunks = []
-        for loc in references:
-            chunk = self._location_to_chunk(loc)
-            if chunk:
-                chunks.append(chunk)
-
-        return chunks
-
-    async def get_symbol_definition(self, symbol: Symbol) -> Optional[Symbol]:
+    async def get_definition(
+        self, file_path: str, position: Position
+    ) -> Optional[Symbol]:
         """
         Get the definition location of a symbol (useful for references).
 
@@ -973,33 +971,27 @@ class Codebase:
             )
 
         assert self._lsp_client is not None, "LSP client should be available"
-        selection_range = symbol.selection_range
-        if not selection_range:
-            return None
-        line = selection_range["start"]["line"]
-        column = selection_range["start"]["character"]
-
         definitions = await self._lsp_client.get_definition(
-            str(symbol.file.path), line, column
+            file_path, position["line"], position["character"]
         )
 
         if not definitions:
             return None
 
         # Return the first definition (usually there's only one)
-        loc = definitions[0]
-        chunk = self._location_to_chunk(loc)
-        if chunk:
-            # Find the symbol that owns this chunk
+        for loc in definitions:
+            uri = loc["uri"]
+            root_path = Path(self.dir)
+            rel_path = Path(urlparse(uri).path).relative_to(root_path)
+            target_file = self.get_file(rel_path)
             for sym in self.symbols:
-                if sym.chunk.uuid == chunk.uuid:
+                if sym.file == target_file and sym.selection_range == loc["range"]:
                     return sym
-
         return None
 
     async def get_symbol_references(
-        self, symbol: Symbol, include_declaration: bool = True
-    ) -> List[CodeChunk]:
+        self, symbol: Symbol, include_declaration: bool = False
+    ) -> List[tuple[str, Range]]:
         """
         Get all references to a symbol.
 
