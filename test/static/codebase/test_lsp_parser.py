@@ -341,3 +341,50 @@ class MyClass:
         dep_symbols = [s for s in codebase.symbols if s.type == "dependency"]
         assert len(dep_symbols) >= 1, "Should create dependency symbols"
         assert any(s.name == "os" for s in dep_symbols), "Should have 'os' dependency"
+
+    def test_lsp_parser_sets_selection_range(self, tmp_path):
+        """Test that LSP parser populates selection_range from DocumentSymbol."""
+        test_file = tmp_path / "test.py"
+        test_file.write_text(
+            """
+def my_function():
+    pass
+
+class MyClass:
+    def method(self):
+        pass
+"""
+        )
+
+        codebase = Codebase.new(id="test", dir=tmp_path, parser="lsp")
+        asyncio.run(run_test(codebase))
+
+        # Find function symbol
+        func_symbol = next(
+            (s for s in codebase.symbols if s.name == "my_function"), None
+        )
+        assert func_symbol is not None, "Should find my_function symbol"
+
+        # Verify selection_range is populated by LSP
+        assert (
+            func_symbol.selection_range is not None
+        ), "LSP should set selection_range"
+
+        # Verify it's a Range TypedDict with proper structure
+        assert "start" in func_symbol.selection_range
+        assert "end" in func_symbol.selection_range
+        assert "line" in func_symbol.selection_range["start"]
+        assert "character" in func_symbol.selection_range["start"]
+
+        print(
+            f"✓ selection_range set: line {func_symbol.selection_range['start']['line']}, "
+            f"col {func_symbol.selection_range['start']['character']}"
+        )
+
+        # Also verify class symbol has selection_range
+        class_symbol = next((s for s in codebase.symbols if s.name == "MyClass"), None)
+        assert class_symbol is not None, "Should find MyClass symbol"
+        assert (
+            class_symbol.selection_range is not None
+        ), "LSP should set selection_range for classes too"
+

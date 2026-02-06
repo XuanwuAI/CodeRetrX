@@ -146,6 +146,7 @@ class SymbolModel(BaseModel):
     file_path: str
     chunk_id: str
     id: str
+    selection_range: Optional[dict] = None  # LSP identifier range
 
     @classmethod
     def from_symbol(cls, symbol: Symbol) -> "SymbolModel":
@@ -155,6 +156,7 @@ class SymbolModel(BaseModel):
             file_path=str(symbol.file.path),
             chunk_id=symbol.chunk.id,
             id=symbol.id,
+            selection_range=symbol.selection_range, # type: ignore
         )
 
     def to_symbol(self, codebase: Codebase) -> Symbol:
@@ -170,6 +172,7 @@ class SymbolModel(BaseModel):
             file=file,
             chunk=chunk,
             id=self.id,
+            selection_range=self.selection_range, # type: ignore
         )
 
 

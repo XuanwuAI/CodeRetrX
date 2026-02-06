@@ -285,6 +285,9 @@ class LSPParser(CodebaseParser):
                     # Build qualified name (e.g., "ClassName.method_name")
                     symbol_name = self._get_qualified_name(doc_sym, parent)
 
+                    # Extract selection range from LSP DocumentSymbol
+                    selection_range = doc_sym.get("selectionRange")
+
                     # Create Symbol from DocumentSymbol
                     symbol = Symbol(
                         name=symbol_name,
@@ -292,6 +295,7 @@ class LSPParser(CodebaseParser):
                         file=file,
                         chunk=chunk,
                         id=chunk.id,
+                        selection_range=selection_range,
                     )
                     symbols.append(symbol)
 
