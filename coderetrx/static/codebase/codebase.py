@@ -25,6 +25,7 @@ from uuid import UUID
 
 from attrs import Factory, define
 from ignore import Walk
+from lspyc.handle.protocol import Range
 from lspyc.mlclient import MutilLangClient
 from pydantic import BaseModel, Field
 
@@ -616,6 +617,7 @@ class Symbol:
     file: File
     chunk: CodeChunk
     id: str = ""
+    selection_range: Optional[Range] = None  # LSP identifier range
 
     def __attrs_post_init__(self):
         if not self.id:
@@ -927,8 +929,11 @@ class Codebase:
 
         # Get references using LSP
         file_path = symbol.file.path
-        line = symbol.chunk.start_line
-        col = symbol.chunk.start_column
+        select_range = symbol.selection_range
+        if select_range is None:
+            raise ValueError("Symbol has no selection range")
+        line = select_range["start"]["line"]
+        col = select_range["start"]["character"]
 
         references = await self._lsp_client.get_references(
             str(file_path), line, col, include_declaration=include_declaration
@@ -968,9 +973,14 @@ class Codebase:
             )
 
         assert self._lsp_client is not None, "LSP client should be available"
+        selection_range = symbol.selection_range
+        if not selection_range:
+            return None
+        line = selection_range["start"]["line"]
+        column = selection_range["start"]["character"]
 
         definitions = await self._lsp_client.get_definition(
-            str(symbol.file.path), symbol.chunk.start_line, symbol.chunk.start_column
+            str(symbol.file.path), line, column
         )
 
         if not definitions:
