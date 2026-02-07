@@ -9,7 +9,6 @@ from .keyword_search import KeywordSearchTool
 from .list_dir import ListDirTool
 from .view_file import ViewFileTool
 from .codeql_query import CodeQLQueryTool
-from .codeql_learning import CodeQLLearningTool
 from typing import Type
 from .settings import settings
 
@@ -20,8 +19,7 @@ __all__ = [
     "KeywordSearchTool",
     "ListDirTool",
     "ViewFileTool",
-    "CodeQLQueryTool",
-    "CodeQLLearningTool",
+    "CodeQLQueryTool"
 ]
 
 _all_tool_classes = [
@@ -31,7 +29,6 @@ _all_tool_classes = [
     ListDirTool,
     ViewFileTool,
     CodeQLQueryTool,
-    CodeQLLearningTool,
 ]
 
 tool_classes = [
