@@ -33,7 +33,7 @@ _all_tool_classes = [
 
 tool_classes = [
     cls for cls in _all_tool_classes
-    if getattr(cls, "name", None) not in settings.disabled_tools
+    if getattr(cls, "name", None) in settings.available_tools
 ]
 
 tool_map: dict[str, dict[str, BaseTool]] = {}

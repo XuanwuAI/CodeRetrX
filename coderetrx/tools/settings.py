@@ -10,12 +10,12 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Tools that are disabled by default
-    coderetrx_disabled_tools: List[str] = ["codeql_query"]
+    # Tools that are available.
+    coderetrx_available_tools: List[str] = []
 
     @property
-    def disabled_tools(self) -> List[str]:
-        return self.coderetrx_disabled_tools
+    def available_tools(self) -> List[str]:
+        return self.coderetrx_available_tools
 
 
 settings = Settings()
