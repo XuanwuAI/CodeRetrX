@@ -5,11 +5,12 @@ from coderetrx.tools.view_file import ViewFileTool
 from coderetrx.tools.find_file_by_name import FindFileByNameTool
 from coderetrx.tools.keyword_search import KeywordSearchTool
 from coderetrx.tools.list_dir import ListDirTool
+from coderetrx.tools.codeql_query import CodeQLQueryTool
 from coderetrx.tools.llm_filter import LLMCodeFilterTool
 import logging
-logger =logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-TEST_REPO = "https://github.com/apache/flink.git"
+TEST_REPO = "https://github.com/pallets/flask.git"
 
 class TestGetReferenceTool:
     def test(self):
@@ -69,6 +70,16 @@ class TestListDirTool:
         assert isinstance(result, list), "Result should be a list of directory entries"
 
 
+class TestCodeQLQueryTool:
+    def test(self):
+        """Test CodeQL query execution"""
+        logger.info("Testing CodeQLQueryTool...")
+        tool = CodeQLQueryTool(TEST_REPO)
+        query = "import python\nfrom Function f\nselect f.getName()"
+        result = asyncio.run(tool._run(query=query, language="python"))
+        logger.info(f"CodeQLQueryTool result: {result}")
+        assert isinstance(result, list), "Result should be a list"
+
 class TestLLMCodeFilterTool:
     def test(self):
         """Test LLM code filter functionality"""
@@ -84,7 +95,6 @@ class TestLLMCodeFilterTool:
         logger.info(f"LLMCodeFilterTool result: {result}")
         assert isinstance(result, (list, str)), "Result should be a list or string"
 
-
 def test_all_tools():
     """Test all tools"""
     tool_testers = [
@@ -93,10 +103,28 @@ def test_all_tools():
         TestFindFileByNameTool(),
         TestKeywordSearchTool(),
         TestListDirTool(),
+        TestCodeQLQueryTool(),
         TestLLMCodeFilterTool(),
     ]
     for tester in tool_testers:
         tester.test()
+
+class TestToolsSettings:
+    def test_available_tools_is_list(self):
+        """Test that available_tools is a list"""
+        from coderetrx.tools.settings import Settings
+        settings = Settings()
+        assert isinstance(settings.available_tools, list)
+
+    def test_tool_classes_respects_available(self):
+        """Test that tool_classes only includes tools in available_tools"""
+        from coderetrx.tools.settings import Settings
+        settings = Settings()
+        from coderetrx.tools import tool_classes
+        tool_names = [cls.name for cls in tool_classes]
+        for name in tool_names:
+            assert name in settings.available_tools
+
 
 if __name__ == "__main__":
     test_all_tools()

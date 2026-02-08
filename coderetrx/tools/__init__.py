@@ -8,10 +8,11 @@ from .get_references import GetReferenceTool
 from .keyword_search import KeywordSearchTool
 from .list_dir import ListDirTool
 from .view_file import ViewFileTool
+from .codeql_query import CodeQLQueryTool
 from .llm_filter import LLMCodeFilterTool
 from .llm_mapping import LLMCodeMappingTool
 from typing import Type
-import sys
+from .settings import settings
 
 # Export the tools as the default
 __all__ = [
@@ -20,18 +21,27 @@ __all__ = [
     "KeywordSearchTool",
     "ListDirTool",
     "ViewFileTool",
+    "CodeQLQueryTool"
     "LLMCodeFilterTool",
     "LLMCodeMappingTool",
 ]
-tool_classes = [
+
+_all_tool_classes = [
     FindFileByNameTool,
     GetReferenceTool,
     KeywordSearchTool,
     ListDirTool,
     ViewFileTool,
+    CodeQLQueryTool,
     LLMCodeFilterTool,
     LLMCodeMappingTool,
 ]
+
+tool_classes = [
+    cls for cls in _all_tool_classes
+    if getattr(cls, "name", None) in settings.available_tools
+]
+
 tool_map: dict[str, dict[str, BaseTool]] = {}
 
 

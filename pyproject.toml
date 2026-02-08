@@ -44,6 +44,8 @@ dev = [
     "pytest>=8.3.5",
     "rich>=14.0.0",
     "black",
+    "anthropic>=0.40.0",
+    "claude-code-sdk>=0.0.25",
 ]
 
 [project.optional-dependencies]
