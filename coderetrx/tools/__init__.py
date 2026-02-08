@@ -8,6 +8,8 @@ from .get_references import GetReferenceTool
 from .keyword_search import KeywordSearchTool
 from .list_dir import ListDirTool
 from .view_file import ViewFileTool
+from .llm_filter import LLMCodeFilterTool
+from .llm_mapping import LLMCodeMappingTool
 from typing import Type
 import sys
 
@@ -18,6 +20,8 @@ __all__ = [
     "KeywordSearchTool",
     "ListDirTool",
     "ViewFileTool",
+    "LLMCodeFilterTool",
+    "LLMCodeMappingTool",
 ]
 tool_classes = [
     FindFileByNameTool,
@@ -25,6 +29,8 @@ tool_classes = [
     KeywordSearchTool,
     ListDirTool,
     ViewFileTool,
+    LLMCodeFilterTool,
+    LLMCodeMappingTool,
 ]
 tool_map: dict[str, dict[str, BaseTool]] = {}
 

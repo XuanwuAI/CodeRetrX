@@ -5,6 +5,7 @@ from coderetrx.tools.view_file import ViewFileTool
 from coderetrx.tools.find_file_by_name import FindFileByNameTool
 from coderetrx.tools.keyword_search import KeywordSearchTool
 from coderetrx.tools.list_dir import ListDirTool
+from coderetrx.tools.llm_filter import LLMCodeFilterTool
 import logging
 logger =logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -67,6 +68,23 @@ class TestListDirTool:
         logger.info(f"ListDirTool result: {result}")
         assert isinstance(result, list), "Result should be a list of directory entries"
 
+
+class TestLLMCodeFilterTool:
+    def test(self):
+        """Test LLM code filter functionality"""
+        logger.info("Testing LLMCodeFilterTool...")
+        tool = LLMCodeFilterTool("YCrypt")
+        result = asyncio.run(
+            tool._run(
+                filter_prompt="functions that handle cryptographic operations",
+                subdirs_or_files=[],
+                return_content=True,
+            )
+        )
+        logger.info(f"LLMCodeFilterTool result: {result}")
+        assert isinstance(result, (list, str)), "Result should be a list or string"
+
+
 def test_all_tools():
     """Test all tools"""
     tool_testers = [
@@ -75,6 +93,7 @@ def test_all_tools():
         TestFindFileByNameTool(),
         TestKeywordSearchTool(),
         TestListDirTool(),
+        TestLLMCodeFilterTool(),
     ]
     for tester in tool_testers:
         tester.test()
