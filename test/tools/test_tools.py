@@ -27,10 +27,26 @@ class TestViewFileTool:
         """Test viewing file content"""
         logger.info("Testing ViewFileTool...")
         tool = ViewFileTool(TEST_REPO)
-        result = asyncio.run(tool._run(file_path="./README.md", start_line=0, end_line=10))
+        result = asyncio.run(tool._run(file_path="./README.md", show_line_numbers=True, start_line=0, end_line=10))
         logger.info(f"ViewFileTool result: {result}")
         assert isinstance(result, str), "Result should be a string (file content)"
         assert len(result) > 0, "File content should not be empty"
+
+    def test_with_line_numbers(self):
+        """Test viewing file with line numbers"""
+        logger.info("Testing ViewFileTool with line numbers...")
+        tool = ViewFileTool(TEST_REPO)
+        result = asyncio.run(tool._run(
+            file_path="./README.md",
+            start_line=0,
+            end_line=10,
+            show_line_numbers=True
+        ))
+        logger.info(f"ViewFileTool result with line numbers: {result}")
+        assert isinstance(result, str), "Result should be a string"
+        assert " | " in result, "Result should contain line number separator"
+        # Verify first line starts with 0 (0-indexed)
+        assert result.startswith("0 | ") or result.strip().split("\n")[0].strip().startswith("0 | "), "First line should start with 0"
 
 
 class TestFindFileByNameTool:
