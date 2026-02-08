@@ -6,6 +6,7 @@ from coderetrx.tools.find_file_by_name import FindFileByNameTool
 from coderetrx.tools.keyword_search import KeywordSearchTool
 from coderetrx.tools.list_dir import ListDirTool
 from coderetrx.tools.codeql_query import CodeQLQueryTool
+from coderetrx.tools.llm_filter import LLMCodeFilterTool
 import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -79,6 +80,20 @@ class TestCodeQLQueryTool:
         logger.info(f"CodeQLQueryTool result: {result}")
         assert isinstance(result, list), "Result should be a list"
 
+class TestLLMCodeFilterTool:
+    def test(self):
+        """Test LLM code filter functionality"""
+        logger.info("Testing LLMCodeFilterTool...")
+        tool = LLMCodeFilterTool("YCrypt")
+        result = asyncio.run(
+            tool._run(
+                filter_prompt="functions that handle cryptographic operations",
+                subdirs_or_files=[],
+                return_content=True,
+            )
+        )
+        logger.info(f"LLMCodeFilterTool result: {result}")
+        assert isinstance(result, (list, str)), "Result should be a list or string"
 
 def test_all_tools():
     """Test all tools"""
@@ -89,6 +104,7 @@ def test_all_tools():
         TestKeywordSearchTool(),
         TestListDirTool(),
         TestCodeQLQueryTool(),
+        TestLLMCodeFilterTool(),
     ]
     for tester in tool_testers:
         tester.test()
