@@ -153,7 +153,7 @@ class GetDefinitionTool(LSPBaseTool):
             client = await self._get_lsp_client()
 
             # Get definition locations
-            locations = await client.get_definition(
+            locations = await client.aget_definition(
                 str(full_path), lsp_line, lsp_column
             )
 

@@ -108,7 +108,7 @@ class ListSymbolTool(LSPBaseTool):
             client = await self._get_lsp_client()
 
             # Get document symbols
-            symbols = await client.get_document_symbols(str(full_path))
+            symbols = await client.aget_document_symbols(str(full_path))
 
             if not symbols:
                 return []
