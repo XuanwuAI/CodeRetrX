@@ -1,16 +1,12 @@
 """Tests for LSP parser implementation."""
 
-import asyncio
-
 from coderetrx.static.codebase import Codebase
 from coderetrx.static.codebase.codebase import ChunkType
 from coderetrx.static.codebase.parsers import LSPParser, ParserFactory
 
 
-async def run_test(codebase: Codebase):
-    await codebase.init_lsp()
+def run_test(codebase: Codebase):
     codebase.init_all(dependencies=True, keywords=False)
-    await codebase.close_lsp()
     codebase.cleanup()
 
 
@@ -32,7 +28,6 @@ class TestLSPParser:
         """Test LSP parser initialization."""
         parser = LSPParser()
         assert parser is not None
-        assert parser._client is None  # Client should be lazy-initialized
         assert parser._max_concurrent_requests == 10  # Default concurrency
 
     def test_max_concurrent_requests_config(self):
@@ -123,9 +118,7 @@ def my_function():
 
         # Parse with LSP
         codebase = Codebase.new(id="test", dir=tmp_path, parser="lsp")
-        asyncio.run(run_test(codebase))
-
-        # Verify symbols were extracted
+        run_test(codebase)
         assert len(codebase.symbols) >= 3, "Should extract class, method, and function"
 
         # Find specific symbols
@@ -166,7 +159,7 @@ class OuterClass:
         )
 
         codebase = Codebase.new(id="test", dir=tmp_path, parser="lsp")
-        asyncio.run(run_test(codebase))
+        run_test(codebase)
 
         # Check for qualified names
         symbol_names = [s.name for s in codebase.symbols]
@@ -189,7 +182,7 @@ class MyClass:
         )
 
         codebase = Codebase.new(id="test", dir=tmp_path, parser="lsp")
-        asyncio.run(run_test(codebase))
+        run_test(codebase)
 
         # Verify all symbols have chunks
         for symbol in codebase.symbols:
@@ -225,7 +218,7 @@ def my_function():
         )
 
         codebase = Codebase.new(id="test", dir=tmp_path, parser="lsp")
-        asyncio.run(run_test(codebase))
+        run_test(codebase)
 
         # Check for import chunks (from TreeSitter fallback)
         import_chunks = [c for c in codebase.all_chunks if c.type == ChunkType.IMPORT]
@@ -264,7 +257,7 @@ class MyClass:
             extract_variable_definitions=True,
         )
 
-        asyncio.run(run_test(codebase))
+        run_test(codebase)
 
         # Check for variable chunks
         variable_chunks = [
@@ -293,7 +286,7 @@ def my_function():
         )
 
         codebase = Codebase.new(id="test", dir=tmp_path, parser="lsp")
-        asyncio.run(run_test(codebase))
+        run_test(codebase)
 
         # Verify all chunks have UUIDs
         for chunk in codebase.all_chunks:
@@ -320,12 +313,8 @@ class MyClass:
 
         codebase = Codebase.new(id="test", dir=tmp_path, parser="lsp")
 
-        async def run_test():
-            await codebase.init_lsp()
-            codebase.init_all(keywords=False)
-            codebase.cleanup()
-
-        asyncio.run(run_test())
+        codebase.init_all(keywords=False)
+        codebase.cleanup()
 
         # Verify LSP symbols
         class_symbols = [s for s in codebase.symbols if s.type == "class"]
@@ -357,7 +346,7 @@ class MyClass:
         )
 
         codebase = Codebase.new(id="test", dir=tmp_path, parser="lsp")
-        asyncio.run(run_test(codebase))
+        run_test(codebase)
 
         # Find function symbol
         func_symbol = next(

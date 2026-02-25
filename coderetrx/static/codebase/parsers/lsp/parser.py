@@ -5,16 +5,11 @@ code chunks and symbols from source files. It leverages the lspyc multi-language
 LSP client for communication with language servers.
 """
 
-import asyncio
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
-from lspyc import MutilLangClient
 from lspyc.handle.protocol import DocumentSymbol
-from tqdm.asyncio import tqdm as tqdm_asyncio
-
-from coderetrx.utils.concurrency import run_coroutine_sync
 
 from ...languages import IDXSupportedLanguage, IDXSupportedTag
 from ..base import CodebaseParser, ParseError
@@ -34,7 +29,6 @@ from .symbol_mapping import (
 )
 
 if TYPE_CHECKING:
-
     from ...codebase import Codebase, CodeChunk, File, Symbol
 
 logger = logging.getLogger(__name__)
@@ -75,7 +69,6 @@ class LSPParser(CodebaseParser):
         """
         super().__init__(**kwargs)
         self._workspace_root = workspace_root
-        self._client: Optional["MutilLangClient"] = None
         self._max_concurrent_requests = kwargs.get("max_concurrent_requests", 10)
 
         # Initialize TreeSitter fallback for imports/references
@@ -106,22 +99,6 @@ class LSPParser(CodebaseParser):
             or self._get_treesitter_fallback().supports_language(language)
         )
 
-    def _ensure_client(self, codebase: "Codebase") -> "MutilLangClient":
-        """Ensure LSP client is initialized.
-
-        Args:
-            codebase: The codebase being parsed
-
-        Returns:
-            Initialized MutilLangClient instance
-        """
-        if self._client is None:
-
-            workspace_root = self._workspace_root or codebase.dir
-            self._client = MutilLangClient(str(workspace_root))
-
-        return self._client
-
     def init_chunks(self, codebase: "Codebase") -> None:
         """Parse codebase and populate chunks using LSP + TreeSitter fallback.
 
@@ -138,9 +115,9 @@ class LSPParser(CodebaseParser):
             self.init_symbols(codebase)
 
         # Step 2: TreeSitter fallback for imports
-        run_coroutine_sync(self._extract_import_chunks_fallback(codebase))
+        self._extract_import_chunks_fallback(codebase)
 
-    async def _extract_import_chunks_fallback(self, codebase: "Codebase") -> None:
+    def _extract_import_chunks_fallback(self, codebase: "Codebase") -> None:
         """Use TreeSitter to extract import chunks as fallback.
 
         LSP DocumentSymbols don't include imports, so we use TreeSitter
@@ -406,69 +383,37 @@ class LSPParser(CodebaseParser):
         Args:
             codebase: The codebase to populate
         """
-        run_coroutine_sync(self._init_symbols_async(codebase))
-
-    async def _init_symbols_async(self, codebase: "Codebase") -> None:
-        """Async implementation of symbol extraction with concurrent file processing.
-
-        Args:
-            codebase: The codebase to populate with symbols and chunks
-        """
-        client = self._ensure_client(codebase)
+        client = codebase.get_lsp_client()
         extract_variables = self.config.get("extract_variable_definitions", False)
 
-        # Create semaphore for concurrency control
-        semaphore = asyncio.Semaphore(self._max_concurrent_requests)
-
-        # Lock for thread-safe access to shared codebase state
-        state_lock = asyncio.Lock()
-
-        # Filter files to process (only LSP-supported languages)
         files_to_process = [
             file
             for file in codebase.source_files.values()
             if (lang := file.lang()) is not None and lang in self.SUPPORTED_LANGUAGES
         ]
 
-        async def process_file(file: "File") -> None:
-            """Process a single file with semaphore control."""
-            async with semaphore:
-                try:
-                    # Get DocumentSymbols from LSP
-                    doc_symbols = await client.get_document_symbols(str(file.path))
+        # Batch-fetch all document symbols concurrently
+        path_to_file = {str(file.path): file for file in files_to_process}
+        symbols_by_path = client.batch_get_document_symbols(
+            list(path_to_file.keys()),
+            max_concurrency=self._max_concurrent_requests,
+        )
 
-                    if not doc_symbols:
-                        return
-
-                    # Process symbols recursively (creates both Symbol and CodeChunk)
-                    symbols, chunks = self._process_document_symbols(
-                        doc_symbols,
-                        file,
-                        parent=None,
-                        extract_variables=extract_variables,
-                    )
-
-                    # Thread-safe update of shared state
-                    async with state_lock:
-                        file.chunks.extend(chunks)
-                        codebase.all_chunks.extend(chunks)
-                        codebase.symbols.extend(symbols)
-
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to extract symbols from {file.path} with LSP: {e}"
-                    )
-
-        # Create all tasks
-        tasks = [process_file(file) for file in files_to_process]
-
-        # Execute concurrently with progress bar
-        if tasks:
-            await tqdm_asyncio.gather(
-                *tasks,
-                desc="LSP extracting symbols",
-                total=len(tasks),
-            )
+        # Process results
+        for path, doc_symbols in symbols_by_path.items():
+            file = path_to_file[path]
+            try:
+                symbols, chunks = self._process_document_symbols(
+                    doc_symbols,
+                    file,
+                    parent=None,
+                    extract_variables=extract_variables,
+                )
+                file.chunks.extend(chunks)
+                codebase.all_chunks.extend(chunks)
+                codebase.symbols.extend(symbols)
+            except Exception as e:
+                logger.warning(f"Failed to process symbols from {file.path}: {e}")
 
     def init_dependencies(self, codebase: "Codebase") -> None:
         """Extract dependencies from codebase.
@@ -490,16 +435,3 @@ class LSPParser(CodebaseParser):
                 f"Failed to extract dependencies with tree-sitter fallback: {e}"
             )
             raise ParseError(f"Dependency extraction failed: {e}") from e
-
-    def cleanup(self):
-        """Clean up LSP client resources.
-
-        Shuts down all LSP servers and closes connections.
-        """
-        if self._client is not None:
-            try:
-                run_coroutine_sync(self._client.shutdown())
-            except Exception as e:
-                logger.warning(f"Error during LSP client shutdown: {e}")
-            finally:
-                self._client = None

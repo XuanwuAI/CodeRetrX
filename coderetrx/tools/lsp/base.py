@@ -4,25 +4,25 @@ import asyncio
 import logging
 from pathlib import Path
 
-from lspyc import MutilLangClient
+from lspyc import ThreadedClient
 
 from coderetrx.tools.base import BaseTool
 
 logger = logging.getLogger(__name__)
 
-# Global client pool: repo_path -> MutilLangClient
-_lsp_client_pool: dict[str, MutilLangClient] = {}
+# Global client pool: repo_path -> ThreadedClient
+_lsp_client_pool: dict[str, ThreadedClient] = {}
 _pool_lock = asyncio.Lock()
 
 
 class LSPBaseTool(BaseTool):
     """Base class for LSP-based tools with shared client pool and utilities."""
 
-    async def _get_lsp_client(self) -> MutilLangClient:
+    async def _get_lsp_client(self) -> ThreadedClient:
         """Get or create an LSP client for the repository from the pool.
 
         Returns:
-            MutilLangClient instance for this repository
+            ThreadedClient instance for this repository
 
         Note:
             Clients are cached in the pool and reused across tool invocations
@@ -32,7 +32,7 @@ class LSPBaseTool(BaseTool):
             repo_key = str(self.repo_path)
             if repo_key not in _lsp_client_pool:
                 logger.info(f"Creating new LSP client for {repo_key}")
-                _lsp_client_pool[repo_key] = MutilLangClient(repo_key)
+                _lsp_client_pool[repo_key] = ThreadedClient(repo_key)
             return _lsp_client_pool[repo_key]
 
     @staticmethod
@@ -46,7 +46,7 @@ class LSPBaseTool(BaseTool):
             logger.info(f"Cleaning up {len(_lsp_client_pool)} LSP clients")
             for repo_path, client in _lsp_client_pool.items():
                 try:
-                    await client.shutdown()
+                    await client.ashutdown()
                     logger.info(f"Successfully shutdown LSP client for {repo_path}")
                 except Exception as e:
                     logger.warning(

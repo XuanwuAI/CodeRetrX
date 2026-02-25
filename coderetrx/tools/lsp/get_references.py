@@ -173,7 +173,7 @@ class GetReferencesTool(LSPBaseTool):
             client = await self._get_lsp_client()
 
             # Get reference locations
-            locations = await client.get_references(
+            locations = await client.aget_references(
                 str(full_path), lsp_line, lsp_column, include_declaration
             )
 

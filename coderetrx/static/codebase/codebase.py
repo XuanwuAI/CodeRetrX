@@ -26,7 +26,7 @@ from uuid import UUID
 from attrs import Factory, define
 from ignore import Walk
 from lspyc.handle.protocol import Range, Position, Location
-from lspyc.mlclient import MutilLangClient
+from lspyc.threaded import ThreadedClient
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -766,8 +766,7 @@ class Codebase:
     _parser: Optional[CodebaseParser] = None
 
     # LSP client for advanced code navigation
-    _lsp_client: Optional[Any] = None  # MutilLangClient from lspyc
-    _lsp_initialized: bool = False
+    _lsp_client: Optional[Any] = None  # ThreadedClient from lspyc
 
     _chunks_initialized: bool = False
     _symbols_initialized: bool = False
@@ -850,52 +849,16 @@ class Codebase:
         """Get the parser instance for this codebase."""
         return self._parser
 
-    async def init_lsp(self):
+    def get_lsp_client(self) -> "ThreadedClient":
+        """Get or create the LSP client (lazy, sync-safe).
+
+        Returns:
+            ThreadedClient instance for this workspace
         """
-        Initialize LSP client for advanced code navigation.
-
-        Must be called before using:
-        - LSP parser
-        - get_function_calls()
-        - get_symbol_definition()
-        - get_symbol_references()
-
-        Example:
-            >>> codebase = Codebase.new(id="repo", dir="/path")
-            >>> await codebase.init_lsp()
-            >>> calls = await codebase.get_function_calls(symbol)
-        """
-        if self._lsp_initialized:
-            return
-        self._lsp_client = MutilLangClient(str(self.dir))
-        self._lsp_initialized = True
-        logger.info("LSP client initialized for workspace: %s", self.dir)
-
-    async def close_lsp(self):
-        """
-        Shutdown LSP client and cleanup resources.
-
-        Should be called in async context when done with LSP functionality.
-
-        Example:
-            >>> await codebase.init_lsp()
-            >>> # ... use LSP features ...
-            >>> await codebase.close_lsp()
-        """
-        if self._lsp_client:
-            try:
-                await self._lsp_client.shutdown()
-                logger.info("LSP client shutdown successfully")
-            except Exception as e:
-                logger.warning(f"Failed to shutdown LSP client: {e}")
-            finally:
-                self._lsp_client = None
-                self._lsp_initialized = False
-
-    @property
-    def lsp_available(self) -> bool:
-        """Check if LSP functionality is available."""
-        return self._lsp_initialized and self._lsp_client is not None
+        if self._lsp_client is None:
+            self._lsp_client = ThreadedClient(str(self.dir))
+            logger.info("LSP client initialized for workspace: %s", self.dir)
+        return self._lsp_client
 
     async def get_function_calls(
         self, symbol: Symbol, include_declaration: bool = False
@@ -910,22 +873,13 @@ class Codebase:
         Returns:
             List of CodeChunk objects representing call sites
 
-        Raises:
-            ValueError: If LSP is not initialized
-
         Example:
-            >>> await codebase.init_lsp()
             >>> function_symbol = codebase.symbols[0]
             >>> call_sites = await codebase.get_function_calls(function_symbol)
             >>> for call in call_sites:
             ...     print(f"Called at {call.src.path}:{call.start_line}")
         """
-        if not self.lsp_available:
-            raise ValueError(
-                "LSP not initialized. Call await codebase.init_lsp() first."
-            )
-
-        assert self._lsp_client is not None, "LSP client should be available"
+        client = self.get_lsp_client()
 
         # Get references using LSP
         file_path = symbol.file.path
@@ -935,7 +889,7 @@ class Codebase:
         line = select_range["start"]["line"]
         col = select_range["start"]["character"]
 
-        res = await self._lsp_client.get_references(
+        res = await client.aget_references(
             str(file_path), line, col, include_declaration=include_declaration
         )
         def uri2relative(uri: str) -> str:
@@ -956,22 +910,13 @@ class Codebase:
         Returns:
             Symbol at the definition location, or None if not found
 
-        Raises:
-            ValueError: If LSP is not initialized
-
         Example:
-            >>> await codebase.init_lsp()
             >>> ref_symbol = codebase.symbols[10]  # Some reference
-            >>> definition = await codebase.get_symbol_definition(ref_symbol)
+            >>> definition = await codebase.get_definition(ref_symbol)
             >>> print(f"Defined at {definition.file.path}:{definition.chunk.start_line}")
         """
-        if not self.lsp_available:
-            raise ValueError(
-                "LSP not initialized. Call await codebase.init_lsp() first."
-            )
-
-        assert self._lsp_client is not None, "LSP client should be available"
-        definitions = await self._lsp_client.get_definition(
+        client = self.get_lsp_client()
+        definitions = await client.aget_definition(
             file_path, position["line"], position["character"]
         )
 
@@ -1003,9 +948,6 @@ class Codebase:
 
         Returns:
             List of CodeChunk objects representing reference locations
-
-        Raises:
-            ValueError: If LSP is not initialized
         """
         return await self.get_function_calls(symbol, include_declaration)
 
@@ -1367,24 +1309,23 @@ class Codebase:
 
     def cleanup(self):
         """
-        Clean up resources held by the codebase, including parser resources.
-
-        Note: This does NOT shutdown the LSP client. Use close_lsp() for that in async context.
+        Clean up resources held by the codebase, including parser and LSP client.
 
         Example:
-            >>> codebase.cleanup()  # Sync cleanup for parser
-            >>> await codebase.close_lsp()  # Async cleanup for LSP
+            >>> codebase.cleanup()
         """
         if self._parser:
             self._parser.cleanup()
+        if self._lsp_client:
+            try:
+                self._lsp_client.shutdown()
+            except Exception as e:
+                logger.warning(f"Failed to shutdown LSP client: {e}")
+            finally:
+                self._lsp_client = None
 
     def __del__(self):
-        """
-        Ensure cleanup when the object is garbage collected.
-
-        Note: This only cleans up sync resources (parser). LSP client must be
-        explicitly closed using close_lsp() in async context before object destruction.
-        """
+        """Ensure cleanup when the object is garbage collected."""
         try:
             self.cleanup()
         except Exception:
