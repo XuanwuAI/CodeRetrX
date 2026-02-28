@@ -415,6 +415,117 @@ class LSPParser(CodebaseParser):
             except Exception as e:
                 logger.warning(f"Failed to process symbols from {file.path}: {e}")
 
+    def init_chunks_for_files(
+        self, codebase: "Codebase", file_paths: list[str]
+    ) -> None:
+        """Parse only the specified files and populate their chunks.
+
+        Same logic as init_chunks() but scoped to the given file paths.
+
+        Args:
+            codebase: The codebase to parse
+            file_paths: List of relative file paths to initialize
+        """
+        # Step 1: LSP symbols for the specified files
+        self._init_symbols_for_files(codebase, file_paths)
+
+        # Step 2: TreeSitter fallback for imports on the specified files
+        self._extract_import_chunks_for_files(codebase, file_paths)
+
+    def _init_symbols_for_files(
+        self, codebase: "Codebase", file_paths: list[str]
+    ) -> None:
+        """Extract symbols using LSP for specific files only."""
+        client = codebase.get_lsp_client()
+        extract_variables = self.config.get("extract_variable_definitions", False)
+
+        files_to_process = []
+        for fp in file_paths:
+            file = codebase.source_files.get(fp)
+            if file is None:
+                continue
+            lang = file.lang()
+            if lang is not None and lang in self.SUPPORTED_LANGUAGES:
+                files_to_process.append(file)
+
+        if not files_to_process:
+            return
+
+        path_to_file = {str(file.path): file for file in files_to_process}
+        symbols_by_path = client.batch_get_document_symbols(
+            list(path_to_file.keys()),
+            max_concurrency=self._max_concurrent_requests,
+        )
+
+        for path, doc_symbols in symbols_by_path.items():
+            file = path_to_file[path]
+            try:
+                symbols, chunks = self._process_document_symbols(
+                    doc_symbols,
+                    file,
+                    parent=None,
+                    extract_variables=extract_variables,
+                )
+                file.chunks.extend(chunks)
+                codebase.all_chunks.extend(chunks)
+                codebase.symbols.extend(symbols)
+            except Exception as e:
+                logger.warning(f"Failed to process symbols from {file.path}: {e}")
+
+    def _extract_import_chunks_for_files(
+        self, codebase: "Codebase", file_paths: list[str]
+    ) -> None:
+        """Use TreeSitter to extract import chunks for specific files only."""
+        from ...codebase import ChunkType
+
+        ts_parser = self._get_treesitter_fallback()
+
+        for fp in file_paths:
+            file = codebase.source_files.get(fp)
+            if file is None or file.file_type != "source":
+                continue
+            if not file.chunks:
+                continue
+
+            lang = file.lang()
+            if lang is None or not ts_parser.supports_language(lang):
+                continue
+
+            try:
+                parse_state: TreeSitterState = ts_parser.parse_file(file)
+                try:
+                    pattern = TreeSitterQueryTemplates.get_query(
+                        parse_state.idx_language, "fine_imports"
+                    )
+                except FileNotFoundError:
+                    continue
+
+                query = ts_parser._compile_query(parse_state.ts_language, pattern)
+                captures = ts_parser._execute_query_captures(
+                    query, parse_state.tree.root_node
+                )
+
+                for capture_name, nodes in captures.items():
+                    if capture_name != "module":
+                        continue
+                    for node in nodes:
+                        raw = node.text.decode() if node.text else ""
+                        module_name = raw.strip("'\"<>")
+                        if not module_name or module_name.startswith((".", "/")):
+                            continue
+                        chunk = ts_parser.create_chunk_from_node(
+                            node, file, ChunkType.IMPORT, name=module_name
+                        )
+                        if chunk not in file.chunks:
+                            file.chunks.append(chunk)
+                            codebase.all_chunks.append(chunk)
+
+            except Exception as e:
+                logger.debug(
+                    f"TreeSitter fallback failed for imports in {file.path}: {e}"
+                )
+                continue
+
     def init_dependencies(self, codebase: "Codebase") -> None:
         """Extract dependencies from codebase.
 
