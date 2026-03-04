@@ -848,9 +848,9 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
                 query_filter = self._build_filter(where)
 
             # Perform search
-            search_result = await self.async_qdrant_client.search(
+            search_result = await self.async_qdrant_client.query_points(
                 collection_name=self.name,
-                query_vector=query_vector,
+                query=query_vector,
                 limit=k,
                 score_threshold=threshold,
                 query_filter=query_filter,
@@ -858,7 +858,7 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
 
             # Format results
             results = []
-            for point in search_result:
+            for point in search_result.points:
                 content = point.payload.get("content", "") if point.payload else ""
                 score = point.score
                 results.append((content, score))
@@ -900,16 +900,16 @@ class QdrantSimilaritySearcher(SimilaritySearcher):
             query_filter = self._build_filter(where)
 
         try:
-            search_result = await self.async_qdrant_client.search(
+            search_result = await self.async_qdrant_client.query_points(
                 collection_name=self.name,
-                query_vector=query_vector,
+                query=query_vector,
                 limit=k,
                 query_filter=query_filter,
             )
 
             # Extract content and scores from results
             results = []
-            for point in search_result:
+            for point in search_result.points:
                 content = point.payload.get("content", "") #type: ignore
                 score = point.score
                 results.append((content, score))
