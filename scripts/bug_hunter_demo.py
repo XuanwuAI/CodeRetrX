@@ -140,6 +140,7 @@ def build_options(repo_url: str, repo_name: str, language: str, model: str, max_
         model=model,
         cwd=PROJECT_ROOT,
         permission_mode="bypassPermissions",
+        env={"MAX_MCP_OUTPUT_TOKENS": "100000"},
         extra_args={"setting-sources": "user,project,local"},
         mcp_servers={
             "coderetrx": {
