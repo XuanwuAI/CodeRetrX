@@ -15,7 +15,7 @@ import logging
 from pathlib import Path
 
 from claude_code_sdk import ClaudeSDKClient, ClaudeCodeOptions
-from claude_code_sdk.types import AssistantMessage, ResultMessage, TextBlock, ToolUseBlock
+from claude_code_sdk.types import AssistantMessage, ResultMessage, UserMessage, TextBlock, ToolUseBlock, ToolResultBlock
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ MCP_TOOL_NAMES = [
 ]
 
 
-def build_system_prompt(repo_url: str, language: str) -> str:
+def build_system_prompt(repo_url: str, repo_name: str, language: str) -> str:
     """Build system prompt for the bug hunter agent."""
     if language == "auto":
         all_extensions = []
@@ -74,7 +74,7 @@ File patterns: {", ".join(exts)}"""
 
     return f"""You are a Bug Hunter Agent specialized in finding security vulnerabilities and bugs.
 
-Target repository: {repo_url}
+Target repository: {repo_name}
 
 {language_section}
 
@@ -114,7 +114,7 @@ def build_task_prompt(language: str) -> str:
 6. View suspicious files for context
 7. Summarize all security concerns found
 
-Focus on real vulnerabilities, not style issues."""
+Focus on real vulnerabilities, not style issues. You MUST be sure that each vulnerability reported is exploitable."""
     else:
         return f"""Perform a security analysis on this {language} codebase:
 
@@ -126,16 +126,16 @@ Focus on real vulnerabilities, not style issues."""
 6. View suspicious files for context
 7. Summarize any security concerns found
 
-Focus on real vulnerabilities, not style issues."""
+Focus on real vulnerabilities, not style issues. You MUST be sure that each vulnerability reported is exploitable."""
 
 
-def build_options(repo_url: str, language: str, model: str, max_turns: int) -> ClaudeCodeOptions:
+def build_options(repo_url: str, repo_name: str, language: str, model: str, max_turns: int) -> ClaudeCodeOptions:
     """Build ClaudeCodeOptions for the agent."""
     return ClaudeCodeOptions(
-        system_prompt=build_system_prompt(repo_url, language),
+        system_prompt=build_system_prompt(repo_url, repo_name, language),
         max_turns=max_turns,
         allowed_tools=MCP_TOOL_NAMES + [
-            "Skill", "Glob", "Grep", "Read", "Write", "Bash",
+            "Skill", "Glob", "Grep", "Read", "Write", "Bash", "TodoWrite",
         ],
         model=model,
         cwd=PROJECT_ROOT,
@@ -170,6 +170,13 @@ def print_message(message):
                 _tool_count += 1
                 print(f"  [{_tool_count}] {block.name}")
 
+    elif isinstance(message, UserMessage):
+        for block in message.content:
+            if isinstance(block, ToolResultBlock):
+                content = block.content
+                if content:
+                    logger.debug("    -> %s", str(content)[:500])
+
     elif isinstance(message, ResultMessage):
         print(f"\n{'=' * 60}")
         print(f"Done. {_turn_count} turns, {_tool_count} tool calls.")
@@ -185,22 +192,24 @@ async def run_bug_hunt(
     max_turns: int = 50,
 ):
     """Run automated bug hunt using Claude Code SDK."""
+    repo_name = Path(repo_url).name
     print("=" * 60)
-    print("BUG HUNTER AGENT (Claude Code SDK)")
+    print("BUG HUNTER AGENT Demo")
     print("=" * 60)
-    print(f"Repository: {repo_url}")
+    print(f"Repository: {repo_name}")
     print(f"Language:   {language}")
     print(f"Model:      {model}")
     print("=" * 60)
 
-    options = build_options(repo_url, language, model, max_turns)
+    options = build_options(repo_url, repo_name, language, model, max_turns)
     task = build_task_prompt(language)
 
     async with ClaudeSDKClient(options=options) as client:
         await client.connect()
         await client.query(task)
         async for message in client.receive_response():
-            print_message(message)
+            if message is not None:
+                print_message(message)
 
 
 async def interactive_mode(
@@ -209,16 +218,17 @@ async def interactive_mode(
     model: str = "claude-opus-4-6",
 ):
     """Interactive mode for manual exploration."""
+    repo_name = Path(repo_url).name
     print("=" * 60)
-    print("BUG HUNTER AGENT - Interactive Mode (Claude Code SDK)")
+    print("BUG HUNTER AGENT Demo - Interactive Mode")
     print("=" * 60)
-    print(f"Repository: {repo_url}")
+    print(f"Repository: {repo_name}")
     print(f"Language:   {language}")
     print(f"Model:      {model}")
     print("\nType your requests. 'quit' to exit, 'auto' for automated scan.")
     print("=" * 60)
 
-    options = build_options(repo_url, language, model, max_turns=50)
+    options = build_options(repo_url, repo_name, language, model, max_turns=50)
 
     async with ClaudeSDKClient(options=options) as client:
         # First connect without an initial prompt
@@ -238,14 +248,15 @@ async def interactive_mode(
                     await client.query(user_input)
 
                 async for message in client.receive_response():
-                    print_message(message)
+                    if message is not None:
+                        print_message(message)
 
             except (KeyboardInterrupt, EOFError):
                 break
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Bug Hunter Agent (Claude Code SDK)")
+    parser = argparse.ArgumentParser(description="Bug Hunter Agent Demo")
     parser.add_argument("repo_url", help="Repository URL to analyze")
     parser.add_argument(
         "--language", "-l", default="auto",
@@ -263,8 +274,15 @@ def main():
         "--max-turns", "-t", type=int, default=50,
         help="Maximum agent turns (default: 50)",
     )
+    parser.add_argument(
+        "--debug", "-d", action="store_true",
+        help="Enable debug logging (shows tool outputs)",
+    )
 
     args = parser.parse_args()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
 
     if args.interactive:
         asyncio.run(interactive_mode(args.repo_url, args.language, args.model))
