@@ -199,6 +199,10 @@ class SmartCodebase(Codebase):
         original_path = path
         path = path.replace("\\", "/")
 
+        # "/" means repo root — treat as empty string to match all paths
+        if path == "/":
+            return ""
+
         # If it's an absolute path, try to make it relative to the codebase directory
         if Path(path).is_absolute():
             try:
@@ -233,7 +237,7 @@ class SmartCodebase(Codebase):
         Returns:
             List of filtered elements
         """
-        if subdirs_or_files is None:
+        if not subdirs_or_files:
             subdirs_or_files = ["/"]
         if additional_code_elements is None:
             additional_code_elements = []
@@ -354,7 +358,7 @@ class SmartCodebase(Codebase):
             This is intentional. Analyzing only the root symbols may lead to suboptimal LLM performance if the symbol content is too large,
             while analyzing only the leaf symbols might miss certain features that require a broader scope to identify.
         """
-        if subdirs_or_files is None:
+        if not subdirs_or_files:
             subdirs_or_files = ["/"]
         if additional_code_elements is None:
             additional_code_elements = []
@@ -734,7 +738,7 @@ class SmartCodebase(Codebase):
             - Mapped elements
             - LLM results with mapping content
         """
-        if subdirs_or_files is None:
+        if not subdirs_or_files:
             subdirs_or_files = ["/"]
         if additional_code_elements is None:
             additional_code_elements = []
@@ -781,7 +785,7 @@ class SmartCodebase(Codebase):
         Raises:
             ValueError: If searcher is not initialized for the requested type
         """
-        if subdirs_or_files is None:
+        if not subdirs_or_files:
             subdirs_or_files = ["/"]
 
         threshold = (
@@ -847,7 +851,7 @@ class SmartCodebase(Codebase):
         Raises:
             ValueError: If symbol codeline searcher is not initialized
         """
-        if subdirs_or_files is None:
+        if not subdirs_or_files:
             subdirs_or_files = ["/"]
 
         if self.codeline_searcher is None:
@@ -959,7 +963,7 @@ class SmartCodebase(Codebase):
         Raises:
             ValueError: If symbol codeline searcher is not initialized
         """
-        if subdirs_or_files is None:
+        if not subdirs_or_files:
             subdirs_or_files = ["/"]
 
         if self.codeline_searcher is None:
