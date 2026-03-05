@@ -94,7 +94,6 @@ class ParserFactory:
     @classmethod
     def _create_lsp_parser(cls, **kwargs) -> LSPParser:
         """Create an LSP parser instance."""
-        logger.warning("Using LSP parser, which only generates class and function chunks")
         return LSPParser(**kwargs)
 
     @classmethod
