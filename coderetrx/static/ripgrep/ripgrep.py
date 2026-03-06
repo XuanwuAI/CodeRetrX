@@ -356,6 +356,44 @@ async def ripgrep_search(
 def rgx_warp_symbol(symbol: str) -> str:
     return f"\\b{symbol}\\b"
 
+
+def _get_default_source_file_pattern() -> str:
+    """Build default source file pattern from supported extensions."""
+    from coderetrx.static.codebase.languages import EXTENSION_MAP
+
+    return "|".join(f"*.{ext}" for ext in EXTENSION_MAP.keys())
+
+
+def _get_default_exclude_pattern() -> str:
+    """Build default exclude pattern from blocked patterns."""
+    from coderetrx.static.codebase.languages import BLOCKED_PATTERNS
+
+    return "|".join(BLOCKED_PATTERNS)
+
+
+def _get_source_file_pattern_for_language(lang: str) -> str:
+    """Build file pattern for a specific language.
+
+    Args:
+        lang: Language ID (e.g., "java", "python")
+
+    Returns:
+        Glob pattern string (e.g., "*.java" or "*.js|*.jsx")
+        Falls back to default source file pattern if language not found.
+    """
+    from coderetrx.static.codebase.languages import get_extensions_for_language
+
+    extensions = get_extensions_for_language(lang) # type: ignore
+    if not extensions:
+        return _DEFAULT_SOURCE_FILE_PATTERN or _get_default_source_file_pattern()
+    return "|".join(f"*.{ext}" for ext in extensions)
+
+
+# Cache the default patterns to avoid recomputing
+_DEFAULT_SOURCE_FILE_PATTERN: Optional[str] = None
+_DEFAULT_EXCLUDE_PATTERN: Optional[str] = None
+
+
 async def ripgrep_search_symbols(
     search_dir: str | PathLike,
     symbols: List[str],
@@ -373,6 +411,73 @@ async def ripgrep_search_symbols(
         include_file_pattern,
         exclude_file_pattern,
         search_arg,
+    )
+
+
+async def ripgrep_search_symbols_with_heuristic(
+    search_dir: str | PathLike,
+    symbols: List[str],
+    extra_argvs: List[str] = [],
+    case_sensitive: bool = True,
+    include_file_pattern: Optional[str] = None,
+    exclude_file_pattern: Optional[str] = None,
+    search_arg: Optional[str] = None,
+    language: Optional[str] = None,
+) -> List[GrepMatchResult]:
+    """Search for symbols with heuristic file filtering.
+
+    This is a convenience wrapper around ripgrep_search_symbols that applies
+    sensible defaults for file filtering:
+
+    1. By default, only searches source code files (based on EXTENSION_MAP)
+    2. By default, excludes blocked patterns like *_test.go and *.min.js
+    3. If language is specified, only searches files of that language
+
+    Args:
+        search_dir: Directory to search in
+        symbols: List of symbol names to search for
+        extra_argvs: Additional arguments to pass to ripgrep
+        case_sensitive: Whether the search should be case sensitive
+        include_file_pattern: Optional glob pattern to include files.
+            If language is specified, defaults to files of that language.
+            Otherwise defaults to all source code files from EXTENSION_MAP.
+        exclude_file_pattern: Optional glob pattern to exclude files.
+            Defaults to BLOCKED_PATTERNS (*_test.go, *.min.js).
+        search_arg: Optional specific file or directory to search within search_dir
+        language: Optional language to filter files (e.g., "java" → only *.java files).
+            If specified, include_file_pattern defaults to files of that language.
+
+    Returns:
+        List of GrepMatchResult objects containing matches
+    """
+    global _DEFAULT_SOURCE_FILE_PATTERN, _DEFAULT_EXCLUDE_PATTERN
+
+    # Lazy initialize default patterns
+    if _DEFAULT_SOURCE_FILE_PATTERN is None:
+        _DEFAULT_SOURCE_FILE_PATTERN = _get_default_source_file_pattern()
+    if _DEFAULT_EXCLUDE_PATTERN is None:
+        _DEFAULT_EXCLUDE_PATTERN = _get_default_exclude_pattern()
+
+    # Apply default include pattern based on language or all source files
+    if include_file_pattern is None:
+        if language is not None:
+            effective_include = _get_source_file_pattern_for_language(language)
+        else:
+            effective_include = _DEFAULT_SOURCE_FILE_PATTERN
+    else:
+        effective_include = include_file_pattern
+
+    # Apply default exclude pattern (blocked files)
+    effective_exclude = exclude_file_pattern or _DEFAULT_EXCLUDE_PATTERN
+
+    return await ripgrep_search_symbols(
+        search_dir=search_dir,
+        symbols=symbols,
+        extra_argvs=extra_argvs,
+        case_sensitive=case_sensitive,
+        include_file_pattern=effective_include,
+        exclude_file_pattern=effective_exclude,
+        search_arg=search_arg,
     )
 
 
