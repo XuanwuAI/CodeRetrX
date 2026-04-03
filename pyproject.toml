@@ -30,6 +30,7 @@ dependencies = [
     "anyio>=4.9.0",
     "pytest-asyncio>=1.2.0",
     "lspyc",
+    "pyright>=1.1.400",
 ]
 
 [tool.setuptools.packages.find]
@@ -58,6 +59,9 @@ chromadb = ["chromadb>=0.4.0"]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.pyright]
+extraPaths = ["deps/lspyc/src"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
