@@ -162,3 +162,15 @@ def is_dependency(filepath: PathLike | str) -> bool:
 def get_language(filepath: PathLike | str) -> Optional[IDXSupportedLanguage]:
     extension = get_extension(filepath)
     return EXTENSION_MAP.get(extension)
+
+
+def get_extensions_for_language(lang: IDXSupportedLanguage) -> List[str]:
+    """Get file extensions for a given language.
+
+    Args:
+        lang: Language ID (e.g., "java", "python")
+
+    Returns:
+        List of extensions (e.g., ["java"] for Java, ["js", "jsx"] for JavaScript)
+    """
+    return [ext for ext, l in EXTENSION_MAP.items() if l == lang]

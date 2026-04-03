@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import os
 import shutil
 import tempfile
@@ -9,6 +11,11 @@ from pydantic import BaseModel, Field
 from coderetrx.tools.base import BaseTool
 from coderetrx.static.codeql.codeql import CodeQLWrapper, CodeQLDatabase, CodeQLRawResult
 from coderetrx.utils.path import get_data_dir
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_INSTALL_PATH = Path.home() / ".local" / "codeql"
+_install_lock = asyncio.Lock()
 
 
 def find_codeql_cli() -> Optional[str]:
@@ -25,7 +32,7 @@ def find_codeql_cli() -> Optional[str]:
 
     # Check common installation paths
     common_paths = [
-        Path.home() / ".local" / "codeql" / "codeql",
+        _DEFAULT_INSTALL_PATH / "codeql",
         Path("/opt/codeql/codeql"),
         Path("/usr/local/codeql/codeql"),
     ]
@@ -38,6 +45,61 @@ def find_codeql_cli() -> Optional[str]:
         return "codeql"
 
     return None
+
+
+async def auto_install_codeql() -> Optional[str]:
+    """Auto-install CodeQL CLI if not found. Returns path to CLI or None."""
+    async with _install_lock:
+        # Re-check after acquiring lock
+        existing = find_codeql_cli()
+        if existing:
+            return existing
+
+        logger.info("CodeQL CLI not found, auto-installing to %s ...", _DEFAULT_INSTALL_PATH)
+        try:
+            from coderetrx.static.codeql.installer import install_codeql
+            result = await install_codeql(_DEFAULT_INSTALL_PATH)
+            if result and result.exists():
+                logger.info("CodeQL CLI installed at %s", result)
+                return str(result)
+            logger.warning("CodeQL auto-install returned no valid path")
+        except Exception as e:
+            logger.warning("CodeQL auto-install failed: %s", e)
+        return None
+
+
+def _get_query_qlpack_dir(language: str) -> Path:
+    """Find the installed *-queries qlpack directory for the given language.
+
+    Ad-hoc queries are written as temp files inside the installed queries qlpack
+    (e.g. `~/.local/codeql/qlpacks/codeql/go-queries/1.4.5/`). This way the
+    query inherits all standard-library dependencies that the qlpack already
+    declares — no manual dependency management or `codeql pack install` needed.
+    """
+    codeql_path = find_codeql_cli()
+    if codeql_path:
+        codeql_root = Path(codeql_path).resolve().parent
+        qlpacks_dir = codeql_root / "qlpacks" / "codeql"
+        queries_pack = qlpacks_dir / f"{language}-queries"
+
+        if queries_pack.is_dir():
+            # Pick the latest version directory
+            version_dirs = [
+                d for d in queries_pack.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            ]
+            if version_dirs:
+                return max(version_dirs, key=lambda d: d.name)
+
+    # Fallback: language not supported or codeql not installed
+    fallback = Path(tempfile.gettempdir()) / "coderetrx_qlpacks" / language
+    fallback.mkdir(parents=True, exist_ok=True)
+    logger.warning(
+        "No installed queries qlpack found for '%s', using fallback %s. "
+        "Imports may not resolve.",
+        language, fallback,
+    )
+    return fallback
 
 
 class CodeQLQueryArgs(BaseModel):
@@ -88,19 +150,15 @@ class CodeQLQueryTool(BaseTool):
         return self.run_sync(query=query, language=language)
 
     async def _run(self, query: str, language: str) -> list[CodeQLQueryResult]:
-        # Find CodeQL CLI path
+        # Find CodeQL CLI path, auto-install if missing
         codeql_path = find_codeql_cli()
         if not codeql_path:
-            install_hint = (
-                "CodeQL CLI not found. To install:\n\n"
-                "  python -m coderetrx.static.codeql.installer --install-path ~/.local/codeql\n\n"
-                "Then either:\n"
-                "  1. Add to PATH: export PATH=$PATH:~/.local/codeql\n"
-                "  2. Or set environment variable: export CODEQL_CLI_PATH=~/.local/codeql/codeql"
-            )
+            codeql_path = await auto_install_codeql()
+        if not codeql_path:
             return [CodeQLQueryResult(
                 columns=["error"],
-                tuples=[[install_hint]]
+                tuples=[["CodeQL CLI auto-install failed. Manual install:\n"
+                         "  python -m coderetrx.static.codeql.installer --install-path ~/.local/codeql"]]
             )]
 
         try:
@@ -138,7 +196,6 @@ class CodeQLQueryTool(BaseTool):
                 )
 
             # Check if query is a file path or query string
-            # Avoid Path() on long strings or strings with newlines (query content)
             is_file_path = (
                 len(query) < 256
                 and '\n' not in query
@@ -151,14 +208,10 @@ class CodeQLQueryTool(BaseTool):
             if is_file_path:
                 raw_result = wrapper.run_query_raw(database, query_path, query_name="custom_query")
             else:
-                # Query is a string, write to temp file in qlpack directory
-                # so that standard library imports work
-                qlpack_dir = Path(__file__).parent.parent / "static" / "codebase" / "queries" / "codeql" / language
-                if not qlpack_dir.exists():
-                    # Fallback to temp directory if no qlpack for this language
-                    qlpack_dir = Path(tempfile.gettempdir())
+                # Write query into a temporary qlpack so standard library
+                # imports (e.g. `import go`) resolve correctly.
+                qlpack_dir = _get_query_qlpack_dir(language)
 
-                # Create unique temp file in qlpack directory
                 import uuid
                 tmp_filename = f"_tmp_query_{uuid.uuid4().hex[:8]}.ql"
                 tmp_path = qlpack_dir / tmp_filename

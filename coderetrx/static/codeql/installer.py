@@ -136,6 +136,12 @@ async def install_codeql(install_path: Path) -> Optional[Path]:
             if os.name != "nt":
                 os.chmod(final_binary, 0o755)
 
+            # Clean up duplicate qlpacks to avoid "same-priority" resolution conflicts.
+            # The bundle ships library packs (e.g. codeql/go-all) both as top-level
+            # packs AND nested inside query packs (.codeql/libraries/). Having both
+            # at the same search-path level causes CodeQL to fail on `import`.
+            _deduplicate_qlpacks(install_path)
+
             print("Installation complete!")
             print(f"CodeQL has been installed to: {install_path}")
             print(f"CodeQL CLI binary: {final_binary}")
@@ -151,6 +157,33 @@ async def install_codeql(install_path: Path) -> Optional[Path]:
             print(f"An unexpected error occurred: {e}")
 
     return None
+
+
+def _deduplicate_qlpacks(install_path: Path) -> None:
+    """Remove *-examples qlpacks that create unnecessary same-priority conflicts.
+
+    The CodeQL bundle ships `*-examples` packs alongside `*-queries` packs.
+    Both nest their own copy of library packs (e.g. `codeql/go-all`) under
+    `.codeql/libraries/`, creating same-priority conflicts. Since example
+    queries are not needed for security analysis, we remove them entirely.
+
+    Top-level standalone library packs (e.g. `qlpacks/codeql/go-all/`) are
+    intentionally kept — they may still conflict with the `*-queries` nested
+    copies, but that only produces warnings, not errors, for queries run
+    within a proper qlpack context.
+    """
+    qlpacks_dir = install_path / "qlpacks" / "codeql"
+    if not qlpacks_dir.is_dir():
+        return
+
+    removed = []
+    for pack in sorted(qlpacks_dir.iterdir()):
+        if pack.name.endswith("-examples") and pack.is_dir():
+            shutil.rmtree(pack)
+            removed.append(pack.name)
+
+    if removed:
+        print(f"Cleaned up {len(removed)} example qlpacks: {', '.join(removed)}")
 
 
 if __name__ == "__main__":

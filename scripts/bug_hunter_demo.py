@@ -48,9 +48,11 @@ MCP_TOOL_NAMES = [
     "mcp__coderetrx__find_file_by_name",
     "mcp__coderetrx__keyword_search",
     "mcp__coderetrx__view_file",
-    "mcp__coderetrx__get_reference",
     "mcp__coderetrx__codeql_query",
     "mcp__coderetrx__llm_code_filter",
+    "mcp__coderetrx__list_symbol",
+    "mcp__coderetrx__get_definition",
+    "mcp__coderetrx__get_references",
 ]
 
 
@@ -83,10 +85,13 @@ Target repository: {repo_name}
 2. Find source files via mcp__coderetrx__find_file_by_name
 3. Search for dangerous patterns via mcp__coderetrx__keyword_search
 4. Use mcp__coderetrx__llm_code_filter for semantic code search — it finds code by intent (e.g., filter_prompt="functions handling buffer operations", "cryptographic key cleanup logic"), complementing keyword_search which only matches text patterns
-5. Run CodeQL for deep analysis via mcp__coderetrx__codeql_query
-6. View suspicious files via mcp__coderetrx__view_file
-7. Validate findings by tracing call chains (mcp__coderetrx__get_reference, mcp__coderetrx__view_file)
-8. Report findings with file paths, line numbers, and call chain evidence
+5. Use mcp__coderetrx__list_symbol to list all symbols (functions, classes, methods) in a file — gives a structural overview
+6. Use mcp__coderetrx__get_definition to jump to where a symbol is defined (go-to-definition via LSP)
+7. Use mcp__coderetrx__get_references to find all usages of a symbol across the codebase (semantic find-references via LSP)
+8. Run CodeQL for deep analysis via mcp__coderetrx__codeql_query
+9. View suspicious files via mcp__coderetrx__view_file
+10. Validate findings by tracing call chains (mcp__coderetrx__get_references, mcp__coderetrx__get_definition, mcp__coderetrx__view_file)
+11. Report findings with file paths, line numbers, and call chain evidence
 
 ## CodeQL Analysis
 There are two ways to run CodeQL:
@@ -98,7 +103,9 @@ There are two ways to run CodeQL:
 - Combine multiple regex patterns with | to reduce calls
 - Only report vulnerabilities with verified call chains from entry point to sink
 - Avoid false positives
-- Prefer MCP tools (mcp__coderetrx__*) for code exploration and search — they are optimized for the target repository"""
+- Prefer MCP tools (mcp__coderetrx__*) for code exploration and search — they are optimized for the target repository
+- Use LSP tools (list_symbol, get_definition, get_references) for precise semantic navigation — they understand code structure beyond text matching
+"""
 
 
 def build_task_prompt(language: str) -> str:
@@ -149,6 +156,7 @@ def build_options(repo_url: str, repo_name: str, language: str, model: str, max_
                     "run", "python", "-m",
                     "coderetrx.tools.mcp_server", repo_url,
                 ],
+                "cwd": PROJECT_ROOT,
             }
         },
     )

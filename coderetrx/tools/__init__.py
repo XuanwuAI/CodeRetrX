@@ -2,39 +2,44 @@
 This module contains tools exposed by mcp server.
 """
 
+from typing import Type
+
 from .base import BaseTool
 from .find_file_by_name import FindFileByNameTool
-from .get_references import GetReferenceTool
 from .keyword_search import KeywordSearchTool
 from .list_dir import ListDirTool
+from .lsp import GetDefinitionTool, GetReferencesTool, ListSymbolTool
 from .view_file import ViewFileTool
 from .codeql_query import CodeQLQueryTool
 from .llm_filter import LLMCodeFilterTool
 from .llm_mapping import LLMCodeMappingTool
-from typing import Type
 from .settings import settings
 
 # Export the tools as the default
 __all__ = [
     "FindFileByNameTool",
-    "GetReferenceTool",
     "KeywordSearchTool",
     "ListDirTool",
     "ViewFileTool",
-    "CodeQLQueryTool"
+    "CodeQLQueryTool",
     "LLMCodeFilterTool",
     "LLMCodeMappingTool",
+    "ListSymbolTool",
+    "GetDefinitionTool",
+    "GetReferencesTool",
 ]
 
 _all_tool_classes = [
     FindFileByNameTool,
-    GetReferenceTool,
     KeywordSearchTool,
     ListDirTool,
     ViewFileTool,
     CodeQLQueryTool,
     LLMCodeFilterTool,
     LLMCodeMappingTool,
+    ListSymbolTool,
+    GetDefinitionTool,
+    GetReferencesTool,
 ]
 
 tool_classes = [

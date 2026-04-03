@@ -29,6 +29,8 @@ dependencies = [
     "starlette>=0.47.3",
     "anyio>=4.9.0",
     "pytest-asyncio>=1.2.0",
+    "lspyc",
+    "pyright>=1.1.400",
 ]
 
 [tool.setuptools.packages.find]
@@ -58,6 +60,9 @@ chromadb = ["chromadb>=0.4.0"]
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
 
+[tool.pyright]
+extraPaths = ["deps/lspyc/src"]
+
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
@@ -67,3 +72,11 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 "coderetrx" = ["**/*.scm", "**/*.py"]
+
+[tool.uv.workspace]
+members = [
+    "deps/lspyc",
+]
+
+[tool.uv.sources]
+lspyc = { workspace = true }

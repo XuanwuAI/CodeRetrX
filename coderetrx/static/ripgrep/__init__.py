@@ -1,9 +1,9 @@
 from .ripgrep import (
+    GrepMatchResult,
     ripgrep_glob,
+    ripgrep_raw,
     ripgrep_search,
     ripgrep_search_symbols,
-    ripgrep_raw,
-    GrepMatchResult,
 )
 
 __all__ = [
