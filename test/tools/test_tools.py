@@ -4,6 +4,7 @@ from coderetrx.tools.get_references import GetReferenceTool
 from coderetrx.tools.view_file import ViewFileTool
 from coderetrx.tools.find_file_by_name import FindFileByNameTool
 from coderetrx.tools.keyword_search import KeywordSearchTool
+from coderetrx.tools.keyword_search import KeywordSearchResult
 from coderetrx.tools.list_dir import ListDirTool
 from coderetrx.tools.codeql_query import CodeQLQueryTool
 from coderetrx.tools.llm_filter import LLMCodeFilterTool
@@ -48,6 +49,69 @@ class TestViewFileTool:
         # Verify first line starts with 0 (0-indexed)
         assert result.startswith("0 | ") or result.strip().split("\n")[0].strip().startswith("0 | "), "First line should start with 0"
 
+    def test_half_open_range_contract_uses_visible_lines(self, tmp_path):
+        """view_file should use 0-based half-open ranges without a phantom EOF line."""
+        sample = tmp_path / "sample.txt"
+        sample.write_text("alpha\nbeta\n", encoding="utf-8")
+
+        tool = object.__new__(ViewFileTool)
+        tool.repo_path = tmp_path
+
+        result = asyncio.run(
+            tool._run(
+                file_path="sample.txt",
+                start_line=0,
+                end_line=2,
+                show_line_numbers=True,
+            )
+        )
+
+        assert "0 | alpha" in result
+        assert "1 | beta" in result
+        assert "2 |" not in result
+        assert "total 2 lines" in result
+        assert "[start_line, end_line)" in result
+
+    def test_invalid_range_reports_exclusive_upper_bound(self, tmp_path):
+        """Invalid view_file ranges should report the exclusive upper bound clearly."""
+        sample = tmp_path / "sample.txt"
+        sample.write_text("alpha\nbeta\n", encoding="utf-8")
+
+        tool = object.__new__(ViewFileTool)
+        tool.repo_path = tmp_path
+
+        result = asyncio.run(
+            tool._run(
+                file_path="sample.txt",
+                start_line=0,
+                end_line=3,
+                show_line_numbers=True,
+            )
+        )
+
+        assert "0 <= start_line <= end_line <= 2" in result
+        assert "end_line is exclusive" in result
+
+    def test_1000_line_range_is_allowed(self, tmp_path):
+        """view_file should allow a range with exactly 1000 lines."""
+        sample = tmp_path / "sample.txt"
+        sample.write_text("\n".join(str(i) for i in range(1000)), encoding="utf-8")
+
+        tool = object.__new__(ViewFileTool)
+        tool.repo_path = tmp_path
+
+        result = asyncio.run(
+            tool._run(
+                file_path="sample.txt",
+                start_line=0,
+                end_line=1000,
+                show_line_numbers=False,
+            )
+        )
+
+        assert "File is too large" not in result
+        assert "999" in result
+
 
 class TestFindFileByNameTool:
     def test(self):
@@ -74,6 +138,20 @@ class TestKeywordSearchTool:
         )
         logger.info(f"KeywordSearchTool result: {result}")
         assert isinstance(result, list), "Result should be a list of matches"
+
+    def test_repr_shows_zero_based_line_zero(self):
+        """KeywordSearchResult repr should keep line 0 visible for agent consumers."""
+        result = KeywordSearchResult.repr(
+            [
+                KeywordSearchResult(
+                    path="main.go",
+                    start_line=0,
+                    end_line=0,
+                    content="package main",
+                )
+            ]
+        )
+        assert "Line 0 (0-based, inclusive)" in result
 
 
 class TestListDirTool:

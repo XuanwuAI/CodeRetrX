@@ -85,7 +85,7 @@ Target repository: {repo_name}
 2. Find source files via mcp__coderetrx__find_file_by_name
 3. Search for dangerous patterns via mcp__coderetrx__keyword_search
 4. Use mcp__coderetrx__llm_code_filter for semantic code search — it finds code by intent (e.g., filter_prompt="functions handling buffer operations", "cryptographic key cleanup logic"), complementing keyword_search which only matches text patterns
-5. Use mcp__coderetrx__list_symbol to list all symbols (functions, classes, methods) in a file — gives a structural overview
+5. Use mcp__coderetrx__list_symbol to list all symbols (functions, classes, methods) in a file — gives a structural overview with precise line:column positions
 6. Use mcp__coderetrx__get_definition to jump to where a symbol is defined (go-to-definition via LSP)
 7. Use mcp__coderetrx__get_references to find all usages of a symbol across the codebase (semantic find-references via LSP)
 8. Run CodeQL for deep analysis via mcp__coderetrx__codeql_query
@@ -96,10 +96,12 @@ Target repository: {repo_name}
 ## CodeQL Analysis
 There are two ways to run CodeQL:
 - **Full scan**: Use the Skill tool to invoke the "codeql" skill. This runs the complete pipeline (build database, create data extensions, run standard security rulesets). Best for comprehensive scanning.
-- **Custom query**: Use mcp__coderetrx__codeql_query to execute a specific QL query you write. If unsure about syntax, read the reference files under .claude/skills/codeql/references/ first (especially diagnostic-query-templates.md and language-details.md).
+- **Custom query**: Use mcp__coderetrx__codeql_query to execute a specific QL query you write. Before writing custom queries, read the official CodeQL qlpacks at ~/.local/codeql/qlpacks/codeql/ to learn the correct API and syntax. You can also pass a .ql file path directly to mcp__coderetrx__codeql_query.
 
 ## Rules
 - All file paths are relative to repo root
+- mcp__coderetrx__view_file uses 0-based half-open ranges: [start_line, end_line). start_line is inclusive and end_line is exclusive.
+- Tools that print `Lines a-b` generally report inclusive ranges. When passing those ranges to mcp__coderetrx__view_file, convert them to [a, b+1).
 - Combine multiple regex patterns with | to reduce calls
 - Only report vulnerabilities with verified call chains from entry point to sink
 - Avoid false positives

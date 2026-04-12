@@ -43,7 +43,7 @@ CodeRetrX ships with a small set of repo-scoped MCP tools defined in `coderetrx/
 | `find_file_by_name` | Find files or folders under a path (ripgrep glob behind the scenes) | `dir_path`, `pattern` |
 | `keyword_search` | High-speed ripgrep search with regex support, file filters, and optional content inlining | `dir_path`, `query`, `query_with_regexp`, `glob_pattern_includes`, `glob_pattern_excludes`, `case_insensitive`, `include_content` |
 | `get_reference` | Locate direct references to a symbol (case-sensitive word boundary search) | `symbol_name` |
-| `view_file` | Read a file or slice by line range (0-indexed, with safety limits on range length) | `file_path`, `start_line`, `end_line` |
+| `view_file` | Read a file or slice by line range using 0-based half-open intervals `[start_line, end_line)` with a 1000-line safety limit | `file_path`, `start_line`, `end_line` |
 
 Example `call_tool` payloads:
 
@@ -52,6 +52,8 @@ Example `call_tool` payloads:
 {"name":"keyword_search","arguments":{"dir_path":"/src","query":"DatabaseClient","query_with_regexp":false,"glob_pattern_includes":"*.py","glob_pattern_excludes":"","case_insensitive":true,"include_content":true}}
 {"name":"view_file","arguments":{"file_path":"/src/app/main.py","start_line":0,"end_line":120}}
 ```
+
+`view_file` uses 0-based half-open ranges: `start_line` is inclusive, `end_line` is exclusive, and `end_line` may equal the file line count. Other tools that print `Lines a-b` generally mean inclusive output ranges, so convert them before calling `view_file`.
 
 #### MCP
 

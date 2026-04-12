@@ -16,14 +16,16 @@ class ViewFileArgs(BaseModel):
     )
     show_line_numbers: bool = Field(
         True,
-        description="If true, prefix each line with its line number (0-indexed).",
+        description="If true, prefix each returned line with its 0-based line number.",
     )
     start_line: Optional[int] = Field(
-        None, description="Starting line number. Optional, default to be 0.", ge=0
+        None,
+        description="0-based inclusive starting line number. Optional, defaults to 0.",
+        ge=0,
     )
     end_line: Optional[int] = Field(
         None,
-        description="Ending line number. Optional, default to be the last line.",
+        description="0-based exclusive ending line number. Optional, defaults to the file line count. May equal the file line count.",
         ge=0,
     )
 
@@ -32,7 +34,7 @@ class ViewFileArgs(BaseModel):
 class ViewFileTool(BaseTool):
     name = "view_file"
     description = (
-        "View the contents of a file. The lines of the file are 0-indexed, and the output of this tool call will be the file contents from StartLine to EndLine. The line range should be less than or equal 1000.\n\n"
+        "View the contents of a file. Line numbers are 0-based. When a range is provided, this tool uses the half-open interval [start_line, end_line): start_line is inclusive, end_line is exclusive, and end_line may equal the file line count. The requested range length must be less than or equal to 1000 lines.\n\n"
         "When using this tool to gather information, it's your responsibility to ensure you have the COMPLETE context. Specifically, each time you call this command you should:\n"
         "1) Assess if the file contents you viewed are sufficient to proceed with your task.\n"
         "2) Take note of where there are lines not shown. These are represented by <... XX more lines from [code item] not shown ...> in the tool response.\n"
@@ -78,7 +80,9 @@ class ViewFileTool(BaseTool):
         except UnicodeDecodeError:
             return "File is not a text file or uses unsupported encoding.\n"
 
-        lines = content.split("\n")
+        # splitlines() keeps the visible file lines without inventing a trailing
+        # empty EOF line when the file ends with '\n'.
+        lines = content.splitlines()
         total_lines = len(lines)
 
         # Handle line range
@@ -88,11 +92,18 @@ class ViewFileTool(BaseTool):
 
             # Validate line numbers
             if start < 0 or end > total_lines or start > end:
-                return f"Invalid line range (0-{total_lines}).\n"
+                return (
+                    "Invalid line range. Expected "
+                    f"0 <= start_line <= end_line <= {total_lines}, "
+                    "where end_line is exclusive.\n"
+                )
 
             threshold_line = 1000
-            if end - start >= threshold_line:
-                return f"File is too large ({total_lines} lines), please specify a line range less than or equal {threshold_line}, or search keyword in the file.\n"
+            if end - start > threshold_line:
+                return (
+                    f"File is too large ({total_lines} lines). Please specify a line "
+                    f"range with at most {threshold_line} lines, or search by keyword.\n"
+                )
 
             selected_lines = lines[start:end]
             actual_start = start
@@ -114,6 +125,10 @@ class ViewFileTool(BaseTool):
 
         # Add line count info unless we're showing the whole file
         if start_line is not None or end_line is not None:
-            result += f"\n\n(This file has total {total_lines} lines.)"
+            result += (
+                f"\n\n(This file has total {total_lines} lines. "
+                "Range contract: 0-based, [start_line, end_line), "
+                f"valid range 0 <= start_line <= end_line <= {total_lines}.)"
+            )
 
         return result

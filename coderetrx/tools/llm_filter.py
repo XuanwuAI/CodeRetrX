@@ -29,8 +29,8 @@ class LLMCodeFilterArgs(BaseModel):
 
 class LLMCodeFilterResult(BaseModel):
     type: str = Field(description="Type of code element: 'primary', 'query_result', or 'other'")
-    start_line: int = Field(description="Start line of the code element")
-    end_line: int = Field(description="End line of the code element")
+    start_line: int = Field(description="0-based inclusive start line of the code element")
+    end_line: int = Field(description="0-based inclusive end line of the code element")
     start_column: int = Field(description="Start column of the code element")
     end_column: int = Field(description="End column of the code element")
     src: str = Field(description="Source file path")
@@ -60,7 +60,16 @@ class LLMCodeFilterResult(BaseModel):
 
             # Iterate over each match in the file
             for match_index, match in enumerate(matches, 1):
-                output += f"## **{match_index}. Lines {match.start_line}-{match.end_line}** ({match.type})\n"
+                if match.start_line == match.end_line:
+                    output += (
+                        f"## **{match_index}. Line {match.start_line} "
+                        f"(0-based, inclusive; {match.type})**\n"
+                    )
+                else:
+                    output += (
+                        f"## **{match_index}. Lines {match.start_line}-{match.end_line} "
+                        f"(0-based, inclusive; {match.type})**\n"
+                    )
                 output += f"**Reason:** {match.reason}\n"
                 if match.content:
                     output += f"```\n{match.content}\n```\n"

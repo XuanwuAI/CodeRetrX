@@ -35,8 +35,8 @@ class KeywordSearchArgs(BaseModel):
 
 class KeywordSearchResult(BaseModel):
     path: str = Field(description="The path of the file containing the match.")
-    start_line: int = Field(description="The start line of the match.")
-    end_line: int = Field(description="The end line of the match.")
+    start_line: int = Field(description="0-based inclusive start line of the match.")
+    end_line: int = Field(description="0-based inclusive end line of the match.")
     content: str = Field(description="The content of the match.")
 
     @classmethod
@@ -65,10 +65,18 @@ class KeywordSearchResult(BaseModel):
             each_result += f"# **{file_count}. {file_path}**\n"
             # iterate over each match in the file
             for match_index, match in enumerate(matches, 1):
-                if match.start_line > 0:
-                    each_result += f"## **{match_index}. Lines {match.start_line}-{match.end_line}**\n"
-                    if match.content:
-                        each_result += f"{match.content}\n"
+                if match.start_line == match.end_line:
+                    each_result += (
+                        f"## **{match_index}. Line {match.start_line} "
+                        "(0-based, inclusive)**\n"
+                    )
+                else:
+                    each_result += (
+                        f"## **{match_index}. Lines {match.start_line}-{match.end_line} "
+                        "(0-based, inclusive)**\n"
+                    )
+                if match.content:
+                    each_result += f"{match.content}\n"
 
             cur_tokens += count_tokens_openai(each_result)
             if cur_tokens > threshold_tokens:
