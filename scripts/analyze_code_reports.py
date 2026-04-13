@@ -176,9 +176,9 @@ def print_summary(results: List[Tuple[str, int, int, int, int, Optional[int], Op
     print("="*170)
     
     headers = ["Dataset", "Other", "Precise", "Contained", "Coverage %", "In Tokens (O)", "In Tokens (P)", "Out Tokens (O)", "Out Tokens (P)", "Cost (O)", "Cost (P)", "Cost Ratio"]
-    print(f"{headers[0]:<32} {headers[1]:<7} {headers[2]:<8} {headers[3]:<10} {headers[4]:>11} {headers[5]:>13} {headers[6]:>13} {headers[7]:>14} {headers[8]:>14} {headers[9]:>10} {headers[10]:>10} {headers[11]:>10}")
-    print("-" * 170)
-    
+    print(f"{headers[0]:<55} {headers[1]:<7} {headers[2]:<8} {headers[3]:<10} {headers[4]:>11} {headers[5]:>13} {headers[6]:>13} {headers[7]:>14} {headers[8]:>14} {headers[9]:>10} {headers[10]:>10} {headers[11]:>10}")
+    print("-" * 193)
+
     for desc, method_count, precise_count, contained_count, not_contained_count, other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost in results:
         coverage_pct = (contained_count / precise_count * 100) if precise_count > 0 else 0
         
@@ -194,72 +194,101 @@ def print_summary(results: List[Tuple[str, int, int, int, int, Optional[int], Op
         
         cost_ratio = precise_cost / other_cost if other_cost and other_cost > 0 and precise_cost is not None else 0
         cost_ratio_str = f"{cost_ratio:.2f}x" if cost_ratio > 0 else "N/A"
-        
-        print(f"{desc:<32} {method_count:<7} {precise_count:<8} {contained_count:<10} {coverage_pct:>9.1f}% {other_input_str:>13} {precise_input_str:>13} {other_output_str:>14} {precise_output_str:>14} {other_cost_str:>10} {precise_cost_str:>10} {cost_ratio_str:>10}")
 
+        print(f"{desc:<55} {method_count:<7} {precise_count:<8} {contained_count:<10} {coverage_pct:>9.1f}% {other_input_str:>13} {precise_input_str:>13} {other_output_str:>14} {precise_output_str:>14} {other_cost_str:>10} {precise_cost_str:>10} {cost_ratio_str:>10}")
+
+
+
+def extract_task_type(filename: str) -> str:
+    """Extract task type (vuln, refactor, PQAlgo, etc.) from filename."""
+    task_types = ["vuln", "refactor", "PQAlgo", "custom"]
+    for t in task_types:
+        if f"_{t}_" in filename:
+            return t
+    return "unknown"
+
+
+def extract_strategy_and_variant(filename: str) -> Tuple[str, str]:
+    """Extract strategy mode and variant (exp vs non-exp) from filename."""
+    strategies = [
+        # "file_name", "symbol_name_vector_30",
+        "symbol_name_vector_20",
+        #           "symbol_name_vector_10", "symbol_name",
+        "line_per_symbol"
+        # "line_per_file", "dependency", "auto"
+    ]
+    mode = "unknown"
+    for m in strategies:
+        if f"_{m}_" in filename:
+            mode = m
+            break
+
+    variant = "exp" if filename.endswith("_exp.json") else "pri"
+    return mode, variant
 
 
 def main():
-    
+
     code_reports_folder = Path("code_reports")
     results = []
-    
+
     # Find all repo directories
-    for repo_dir in code_reports_folder.iterdir():
+    for repo_dir in sorted(code_reports_folder.iterdir()):
         if not repo_dir.is_dir():
             continue
-            
+
         print(f"\nAnalyzing repository: {repo_dir.name}")
-        
-        # Find precise file
-        precise_files = list(repo_dir.glob("*_precise_*_pri.json")) + list(repo_dir.glob("*_precise_*_sec.json"))
-        if not precise_files:
-            precise_files = list(repo_dir.glob("*_precise_*.json"))
-        if not precise_files:
-            print(f"No precise file found for {repo_dir.name}")
+
+        # Build a map of precise files by task type
+        precise_map: Dict[str, Path] = {}
+        for f in repo_dir.glob("*_precise_*.json"):
+            task = extract_task_type(f.name)
+            precise_map[task] = f
+
+        if not precise_map:
+            print(f"  No precise files found, skipping")
             continue
-        precise_file = precise_files[0]
-        
-        # Find all non-precise files
+
+        # Find all non-precise files and match by task type
         other_files = [f for f in repo_dir.glob("*.json") if "_precise_" not in f.name]
-        
-        for other_file in other_files:
+
+        for other_file in sorted(other_files):
             try:
-                # Extract mode from filename
-                mode = "unknown"
-                for m in ["file_name", "symbol_name", "line_per_symbol", "line_per_file", "dependency", "auto"]:
-                    if f"_{m}_" in other_file.name:
-                        mode = m
-                        break
-                
-                # Extract secondary recall information
-                recall_mode = ""
-                if "_pri.json" in other_file.name:
-                    recall_mode = "_pri"
-                elif "_sec.json" in other_file.name:
-                    recall_mode = "_sec"
-                
-                description = f"{repo_dir.name}_{mode}{recall_mode}"
-                
+                task = extract_task_type(other_file.name)
+                mode, variant = extract_strategy_and_variant(other_file.name)
+
+                # Skip unknown strategies and non-exp variants
+                if mode == "unknown" or variant != "exp":
+                    continue
+
+                # Find matching precise file by task type
+                precise_file = precise_map.get(task)
+                if precise_file is None:
+                    print(f"  No precise file for task '{task}', skipping {other_file.name}")
+                    continue
+
+                display_mode = {
+                    "symbol_name_vector_20": "embedding",
+                    "line_per_symbol": "coderetrx",
+                }.get(mode, mode)
+                description = f"{repo_dir.name}/{display_mode}/{task}/{variant}"
+
                 # Load data
                 other_data = load_json_data(str(other_file))
                 precise_data = load_json_data(str(precise_file))
-                
+
                 # Analyze
                 other_count, precise_count, contained_count, not_contained_count, other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost = analyze_datasets(
                     other_data, precise_data
                 )
-                
+
                 # Store results
                 results.append((description, other_count, precise_count, contained_count, not_contained_count, other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost))
-                
-                # Print detailed results
-                print_analysis(description, other_count, precise_count, contained_count, not_contained_count, other_input_tokens, other_output_tokens, precise_input_tokens, precise_output_tokens, other_cost, precise_cost)
-                
+
             except Exception as e:
                 print(f"Error analyzing {other_file.name}: {e}")
                 continue
-    
+
     # Print summary table
     if results:
         print_summary(results)
