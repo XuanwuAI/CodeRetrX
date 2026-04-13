@@ -30,7 +30,7 @@ async def main():
     repo_url = "https://github.com/ollama/ollama"
     for mode in modes:
         print(f"  Running {mode} mode...")
-        cmd = ["uv", "run", "scripts/code_retriever.py", "-l", "9", "-f", "--mode", mode, "--repo", repo_url]
+        cmd = ["uv", "run", "scripts/code_retriever.py", "-l", "9", "-f", "-m", mode, "--repo", repo_url]
         exit_code = await run_command(cmd)
         if exit_code != 0:
             print(f"  Failed with exit code {exit_code}")
@@ -40,7 +40,7 @@ async def main():
     #
     #     for mode in modes:
     #         print(f"  Running {mode} mode...")
-    #         cmd = ["uv", "run", "scripts/code_retriever.py", "-l", "9", "-f", "--mode", mode, "--repo", repo_url, "-t"]
+    #         cmd = ["uv", "run", "scripts/code_retriever.py", "-l", "9", "-f", "-m", mode, "--repo", repo_url, "-t"]
     #         exit_code = await run_command(cmd)
     #         if exit_code != 0:
     #             print(f"  Failed with exit code {exit_code}")
