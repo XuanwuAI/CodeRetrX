@@ -13,9 +13,12 @@ import argparse
 import asyncio
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-from claude_code_sdk import ClaudeSDKClient, ClaudeCodeOptions
-from claude_code_sdk.types import AssistantMessage, ResultMessage, UserMessage, TextBlock, ToolUseBlock, ToolResultBlock
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from claude_code_sdk import ClaudeCodeOptions
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -138,8 +141,15 @@ Focus on real vulnerabilities, not style issues. You MUST be sure that each vuln
 Focus on real vulnerabilities, not style issues. You MUST be sure that each vulnerability reported is exploitable."""
 
 
-def build_options(repo_url: str, repo_name: str, language: str, model: str, max_turns: int) -> ClaudeCodeOptions:
+def build_options(
+    repo_url: str,
+    repo_name: str,
+    language: str,
+    model: str,
+    max_turns: int,
+) -> "ClaudeCodeOptions":
     """Build ClaudeCodeOptions for the agent."""
+    _, ClaudeCodeOptions = _require_claude_sdk()
     return ClaudeCodeOptions(
         system_prompt=build_system_prompt(repo_url, repo_name, language),
         max_turns=max_turns,
@@ -168,32 +178,108 @@ _tool_count = 0
 _turn_count = 0
 
 
-def print_message(message):
-    """Print a streamed message from Claude Code SDK."""
+def _require_claude_sdk():
+    """Import the Claude Code SDK only when the demo is executed."""
+    try:
+        from claude_code_sdk import ClaudeCodeOptions, ClaudeSDKClient
+    except ImportError as exc:
+        raise RuntimeError(
+            "claude-code-sdk is required for this demo but is not importable in "
+            "the current environment. Rebuild the environment with `uv sync`, "
+            "then rerun `uv run scripts/bug_hunter_demo.py <repo_url>`."
+        ) from exc
+
+    return ClaudeSDKClient, ClaudeCodeOptions
+
+
+def _iter_content_blocks(message: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract structured content blocks from a raw Claude CLI message."""
+    content = message.get("message", {}).get("content", [])
+    return content if isinstance(content, list) else []
+
+
+def _format_rate_limit_event(message: dict[str, Any]) -> str:
+    """Format rate limit updates emitted by newer Claude CLI versions."""
+    info = message.get("rate_limit_info", {})
+    if not isinstance(info, dict):
+        return "status=unknown"
+
+    status = info.get("status", "unknown")
+    parts = [f"status={status}"]
+
+    utilization = info.get("utilization")
+    if isinstance(utilization, (int, float)):
+        parts.append(f"utilization={utilization:.0%}")
+
+    rate_limit_type = info.get("rate_limit_type")
+    if rate_limit_type:
+        parts.append(f"type={rate_limit_type}")
+
+    resets_at = info.get("resetsAt") or info.get("resets_at")
+    if resets_at is not None:
+        parts.append(f"resets_at={resets_at}")
+
+    overage_status = info.get("overage_status")
+    if overage_status:
+        parts.append(f"overage_status={overage_status}")
+
+    return ", ".join(parts)
+
+
+def print_message(message: dict[str, Any]):
+    """Print a streamed raw message from Claude Code CLI."""
     global _tool_count, _turn_count
 
-    if isinstance(message, AssistantMessage):
-        _turn_count += 1
-        for block in message.content:
-            if isinstance(block, TextBlock):
-                print(f"\n{block.text}")
-            elif isinstance(block, ToolUseBlock):
-                _tool_count += 1
-                print(f"  [{_tool_count}] {block.name}")
+    message_type = message.get("type")
 
-    elif isinstance(message, UserMessage):
-        for block in message.content:
-            if isinstance(block, ToolResultBlock):
-                content = block.content
+    if message_type == "assistant":
+        _turn_count += 1
+        for block in _iter_content_blocks(message):
+            block_type = block.get("type")
+            if block_type == "text":
+                print(f"\n{block.get('text', '')}")
+            elif block_type == "tool_use":
+                _tool_count += 1
+                print(f"  [{_tool_count}] {block.get('name', '<unknown tool>')}")
+
+    elif message_type == "user":
+        for block in _iter_content_blocks(message):
+            if block.get("type") == "tool_result":
+                content = block.get("content")
                 if content:
                     logger.debug("    -> %s", str(content)[:500])
 
-    elif isinstance(message, ResultMessage):
+    elif message_type == "rate_limit_event":
+        logger.debug("Claude rate limit event: %s", _format_rate_limit_event(message))
+
+    elif message_type == "result":
         print(f"\n{'=' * 60}")
         print(f"Done. {_turn_count} turns, {_tool_count} tool calls.")
-        if getattr(message, "total_cost_usd", None):
-            print(f"Cost: ${message.total_cost_usd:.4f}")
+        total_cost_usd = message.get("total_cost_usd")
+        if total_cost_usd is not None:
+            print(f"Cost: ${total_cost_usd:.4f}")
         print("=" * 60)
+
+    else:
+        logger.debug("Ignoring unsupported Claude CLI message: %s", message_type)
+
+
+async def receive_response_tolerant(client: Any) -> "AsyncIterator[dict[str, Any]]":
+    """
+    Yield raw Claude CLI messages until a result frame is received.
+
+    The deprecated Python Claude Code SDK parser raises on newer frame types
+    such as `rate_limit_event`, so this demo reads the raw stream and handles
+    only the message types it needs.
+    """
+    query = getattr(client, "_query", None)
+    if query is None:
+        raise RuntimeError("Claude SDK client is not connected.")
+
+    async for message in query.receive_messages():
+        yield message
+        if message.get("type") == "result":
+            return
 
 
 async def run_bug_hunt(
@@ -203,6 +289,7 @@ async def run_bug_hunt(
     max_turns: int = 50,
 ):
     """Run automated bug hunt using Claude Code SDK."""
+    ClaudeSDKClient, _ = _require_claude_sdk()
     repo_name = Path(repo_url).name
     print("=" * 60)
     print("BUG HUNTER AGENT Demo")
@@ -218,7 +305,7 @@ async def run_bug_hunt(
     async with ClaudeSDKClient(options=options) as client:
         await client.connect()
         await client.query(task)
-        async for message in client.receive_response():
+        async for message in receive_response_tolerant(client):
             if message is not None:
                 print_message(message)
 
@@ -229,6 +316,7 @@ async def interactive_mode(
     model: str = "claude-opus-4-6",
 ):
     """Interactive mode for manual exploration."""
+    ClaudeSDKClient, _ = _require_claude_sdk()
     repo_name = Path(repo_url).name
     print("=" * 60)
     print("BUG HUNTER AGENT Demo - Interactive Mode")
@@ -258,7 +346,7 @@ async def interactive_mode(
                 else:
                     await client.query(user_input)
 
-                async for message in client.receive_response():
+                async for message in receive_response_tolerant(client):
                     if message is not None:
                         print_message(message)
 

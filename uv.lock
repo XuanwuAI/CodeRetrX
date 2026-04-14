@@ -407,8 +407,10 @@ version = "0.2.0b0"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
+    { name = "anthropic" },
     { name = "anyio" },
     { name = "attrs" },
+    { name = "claude-code-sdk" },
     { name = "filetype" },
     { name = "git-python" },
     { name = "httpx" },
@@ -449,9 +451,7 @@ stats = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "anthropic" },
     { name = "black" },
-    { name = "claude-code-sdk" },
     { name = "httpx", extra = ["socks"] },
     { name = "ipython" },
     { name = "pytest" },
@@ -461,9 +461,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiofiles", specifier = ">=24.1.0" },
+    { name = "anthropic", specifier = ">=0.40.0" },
     { name = "anyio", specifier = ">=4.9.0" },
     { name = "attrs", specifier = ">=25.3.0" },
     { name = "chromadb", marker = "extra == 'chromadb'", specifier = ">=0.4.0" },
+    { name = "claude-code-sdk", specifier = ">=0.0.25" },
     { name = "filetype", specifier = ">=1.2.0" },
     { name = "git-python", specifier = ">=1.0.3" },
     { name = "httpx", specifier = ">=0.27.2" },
@@ -494,9 +496,7 @@ provides-extras = ["stats", "cli", "redis", "chromadb"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "anthropic", specifier = ">=0.40.0" },
     { name = "black" },
-    { name = "claude-code-sdk", specifier = ">=0.0.25" },
     { name = "httpx", extras = ["socks"], specifier = ">=0.28.1" },
     { name = "ipython", specifier = ">=9.2.0" },
     { name = "pytest", specifier = ">=8.3.5" },
